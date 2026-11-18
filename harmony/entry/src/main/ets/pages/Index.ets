@@ -286,7 +286,7 @@ struct Index {
       response.setResponseCode(200);
       response.setReasonMessage('OK');
     } catch {
-      response.setResponseData('无法加载应用资源。请重新构建鸿蒙版聊天界面。');
+      response.setResponseData('页面资源加载失败，请重新构建前端界面。');
       response.setResponseMimeType('text/plain');
       response.setResponseCode(404);
       response.setReasonMessage('Not Found');
