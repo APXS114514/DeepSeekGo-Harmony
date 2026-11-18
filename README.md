@@ -18,7 +18,7 @@ Deepseek GO 是一款基于 DeepSeek 官方 Chat Demo 开发的第三方 Harmony
 
 应用直接连接 `https://api.deepseek.com`，不经过任何第三方服务器。你需要自备 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 的 API Key。
 
-应用图标和欢迎页上的角色是作者 APXS 的原创角色。
+应用图标和欢迎页上的角色是本人 APXS 的原创角色。
 
 ## 截图
 
