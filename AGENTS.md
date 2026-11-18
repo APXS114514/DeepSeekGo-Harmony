@@ -8,7 +8,7 @@
 
 ## 开发与验证
 
-- 开始前读 `HANDOFF.md`，检查 `git status --short`。保留已有改动，按可独立验证的任务组织提交。
+- 开始前读 `HANDOFF.md`，检查 `git status --short`。如果仓库根目录有 `AGENTS.local.md`，同时读取其中适用于当前工作区的本机说明。保留已有改动，按可独立验证的任务组织提交。
 - 修复 Bug 时尽量先用原入口复现，再用同一场景验证。修改前端后，在 `chat-demo-main/` 运行 `pnpm type`、`pnpm lint` 和 `pnpm build:harmony`。改 ArkTS 或鸿蒙配置时，用相应 SDK 检查改动及最低版本兼容性。
 - 修改键盘、侧栏、动画、消息流、会话存储或 API Key 保存时，从实际页面入口做相关回归。浏览器测试用模拟 API 和设备消息通道，检查成功路径及这次涉及的失败或重试路径。涉及真机效果时，有设备就验证实际安装的版本；交接时记录未实测的部分。
 - 提交前运行 `git diff --check` 并自查暂存改动，确认文件属于本次任务，保留用户已有工作，且源码和交付内容中没有密钥或签名材料。汇报提交、通过的检查和待验证项。
@@ -19,9 +19,8 @@
 - 新增功能时将 `y` 加一并把 `z` 归零，例如 `1.0.5 → 1.1.0`。修复 Bug 时将 `z` 加一，例如 `1.0.5 → 1.0.6`。同一批交付同时有功能和修复时按功能升版一次。
 - 每次完成一次 Bug 修复或功能添加时，更新 `harmony/AppScope/app.json5` 的 `versionName`，将 `versionCode` 加一，验证改动并更新 `HANDOFF.md` 和本版 `CHANGELOG.md`，再提交一次本地 Git。仅改文档或开发流程时沿用当前应用版本。
 - 本地提交与远端推送分别处理。远端推送或公开发布须有用户明确授权。获准推送时先确认目标分支和远端状态，只推送已检查的完整改动。用远端实际结果确认推送或发布是否成功。
-- 远端仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，即 `origin`（`git@github.com:APXS114514/DeepSeekGo-Harmony.git`），默认分支为 `main`。
-- 本地提交和远端推送都只使用用户本人的 Git 身份 `APXS`，提交以用户本人的名义完成。提交说明末尾不要添加 `Co-Authored-By`、`Generated with` 等标注 AI 或其他身份的署名行。该身份就是本机全局 Git 配置中的 `user.name` 和 `user.email`，本仓库的 `.git/config` 也已固定为同一身份。不要改用其他账号、机器人或代理身份，也不要用 `-c user.*`、`--author` 或环境变量覆盖。推送前运行 `git config user.name`、`git config user.email` 和 `git log origin/main..HEAD --format='%an <%ae> | %cn <%ce>'`，确认待推送提交的作者和提交者都是这个身份，并且说明里没有其他署名行；不一致时停下并告知用户。每次本地提交后，用 `git log -1 --format='%an <%ae> | %cn <%ce>%n%b'` 同样核对。
-- SSH 使用 DSH 工作区的专用密钥 `../.ssh-gh/id_ed25519`，由本仓库的 `core.sshCommand` 指定，与 DeepSeek-Arcade、LifeSim 两个仓库一致。不要移动该目录，也不要改用其他密钥或 HTTPS 令牌。
+- 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。推送前检查 `git remote -v`，确认当前克隆中远端别名实际指向的仓库。通过 Fork 贡献时，将改动推送到自己的 Fork，再向上游发起 Pull Request。
+- 开发者以自己配置的 Git 身份提交，并使用自己的 GitHub 凭据推送。代理代表开发者操作时，先核对 `git config user.name` 和 `git config user.email`。身份缺失或与用户预期不符时，先请用户确认。
 
 ## HAP 与文档
 
