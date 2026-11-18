@@ -19,7 +19,7 @@
 - 新增功能时将 `y` 加一并把 `z` 归零，例如 `1.0.5 → 1.1.0`。修复 Bug 时将 `z` 加一，例如 `1.0.5 → 1.0.6`。同一批交付同时有功能和修复时按功能升版一次。
 - 每次完成一次 Bug 修复或功能添加时，更新 `harmony/AppScope/app.json5` 的 `versionName`，将 `versionCode` 加一，验证改动并更新 `HANDOFF.md` 和本版 `CHANGELOG.md`，再提交一次本地 Git。仅改文档或开发流程时沿用当前应用版本。
 - 本地提交与远端推送分别处理。远端推送或公开发布须有用户明确授权。获准推送时先确认目标分支和远端状态，只推送已检查的完整改动。用远端实际结果确认推送或发布是否成功。
-- 远端仓库是 GitHub 上的 `APXS114514/DeepseekGo-Harmony`，即 `origin`（`git@github.com:APXS114514/DeepseekGo-Harmony.git`），默认分支为 `main`。
+- 远端仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，即 `origin`（`git@github.com:APXS114514/DeepSeekGo-Harmony.git`），默认分支为 `main`。
 - 每次提交和推送都使用用户本人的 Git 身份 `APXS`。该身份就是本机全局 Git 配置中的 `user.name` 和 `user.email`，本仓库的 `.git/config` 也已固定为同一身份。不要改用其他账号、机器人或代理身份，也不要用 `-c user.*`、`--author` 或环境变量覆盖。推送前运行 `git config user.name`、`git config user.email` 和 `git log origin/main..HEAD --format='%an <%ae> | %cn <%ce>'`，确认待推送提交的作者和提交者都是这个身份；不一致时停下并告知用户。
 - SSH 使用 DSH 工作区的专用密钥 `../.ssh-gh/id_ed25519`，由本仓库的 `core.sshCommand` 指定，与 DeepSeek-Arcade、LifeSim 两个仓库一致。不要移动该目录，也不要改用其他密钥或 HTTPS 令牌。
 
