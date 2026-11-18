@@ -25,6 +25,8 @@ import { IconEditOutline16, IconTrashOutline16 } from '../base/icons.js'
 import { Modal } from '../base/Modal.js'
 import { showToast } from '../base/toastState.js'
 import { ensureApiKey } from './settingsDialogState.js'
+import { PersonaCardsSettings } from './PersonaCardsSettings.js'
+import { SettingsSwitch as Switch } from './SettingsSwitch.js'
 import { useBackLayer } from '../../services/backStack.js'
 import styles from './Personalization.module.css'
 import settingsStyles from './Settings.module.css'
@@ -33,45 +35,10 @@ import settingsStyles from './Settings.module.css'
 export const PersonalizationSettings = () => (
   <>
     <InstructionsSetting />
+    <PersonaCardsSettings />
     <MemorySetting />
   </>
 )
-
-const Switch = ({
-  label,
-  description,
-  checked,
-  disabled,
-  onChange,
-}: {
-  label: string
-  description: string
-  checked: boolean
-  disabled?: boolean
-  onChange: (checked: boolean) => void
-}) => {
-  const descriptionId = useId()
-  return (
-    <label className={clsx(settingsStyles.immersiveLight, disabled && styles.disabled)}>
-      <span>
-        {label}
-        <span id={descriptionId} className={settingsStyles.immersiveLightDescription}>
-          {description}
-        </span>
-      </span>
-      <input
-        className={settingsStyles.immersiveLightSwitch}
-        type="checkbox"
-        role="switch"
-        aria-label={label}
-        aria-describedby={descriptionId}
-        checked={checked}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.checked)}
-      />
-    </label>
-  )
-}
 
 const InstructionField = ({
   label,

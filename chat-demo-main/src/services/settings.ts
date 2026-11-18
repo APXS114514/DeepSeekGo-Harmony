@@ -16,6 +16,7 @@ type Settings = {
   themePreference: ThemePreference
   accentColor: string | null
   immersiveLight: boolean
+  hideComposerOnScroll: boolean
   location: UserLocation | null
   ttsVoice: TtsVoice
   thinking: boolean
@@ -32,6 +33,7 @@ const KEYS = {
   themePreference: 'chat-demo:theme-preference',
   accentColor: 'chat-demo:accent-color',
   immersiveLight: 'chat-demo:immersive-light',
+  hideComposerOnScroll: 'chat-demo:hide-composer-on-scroll',
   ttsVoice: 'chat-demo:tts-voice',
   thinking: 'chat-demo:thinking',
   search: 'chat-demo:search',
@@ -106,6 +108,7 @@ export const useSettings = create<Settings>(() => ({
   themePreference: initialThemePreference(),
   accentColor: normalizeAccentColor(read(KEYS.accentColor) ?? ''),
   immersiveLight: read(KEYS.immersiveLight) !== 'false',
+  hideComposerOnScroll: read(KEYS.hideComposerOnScroll) === 'true',
   ttsVoice: initialTtsVoice(),
   thinking: read(KEYS.thinking) === 'true',
   search: read(KEYS.search) === 'true',
@@ -141,6 +144,11 @@ export const setAccentColor = (value: string | null) => {
 export const setImmersiveLight = (immersiveLight: boolean) => {
   write(KEYS.immersiveLight, String(immersiveLight))
   useSettings.setState({ immersiveLight })
+}
+
+export const setHideComposerOnScroll = (hideComposerOnScroll: boolean) => {
+  write(KEYS.hideComposerOnScroll, String(hideComposerOnScroll))
+  useSettings.setState({ hideComposerOnScroll })
 }
 
 export const setTtsVoice = (ttsVoice: TtsVoice) => {

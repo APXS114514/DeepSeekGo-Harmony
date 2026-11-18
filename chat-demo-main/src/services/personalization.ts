@@ -10,6 +10,9 @@ import { createId } from '../utils/id.js'
 export const MAX_INSTRUCTION_LENGTH = 1500
 export const MAX_MEMORY_LENGTH = 200
 export const MAX_MEMORIES = 100
+export const MAX_PERSONA_CARDS = 24
+export const MAX_PERSONA_NAME_LENGTH = 48
+export const MAX_PERSONA_PROMPT_LENGTH = 4000
 
 export type MemorySource = 'auto' | 'manual'
 
@@ -19,6 +22,12 @@ export type Memory = {
   source: MemorySource
   createdAt: number
   updatedAt: number
+}
+
+export type PersonaCard = {
+  id: string
+  name: string
+  prompt: string
 }
 
 type Personalization = {
@@ -33,11 +42,15 @@ type Personalization = {
   /** 对话结束后由模型提炼新记忆 */
   autoMemory: boolean
   memories: Memory[]
+  personaCardsEnabled: boolean
+  personaCards: PersonaCard[]
+  activePersonaId: string | null
 }
 
 const KEYS = {
   instructions: 'chat-demo:custom-instructions',
   memory: 'chat-demo:memory',
+  personas: 'chat-demo:persona-cards',
 } as const
 
 const readJson = (key: string): unknown => {
@@ -91,9 +104,31 @@ const readMemories = (value: unknown): Memory[] => {
   return memories.slice(-MAX_MEMORIES)
 }
 
+const readPersonaCards = (value: unknown): PersonaCard[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  const cards = new Map<string, PersonaCard>()
+  for (const item of value) {
+    const id = item?.id
+    const name = clip(item?.name, MAX_PERSONA_NAME_LENGTH).trim()
+    const prompt = clip(item?.prompt, MAX_PERSONA_PROMPT_LENGTH).trim()
+    if (typeof id === 'string' && id && !cards.has(id) && name && prompt) {
+      cards.set(id, { id, name, prompt })
+      if (cards.size === MAX_PERSONA_CARDS) {
+        break
+      }
+    }
+  }
+  return [...cards.values()]
+}
+
 const initial = (): Personalization => {
   const instructions = readJson(KEYS.instructions) as Record<string, unknown> | null
   const memory = readJson(KEYS.memory) as Record<string, unknown> | null
+  const personas = readJson(KEYS.personas) as Record<string, unknown> | null
+  const personaCards = readPersonaCards(personas?.items)
+  const activePersonaId = personaCards.find(({ id }) => id === personas?.activeId)?.id ?? null
   return {
     aboutUser: clip(instructions?.aboutUser, MAX_INSTRUCTION_LENGTH),
     responseStyle: clip(instructions?.responseStyle, MAX_INSTRUCTION_LENGTH),
@@ -101,6 +136,9 @@ const initial = (): Personalization => {
     memoryEnabled: memory?.enabled !== false,
     autoMemory: memory?.auto !== false,
     memories: readMemories(memory?.items),
+    personaCardsEnabled: personas?.enabled === true,
+    personaCards,
+    activePersonaId,
   }
 }
 
@@ -114,6 +152,58 @@ const saveInstructions = () => {
 const saveMemory = () => {
   const { memoryEnabled, autoMemory, memories } = usePersonalization.getState()
   writeJson(KEYS.memory, { enabled: memoryEnabled, auto: autoMemory, items: memories })
+}
+
+const savePersonas = () => {
+  const { personaCardsEnabled, personaCards, activePersonaId } = usePersonalization.getState()
+  writeJson(KEYS.personas, {
+    enabled: personaCardsEnabled,
+    items: personaCards,
+    activeId: activePersonaId,
+  })
+}
+
+export const setPersonaCardsEnabled = (personaCardsEnabled: boolean) => {
+  usePersonalization.setState({ personaCardsEnabled })
+  savePersonas()
+}
+
+export const savePersonaCard = (name: string, prompt: string, id?: string): boolean => {
+  const displayName = name.trim().slice(0, MAX_PERSONA_NAME_LENGTH)
+  const instructions = prompt.trim().slice(0, MAX_PERSONA_PROMPT_LENGTH)
+  const { personaCards, activePersonaId } = usePersonalization.getState()
+  if (
+    !displayName ||
+    !instructions ||
+    (id ? !personaCards.some((card) => card.id === id) : personaCards.length >= MAX_PERSONA_CARDS)
+  ) {
+    return false
+  }
+  const card: PersonaCard = { id: id ?? createId(), name: displayName, prompt: instructions }
+  usePersonalization.setState({
+    personaCards: id
+      ? personaCards.map((item) => (item.id === id ? card : item))
+      : [...personaCards, card],
+    activePersonaId: id ? activePersonaId : (activePersonaId ?? card.id),
+  })
+  savePersonas()
+  return true
+}
+
+export const selectPersonaCard = (id: string) => {
+  const { personaCards } = usePersonalization.getState()
+  if (personaCards.some((card) => card.id === id)) {
+    usePersonalization.setState({ activePersonaId: id })
+    savePersonas()
+  }
+}
+
+export const removePersonaCard = (id: string) => {
+  usePersonalization.setState(({ personaCards, activePersonaId }) => ({
+    personaCards: personaCards.filter((card) => card.id !== id),
+    activePersonaId: activePersonaId === id ? null : activePersonaId,
+  }))
+  savePersonas()
 }
 
 export const setInstructions = (aboutUser: string, responseStyle: string) => {
@@ -203,16 +293,30 @@ export const replaceMemories = (texts: string[]) => {
   saveMemory()
 }
 
-/** 每轮请求的系统提示词：基础身份 + 用户背景 + 回复偏好 + 记忆。 */
+/** 每轮请求的系统提示词：基础身份、用户指令、人设卡和记忆。 */
 export const buildSystemPrompt = (base: string, { memory = true } = {}): string => {
-  const { aboutUser, responseStyle, instructionsEnabled, memoryEnabled, memories } =
-    usePersonalization.getState()
+  const {
+    aboutUser,
+    responseStyle,
+    instructionsEnabled,
+    memoryEnabled,
+    memories,
+    personaCardsEnabled,
+    personaCards,
+    activePersonaId,
+  } = usePersonalization.getState()
   const parts = [base]
   if (instructionsEnabled && aboutUser.trim()) {
     parts.push(`${translate('personalPromptAboutUser')}\n${aboutUser.trim()}`)
   }
   if (instructionsEnabled && responseStyle.trim()) {
     parts.push(`${translate('personalPromptResponseStyle')}\n${responseStyle.trim()}`)
+  }
+  const persona = personaCardsEnabled
+    ? personaCards.find(({ id }) => id === activePersonaId)
+    : undefined
+  if (persona) {
+    parts.push(`${translate('personalPromptPersona')}\n${persona.name}\n${persona.prompt}`)
   }
   if (memory && memoryEnabled && memories.length > 0) {
     parts.push(

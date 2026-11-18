@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from 'react'
 import { useIsMobile } from '../../app/viewport.js'
 import {
@@ -16,6 +17,7 @@ import {
 } from '../../services/chat/branches.js'
 import { selectMessageVersion } from '../../services/chat/store.js'
 import type { Session } from '../../services/chat/types.js'
+import { useSettings } from '../../services/settings.js'
 import { closeSearchPanel } from '../search/searchPanelState.js'
 import { AssistantMessage } from './AssistantMessage.js'
 import { ScrollToBottomContext } from './scrollContext.js'
@@ -40,6 +42,7 @@ import styles from './MessageList.module.css'
 
 /** 距底部小于该值时视为在底部，流式内容增长时跟随 */
 const STICKY_THRESHOLD = 40
+const HIDE_COMPOSER_THRESHOLD = 48
 const EMPTY_VERSIONS: MessageVersions = { ids: [], index: -1 }
 
 export const MessageList = ({
@@ -49,17 +52,25 @@ export const MessageList = ({
 }: {
   session: Session
   streaming: boolean
-  footer: (editing: boolean) => ReactNode
+  footer: (state: {
+    editing: boolean
+    hidden: boolean
+    composerRef: RefObject<HTMLDivElement>
+    showComposer: () => void
+  }) => ReactNode
 }) => {
   const isMobile = useIsMobile()
+  const hideComposerOnScroll = useSettings((state) => state.hideComposerOnScroll)
   const scrollRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<HTMLDivElement>(null)
+  const composerRef = useRef<HTMLDivElement>(null)
   const stickyRef = useRef(true)
   const scrollTopRef = useRef(0)
   const restoreScrollRef = useRef<{ messageId: string; top: number } | null>(null)
   const messages = getVisibleMessages(session)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [composerHidden, setComposerHidden] = useState(false)
   const activeEditor = messages.some((message) => message.id === editingMessageId)
     ? editingMessageId
     : null
@@ -127,15 +138,23 @@ export const MessageList = ({
       )
       if (switcher) {
         scroll.scrollTop += switcher.getBoundingClientRect().top - anchor.top
+        scrollTopRef.current = scroll.scrollTop
       }
       restoreScrollRef.current = null
       return
     }
+    setComposerHidden(false)
     stickyRef.current = true
     scrollToBottom()
   }, [session.id, lastMessageId, scrollToBottom])
 
   useEffect(closeSearchPanel, [session.id, lastMessageId])
+
+  useLayoutEffect(() => {
+    if (!hideComposerOnScroll) {
+      setComposerHidden(false)
+    }
+  }, [hideComposerOnScroll])
 
   const selectVersion = useCallback(
     (messageId: string, anchorTop: number) => {
@@ -161,20 +180,54 @@ export const MessageList = ({
       scrollToBottom()
     } else {
       el.scrollTop = scrollTopRef.current
+      scrollTopRef.current = el.scrollTop
     }
+    let upwardTravel = 0
     const onScroll = () => {
-      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < STICKY_THRESHOLD
+      const top = Math.max(0, el.scrollTop)
+      const delta = top - scrollTopRef.current
+      const nearBottom = el.scrollHeight - top - el.clientHeight < STICKY_THRESHOLD
       // 仅在用户向上滚动时停止跟随底部，布局或内容增高时保持跟随状态。
-      if (nearBottom) {
+      if (nearBottom && (!hideComposerOnScroll || delta > 0)) {
         stickyRef.current = true
-      } else if (el.scrollTop < scrollTopRef.current) {
+      } else if (delta < 0) {
         stickyRef.current = false
       }
-      scrollTopRef.current = el.scrollTop
+      scrollTopRef.current = top
+      if (!hideComposerOnScroll || delta === 0) {
+        return
+      }
+      if (delta > 0) {
+        upwardTravel = 0
+        if (nearBottom) {
+          setComposerHidden(false)
+        }
+        return
+      }
+      const composer = composerRef.current
+      const keyboardOpen =
+        document.body.hasAttribute('data-soft-keyboard') ||
+        (isMobile &&
+          composer?.contains(document.activeElement) &&
+          document.activeElement?.matches('textarea, input'))
+      if (
+        composer?.hidden ||
+        editorRef.current ||
+        keyboardOpen ||
+        composer?.querySelector('[data-voice-active]')
+      ) {
+        upwardTravel = 0
+        return
+      }
+      upwardTravel -= delta
+      if (!nearBottom && upwardTravel >= HIDE_COMPOSER_THRESHOLD) {
+        upwardTravel = 0
+        setComposerHidden(true)
+      }
     }
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
-  }, [isMobile, scrollToBottom])
+  }, [hideComposerOnScroll, isMobile, scrollToBottom])
 
   const lastIndex = messages.length - 1
   const uploadRetryId = getUploadRetryId(messages, streaming)
@@ -217,7 +270,12 @@ export const MessageList = ({
             )}
           </div>
         </div>
-        {footer(activeEditor !== null)}
+        {footer({
+          editing: activeEditor !== null,
+          hidden: hideComposerOnScroll && composerHidden,
+          composerRef,
+          showComposer: () => setComposerHidden(false),
+        })}
       </div>
     </ScrollToBottomContext.Provider>
   )

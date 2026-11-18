@@ -80,6 +80,20 @@
   display: none;
 }
 
+.revealComposer {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  align-self: center;
+  flex-shrink: 0;
+  margin: auto auto 0;
+  padding: 4px 0 calc(4px + var(--chat-footer-inset, env(safe-area-inset-bottom)));
+
+  button {
+    background-color: var(--dsw-alias-bg-layer-2);
+  }
+}
+
 /* 无痕对话的说明条，固定在标题栏下方 */
 .incognitoBanner {
   flex-shrink: 0;

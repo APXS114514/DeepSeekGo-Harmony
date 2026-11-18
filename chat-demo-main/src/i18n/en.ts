@@ -124,6 +124,10 @@ export const en = {
   immersiveLightTitle: 'Immersive lighting',
   immersiveLightDescription:
     'Add translucency and highlights to the composer and use system materials in the text recognition menu on supported devices.',
+  hideChatComposerTitle: 'Hide composer while reading',
+  hideChatComposerDescription:
+    'Scroll up in a chat to hide the composer. Return to the bottom or select Show composer to bring it back.',
+  showChatComposer: 'Show composer',
   harmonyWelcome: 'What’s on your mind?',
   replyNotifyTitle: 'Reply notifications',
   replyNotifyDescription:
@@ -148,6 +152,21 @@ export const en = {
   personalResponseStylePlaceholder: 'e.g. Lead with the answer, keep it concise.',
   personalSave: 'Save',
   personalInstructionsSaved: 'Custom instructions saved for future messages',
+  personaCardsTitle: 'Persona cards',
+  personaCardsEnabled: 'Enable persona cards',
+  personaCardsDescription:
+    'When enabled, the selected persona is sent to DeepSeek with future chat requests.',
+  personaCardsEmpty: 'Save a persona card to define the role you want DeepSeek to play.',
+  personaCardsLimit: 'You can save up to {count} persona cards',
+  personaAdd: 'Add persona card',
+  personaEdit: 'Edit persona card',
+  personaEditNamed: 'Edit persona card “{name}”',
+  personaDeleteNamed: 'Delete persona card “{name}”',
+  personaDeleteTitle: 'Delete persona card “{name}”?',
+  personaName: 'Persona card name',
+  personaPrompt: 'Persona instructions',
+  personaPromptPlaceholder:
+    'You are a conversation coach. Chat with me in English, then point out one thing I could improve.',
   memoryTitle: 'Memory',
   memoryEnabled: 'Reference memories',
   memoryEnabledDescription:
@@ -179,6 +198,8 @@ export const en = {
   memoryUpdated: 'Memory updated',
   personalPromptAboutUser: '## Background provided by the user',
   personalPromptResponseStyle: '## How the user wants responses',
+  personalPromptPersona:
+    '## Assistant persona selected by the user\nUse the following persona when answering.',
   personalPromptMemory:
     '## Memories about the user\nThese come from earlier chats. Use them naturally only when relevant and don’t list them back; if the user asks, you may explain what you remember.',
   harmonyMicrophoneDenied:

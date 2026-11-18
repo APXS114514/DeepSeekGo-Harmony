@@ -172,6 +172,11 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+.switchDisabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .immersiveLightSwitch {
   appearance: none;
   display: grid;

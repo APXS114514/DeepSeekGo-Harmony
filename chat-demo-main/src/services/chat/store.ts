@@ -1038,6 +1038,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
   streamFlushes.set(sessionId, flush)
 
   try {
+    const system = buildSystemPrompt(SYSTEM_PROMPT, { memory: !getSession(sessionId)?.ephemeral })
     for (let attempt = 0; ; attempt += 1) {
       /** 附件补齐前出错属于上传失败，请求还没有发出 */
       let preparing = true
@@ -1063,9 +1064,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
           useSettings.getState().apiKey ?? '',
           {
             model: initial.model ?? MODEL,
-            system: buildSystemPrompt(SYSTEM_PROMPT, {
-              memory: !getSession(sessionId)?.ephemeral,
-            }),
+            system,
             messages,
             thinking: { type: initial.thinking ? 'enabled' : 'disabled' },
             safety_check: SAFETY_CHECK,

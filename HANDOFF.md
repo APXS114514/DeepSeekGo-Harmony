@@ -2,8 +2,8 @@
 
 ## 工作区
 
-- 当前源码为 1.3.3，版本代码为 `1000013`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
-- 最近一次交付是 `HAPS/Deepseek-GO-1.3.1-unsigned.hap`，版本代码为 `1000011`，对应 GitHub Releases 标签 `v1.3.1`。只有用户明确要求时才打包当前源码版本。
+- 当前源码为 1.4.0，版本代码为 `1000014`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 最近一次交付是 `HAPS/Deepseek-GO-1.3.3-unsigned.hap`，版本代码为 `1000013`，对应 GitHub Releases 标签 `v1.3.3`。只有用户明确要求时才打包当前源码版本。
 - 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。贡献方式见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。仓库只收源码、配置、文档和图片资源。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`，使用鸿蒙版网页构建产物、模拟接口和设备消息通道生成。维护者的截图生成命令见本机 `AGENTS.local.md`。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
 
@@ -32,6 +32,13 @@
 
 - **原生组件级配置**可通过 `systemMaterial` 等属性调整支持的组件。应用级未禁用时，组件配置优先，个别组件可通过 `uiMaterial.Material.empty` 关闭。排查时，在支持的系统上用 `uiMaterial.getMaterialInfo()` 读取应用级配置状态，用 `uiMaterial.isImmersiveMaterialSupported()` 检查设备能力，再用真机验证呈现。 [组件适配指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
 - **设置 → 通用设置 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
+
+## 1.4.0 阅读体验与自定义人设卡
+
+- 「通用设置 → 阅读时隐藏输入框」保存到 `chat-demo:hide-composer-on-scroll`。向较早消息滚动时达到距离阈值才收起，继续向底部滚动或点「显示输入框」可恢复。输入框留在原位置保留草稿和附件。软键盘开启、消息编辑和语音识别期间暂停自动收起。
+- 「个性化 → 人设卡」保存到 `chat-demo:persona-cards`，最多 24 张，每张名称最多 48 字、提示词最多 4000 字。应用内共用当前选中的一张卡，关闭开关时保留列表和选择。启用后在发起请求时把人设追加到系统提示，也适用于无痕对话。历史消息和历史导出不包含人设卡配置。
+- 前端类型、Lint、网页版和鸿蒙网页构建，以及 HarmonyOS 26.0.0 SDK Debug 编译通过。Debug 包核对了版本、最低 API 12 和 155 个网页资源。
+- 浏览器用模拟 API 和鸿蒙消息通道验证了两项开关的默认状态和持久化、窄宽窗的触摸与滚轮收起、手动及回到底部恢复、键盘焦点及语音识别保护、窗口变化时保留草稿，以及收起恢复后保留附件。人设卡覆盖增改删、选择、删除取消、重载后恢复和开关对实际请求的影响。原有个性化、历史消息编辑、鸿蒙输入与分享、1.3 功能回归通过。调试工具未发现连接的真机，待验证 ArkWeb 的触摸惯性和系统键盘表现。
 
 ## 1.3.3 后台回复与通知修复
 

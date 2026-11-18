@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 import {
   IconDarkOutline16,
   IconDataOutline16,
@@ -27,6 +27,7 @@ import {
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
 import {
   setImmersiveLight,
+  setHideComposerOnScroll,
   setReplyNotify,
   setLocale,
   setLocation,
@@ -44,6 +45,7 @@ import { showToast } from '../base/toastState.js'
 import { ApiKeyConfirm, ApiKeyField, useApiKeyEditor } from './ApiKeyField.js'
 import { AccentSetting } from './AccentSetting.js'
 import { PersonalizationSettings } from './PersonalizationSettings.js'
+import { SettingsSwitch } from './SettingsSwitch.js'
 import { closeSettings, useSettingsDialog, type SettingsSection } from './settingsDialogState.js'
 import styles from './Settings.module.css'
 
@@ -131,6 +133,7 @@ const SettingsContent = ({
                   <ReplyNotifySetting />
                 </>
               ) : null}
+              <HideComposerSetting />
               <LocaleSetting />
               <TtsVoiceSetting />
               <LocationSetting />
@@ -435,62 +438,53 @@ const ThemeSetting = () => {
 
 const ImmersiveLightSetting = () => {
   const t = useTranslate()
-  const descriptionId = useId()
   const immersiveLight = useSettings((state) => state.immersiveLight)
   return (
-    <label className={clsx(styles.cell, styles.immersiveLight)}>
-      <span>
-        {t('immersiveLightTitle')}
-        <span id={descriptionId} className={styles.immersiveLightDescription}>
-          {t('immersiveLightDescription')}
-        </span>
-      </span>
-      <input
-        className={styles.immersiveLightSwitch}
-        type="checkbox"
-        role="switch"
-        aria-label={t('immersiveLightTitle')}
-        aria-describedby={descriptionId}
-        checked={immersiveLight}
-        onChange={(event) => setImmersiveLight(event.target.checked)}
-      />
-    </label>
+    <SettingsSwitch
+      className={styles.cell}
+      label={t('immersiveLightTitle')}
+      description={t('immersiveLightDescription')}
+      checked={immersiveLight}
+      onChange={setImmersiveLight}
+    />
+  )
+}
+
+const HideComposerSetting = () => {
+  const t = useTranslate()
+  const hiddenOnScroll = useSettings((state) => state.hideComposerOnScroll)
+  return (
+    <SettingsSwitch
+      className={styles.cell}
+      label={t('hideChatComposerTitle')}
+      description={t('hideChatComposerDescription')}
+      checked={hiddenOnScroll}
+      onChange={setHideComposerOnScroll}
+    />
   )
 }
 
 /** 鸿蒙版：应用在后台时回答完成后发通知；打开开关时请求系统通知授权。 */
 const ReplyNotifySetting = () => {
   const t = useTranslate()
-  const descriptionId = useId()
   const replyNotify = useSettings((state) => state.replyNotify)
   return (
-    <label className={clsx(styles.cell, styles.immersiveLight)}>
-      <span>
-        {t('replyNotifyTitle')}
-        <span id={descriptionId} className={styles.immersiveLightDescription}>
-          {t('replyNotifyDescription')}
-        </span>
-      </span>
-      <input
-        className={styles.immersiveLightSwitch}
-        type="checkbox"
-        role="switch"
-        aria-label={t('replyNotifyTitle')}
-        aria-describedby={descriptionId}
-        checked={replyNotify}
-        onChange={(event) => {
-          const enabled = event.target.checked
-          setReplyNotify(enabled)
-          if (enabled) {
-            void requestNotificationPermission(!takeReplyNotifyPrompt()).then((status) => {
-              if (status !== DeviceStatus.ok) {
-                showToast({ key: 'replyNotifyDenied' })
-              }
-            })
-          }
-        }}
-      />
-    </label>
+    <SettingsSwitch
+      className={styles.cell}
+      label={t('replyNotifyTitle')}
+      description={t('replyNotifyDescription')}
+      checked={replyNotify}
+      onChange={(enabled) => {
+        setReplyNotify(enabled)
+        if (enabled) {
+          void requestNotificationPermission(!takeReplyNotifyPrompt()).then((status) => {
+            if (status !== DeviceStatus.ok) {
+              showToast({ key: 'replyNotifyDenied' })
+            }
+          })
+        }
+      }}
+    />
   )
 }
 

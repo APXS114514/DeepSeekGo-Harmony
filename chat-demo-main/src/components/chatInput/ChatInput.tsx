@@ -166,6 +166,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   return (
     <div
       className={clsx(styles.wrapper, sessionId === null ? styles.home : styles.session)}
+      data-voice-active={voice.status === 'idle' ? undefined : ''}
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           textareaRef.current?.focus({ preventScroll: true })
