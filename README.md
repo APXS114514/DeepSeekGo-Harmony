@@ -51,4 +51,4 @@ pnpm build:harmony
 
 ## 许可证
 
-本项目以 [MIT 许可证](LICENSE) 发布，版权归 APXS 所有。`chat-demo-main/` 基于 DeepSeek 官方的 [Chat Demo](https://github.com/deepseek-ai/chat-demo)，这部分沿用其 [MIT 许可证](chat-demo-main/LICENSE)，版权归 DeepSeek 所有。分发或修改时请同时保留两份许可证声明。
+本项目以 [MIT 许可证](LICENSE) 发布，版权归 APXS 所有，包括作者自绘的 `LOGO.png` 和 `Icon.png`。`chat-demo-main/` 基于 DeepSeek 官方的 [Chat Demo](https://github.com/deepseek-ai/chat-demo)，这部分沿用其 [MIT 许可证](chat-demo-main/LICENSE)，版权归 DeepSeek 所有。分发或修改时请同时保留两份许可证声明。
