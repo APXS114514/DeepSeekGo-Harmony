@@ -2,15 +2,31 @@ import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want 
 import { window } from '@kit.ArkUI';
 import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { OPEN_SESSION_KEY, OPEN_SESSION_PARAM } from '../services/BackgroundReply';
+import { BackgroundReply, OPEN_SESSION_KEY, OPEN_SESSION_PARAM } from '../services/BackgroundReply';
 import { ShareInbox } from '../services/ShareInbox';
 import { FONT_SCALE_KEY } from '../window/FontScale';
 import { systemBarProperties } from '../window/WindowInsets';
 
 export default class EntryAbility extends UIAbility {
+  private backgroundReply?: BackgroundReply;
+
   onCreate(want: Want, _launchParam: AbilityConstant.LaunchParam): void {
+    this.backgroundReply = BackgroundReply.forAbility(this.context);
     AppStorage.setOrCreate(FONT_SCALE_KEY, this.context.config.fontSizeScale ?? 1);
     this.receive(want);
+  }
+
+  onBackground(): void {
+    this.backgroundReply?.onBackground();
+  }
+
+  onForeground(): void {
+    this.backgroundReply?.onForeground();
+  }
+
+  onDestroy(): void {
+    this.backgroundReply?.dispose();
+    this.backgroundReply = undefined;
   }
 
   /** 系统字体大小变化时通知页面，由页面同步给网页。 */

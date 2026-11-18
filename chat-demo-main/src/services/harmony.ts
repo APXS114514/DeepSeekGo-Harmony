@@ -292,8 +292,17 @@ export const saveDeviceApiKey = async (value: string | null): Promise<string | n
 }
 
 const postDevice = (operation: DeviceOperation, value: string) => {
+  const message = JSON.stringify({ id: 0, operation, value })
+  if (connectedPort) {
+    try {
+      connectedPort.postMessage(message)
+    } catch {
+      // 端口可能在页面重建时关闭。
+    }
+    return
+  }
   void waitForPort()
-    .then((port) => port.postMessage(JSON.stringify({ id: 0, operation, value })))
+    .then((port) => port.postMessage(message))
     .catch(() => {})
 }
 
@@ -357,14 +366,27 @@ export const scanDeviceText = async (
   }
 }
 
-/** 回答完成：原生只在应用处于后台时发出系统通知，点击后回到这个对话。 */
-export const notifyReplyDone = (reply: { sessionId: string; title: string; text: string }) =>
-  postDevice('reply-done', JSON.stringify(reply))
+/** 先按原生通知的显示上限裁剪，避免长回答超出消息端口的大小限制。 */
+export const notifyReplyDone = ({
+  sessionId,
+  title,
+  text,
+}: {
+  sessionId: string
+  title: string
+  text: string
+}) =>
+  postDevice(
+    'reply-done',
+    JSON.stringify({ sessionId, title: title.slice(0, 40), text: text.slice(0, 120) })
+  )
 
 /** 申请系统通知授权，返回 DeviceStatus。 */
-export const requestNotificationPermission = async (): Promise<number> => {
+export const requestNotificationPermission = async (openSettings = false): Promise<number> => {
   try {
-    return (await requestDevice('notify-permission', '', PICKER_TIMEOUT)).status
+    return (
+      await requestDevice('notify-permission', openSettings ? 'settings' : '', PICKER_TIMEOUT)
+    ).status
   } catch {
     return DeviceStatus.failed
   }

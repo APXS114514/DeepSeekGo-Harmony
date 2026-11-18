@@ -198,44 +198,42 @@ const updateReply = (sessionId: string, reply: AssistantMessage) =>
 
 const persist = (sessionId: string) => {
   const session = getSession(sessionId)
-  if (session?.ephemeral) {
-    return
+  if (!session || session.ephemeral) {
+    return undefined
   }
-  if (session) {
-    unsavedSessions.add(sessionId)
-    if (deletingSessions.has(sessionId)) {
-      return
-    }
-    const epoch = historyEpoch
-    const files = pendingFiles.get(sessionId)
-    void db
-      .saveSession(session, files)
-      .then(() => {
-        if (epoch !== historyEpoch || !getSession(sessionId)) {
-          return
-        }
-        if (pendingFiles.get(sessionId) === files) {
-          pendingFiles.delete(sessionId)
-        }
-        if (getSession(sessionId) === session) {
-          unsavedSessions.delete(sessionId)
-          set((state) => ({
-            sessionSaveErrors: Object.fromEntries(
-              Object.entries(state.sessionSaveErrors).filter(([id]) => id !== sessionId)
-            ),
-          }))
-          trimSessionCache()
-        }
-      })
-      .catch((error: unknown) => {
-        db.reportStorageError('save session')(error)
-        if (epoch === historyEpoch && getSession(sessionId)) {
-          set((state) => ({
-            sessionSaveErrors: { ...state.sessionSaveErrors, [sessionId]: true },
-          }))
-        }
-      })
+  unsavedSessions.add(sessionId)
+  if (deletingSessions.has(sessionId)) {
+    return undefined
   }
+  const epoch = historyEpoch
+  const files = pendingFiles.get(sessionId)
+  return db
+    .saveSession(session, files)
+    .then(() => {
+      if (epoch !== historyEpoch || !getSession(sessionId)) {
+        return
+      }
+      if (pendingFiles.get(sessionId) === files) {
+        pendingFiles.delete(sessionId)
+      }
+      if (getSession(sessionId) === session) {
+        unsavedSessions.delete(sessionId)
+        set((state) => ({
+          sessionSaveErrors: Object.fromEntries(
+            Object.entries(state.sessionSaveErrors).filter(([id]) => id !== sessionId)
+          ),
+        }))
+        trimSessionCache()
+      }
+    })
+    .catch((error: unknown) => {
+      db.reportStorageError('save session')(error)
+      if (epoch === historyEpoch && getSession(sessionId)) {
+        set((state) => ({
+          sessionSaveErrors: { ...state.sessionSaveErrors, [sessionId]: true },
+        }))
+      }
+    })
 }
 
 export const retrySaveSessions = () => {
@@ -263,6 +261,8 @@ export const bindChatPersistence = () => {
   const onVisibilityChange = () => {
     if (document.visibilityState === 'hidden') {
       save()
+    } else if (!get().importingHistory) {
+      streamFlushes.forEach((flush) => flush())
     }
   }
   document.addEventListener('visibilitychange', onVisibilityChange)
@@ -1090,9 +1090,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
             titleRequests.delete(controller)
           }
           reply = applyEvent(reply, event, Date.now(), blockIndexes)
-          if (document.visibilityState === 'hidden') {
-            flush()
-          } else {
+          if (document.visibilityState !== 'hidden') {
             frame ||= requestAnimationFrame(flush)
           }
         }
@@ -1149,18 +1147,34 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
     streamFlushes.delete(sessionId)
     cancelAnimationFrame(frame)
     updateReply(sessionId, reply)
-    set((state) => ({
-      streaming: Object.fromEntries(
-        Object.entries(state.streaming).filter(([id]) => id !== sessionId)
-      ),
-    }))
-    persist(sessionId)
-    const finished = getSession(sessionId)
-    if (reply.status === 'done' && finished && !get().importingHistory) {
-      if (!finished.ephemeral) {
-        rememberFromTurn(request.question.content, getReplyText(reply))
+    try {
+      const saved = persist(sessionId)
+      if (__HARMONY_APP__ && document.visibilityState === 'hidden' && saved) {
+        await saved
       }
-      replyDoneListeners.forEach((listener) => listener(finished, reply))
+      const finished = getSession(sessionId)
+      if (
+        reply.status === 'done' &&
+        finished &&
+        !controller.signal.aborted &&
+        !get().importingHistory
+      ) {
+        // 先同步交给原生发布，再通知它生成结束。点击通知时可读到已保存的最终回答。
+        replyDoneListeners.forEach((listener) => listener(finished, reply))
+        if (!finished.ephemeral) {
+          rememberFromTurn(request.question.content, getReplyText(reply))
+        }
+      }
+    } finally {
+      set((state) =>
+        state.streaming[sessionId] === controller
+          ? {
+              streaming: Object.fromEntries(
+                Object.entries(state.streaming).filter(([id]) => id !== sessionId)
+              ),
+            }
+          : state
+      )
     }
   }
 }

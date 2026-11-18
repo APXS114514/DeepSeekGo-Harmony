@@ -32,6 +32,7 @@ import {
   setLocation,
   setThemePreference,
   setTtsVoice,
+  takeReplyNotifyPrompt,
   useSettings,
   type ThemePreference,
 } from '../../services/settings.js'
@@ -481,7 +482,7 @@ const ReplyNotifySetting = () => {
           const enabled = event.target.checked
           setReplyNotify(enabled)
           if (enabled) {
-            void requestNotificationPermission().then((status) => {
+            void requestNotificationPermission(!takeReplyNotifyPrompt()).then((status) => {
               if (status !== DeviceStatus.ok) {
                 showToast({ key: 'replyNotifyDenied' })
               }

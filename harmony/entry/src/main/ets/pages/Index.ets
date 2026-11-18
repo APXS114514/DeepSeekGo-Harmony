@@ -120,11 +120,27 @@ struct Index {
   }
 
   onPageHide(): void {
-    this.bridge?.onHide();
+    this.bridge?.interrupt();
+    this.updateWebActivity(false);
   }
 
   onPageShow(): void {
-    this.bridge?.onShow();
+    this.updateWebActivity(true);
+  }
+
+  private updateWebActivity(active: boolean): void {
+    if (!this.devicePort) {
+      return;
+    }
+    try {
+      if (active) {
+        this.controller.onActive();
+      } else {
+        this.controller.onInactive();
+      }
+    } catch (error) {
+      hilog.warn(0x0000, 'PocketChat', 'Cannot change web activity: %{public}d', (error as BusinessError).code);
+    }
   }
 
   /** 点击回答完成通知回到应用后，打开对应对话。 */

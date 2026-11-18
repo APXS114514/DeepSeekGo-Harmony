@@ -60,7 +60,7 @@ export class DeviceBridge {
     this.voice = new VoiceInput(context, emit);
     this.scanner = new TextScanner(context);
     this.saver = new FileSaver(context);
-    this.background = new BackgroundReply(context);
+    this.background = BackgroundReply.forAbility(context);
   }
 
   async features(): Promise<string> {
@@ -101,23 +101,13 @@ export class DeviceBridge {
     this.voice.interrupt();
   }
 
-  /** 应用切到后台：停止收音；仍在生成回答时申请短时任务。 */
-  onHide(): void {
-    this.voice.interrupt();
-    this.background.onHide();
-  }
-
-  onShow(): void {
-    this.background.onShow();
-  }
-
   setGenerating(generating: boolean): void {
     this.background.setGenerating(generating);
   }
 
   dispose(): void {
     this.voice.dispose();
-    this.background.dispose();
+    this.background.setGenerating(false);
   }
 
   handle(message: webview.WebMessage, port: webview.WebMessagePort, onWindowUi: (value: string) => void): void {
@@ -156,7 +146,7 @@ export class DeviceBridge {
           this.handleReplyDone(request.value);
           return;
         case 'notify-permission':
-          this.background.requestPermission().then((status) => {
+          this.background.requestPermission(request.value === 'settings').then((status) => {
             this.reply(port, { id: request.id, status: status, value: '' });
           });
           return;

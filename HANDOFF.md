@@ -2,7 +2,7 @@
 
 ## 工作区
 
-- 当前源码为 1.3.2，版本代码为 `1000012`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 当前源码为 1.3.3，版本代码为 `1000013`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
 - 最近一次交付是 `HAPS/Deepseek-GO-1.3.1-unsigned.hap`，版本代码为 `1000011`，对应 GitHub Releases 标签 `v1.3.1`。只有用户明确要求时才打包当前源码版本。
 - 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。贡献方式见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。仓库只收源码、配置、文档和图片资源。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`，使用鸿蒙版网页构建产物、模拟接口和设备消息通道生成。维护者的截图生成命令见本机 `AGENTS.local.md`。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
@@ -32,6 +32,14 @@
 
 - **原生组件级配置**可通过 `systemMaterial` 等属性调整支持的组件。应用级未禁用时，组件配置优先，个别组件可通过 `uiMaterial.Material.empty` 关闭。排查时，在支持的系统上用 `uiMaterial.getMaterialInfo()` 读取应用级配置状态，用 `uiMaterial.isImmersiveMaterialSupported()` 检查设备能力，再用真机验证呈现。 [组件适配指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
 - **设置 → 通用设置 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
+
+## 1.3.3 后台回复与通知修复
+
+- `EntryAbility` 负责前后台状态和短时任务。网页从生成状态订阅直接同步原生，原生在前台开始生成时申请任务，进入 `onBackground` 时可补申请。后台配额到期按系统要求取消任务。
+- 网页进入后台时把当前进度写入会话，后台收到的增量在回到前台或结束时合并。隐藏状态下先等待最终保存，再发完成事件并同步生成结束。原生等通知发布结束再释放任务，应用已回到前台时跳过尚未发布的通知。
+- 网页发送前按原生显示上限裁剪标题和摘要，避免长回答触发消息端口的 8192 字符限制。通知使用 `SERVICE_INFORMATION` 通道和按会话区分的 WantAgent。切回页面时通过 ArkWeb `onActive` 恢复显示。重新开启通知且已申请过授权时，支持的 API 26 设备打开系统通知设置。
+- 浏览器从聊天入口复现旧版后台逐段刷新，并验证新版回前台合并增量、超过 9000 字的回答仍发送完成事件、完成事件先于结束状态、重载后可打开已保存的回复，以及通知授权重试。原生服务的模拟检查覆盖延迟释放、配额到期、会话跳转参数及前台忽略迟到通知。
+- 前端类型、Lint、格式、网页版和鸿蒙资源构建，以及 ArkTS `codelinter` 和 SDK 26.0.0 Debug 编译通过。Debug 包核对版本、最低 API 12 和 155 个网页资源。未连接真机，待实测退到后台和锁屏后通知是否送达、点击通知是否进入对话，以及回前台的实际刷新耗时。
 
 ## 1.3.2 沉浸光感优化适配鸿蒙特性
 

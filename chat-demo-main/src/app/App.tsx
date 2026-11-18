@@ -52,7 +52,6 @@ export const App = () => {
   useBackLayer(mobileSiderOpen, closeMobileSider)
   useKeyboardShortcuts(isMobile)
   useReplyNotifications()
-  const generating = useChatStore((state) => Object.keys(state.streaming).length > 0)
   const mainRef = useRef<HTMLElement>(null)
   const [drawerCoversHeader, setDrawerCoversHeader] = useState(false)
   const searchOpen = useSearchPanel((state) => state.entry !== null)
@@ -159,21 +158,35 @@ export const App = () => {
     return undefined
   }, [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (__HARMONY_APP__) {
-      sendWindowUi({
-        mobile: isMobile && !saveError,
-        covered,
-        dark: theme === 'dark',
-        themePreference,
-        title: nativeHeaderTitle,
-        menuLabel,
-        newChatLabel,
-        showNewChat,
-        canGoBack: backDepth > 0,
-        generating,
+      let generating = Object.keys(useChatStore.getState().streaming).length > 0
+      const send = () =>
+        sendWindowUi({
+          mobile: isMobile && !saveError,
+          covered,
+          dark: theme === 'dark',
+          themePreference,
+          title: nativeHeaderTitle,
+          menuLabel,
+          newChatLabel,
+          showNewChat,
+          canGoBack: backDepth > 0,
+          generating,
+        })
+      send()
+      // 生成状态直接经过消息端口，退到后台时不依赖 React 绘制或 effect 调度。
+      return useChatStore.subscribe((state, previous) => {
+        if (state.streaming !== previous.streaming) {
+          const next = Object.keys(state.streaming).length > 0
+          if (next !== generating) {
+            generating = next
+            send()
+          }
+        }
       })
     }
+    return undefined
   }, [
     isMobile,
     saveError,
@@ -185,7 +198,6 @@ export const App = () => {
     newChatLabel,
     showNewChat,
     backDepth,
-    generating,
   ])
 
   // 文件数、存储空间达到上限时，附件上只显示「上传失败」，原因用 toast 说明
