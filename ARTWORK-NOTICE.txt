@@ -1,8 +1,8 @@
 Deepseek GO 原创角色图像 · Original Character Artwork
 Copyright © 2026 APXS
 
-- LOGO.png（欢迎页图像 / Welcome screen artwork）
-- Icon.png（启动器图标源文件 / Launcher icon source）
+- assets/images/logo.png（欢迎页图像 / Welcome screen artwork）
+- assets/images/app-icon.png（启动器图标源文件 / Launcher icon source）
 - harmony/AppScope/resources/base/media/app_icon.png（启动器图标副本 / Launcher icon copy）
 
 以上图像及其在构建产物、安装包和仓库截图中呈现的角色图案，采用知识共享署名—非商业性使用—禁止演绎 4.0 国际许可协议（CC BY-NC-ND 4.0）。

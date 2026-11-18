@@ -3,7 +3,7 @@
 - `harmony/` 是 ArkTS、ArkUI 和 ArkWeb 外壳，`chat-demo-main/` 是内置的聊天前端。
 - 使用 HarmonyOS 26.0.0 SDK 编译。最低兼容版本是 HarmonyOS 5.0（API 12）。调用光感等新 API 时按系统版本和设备能力判断，保留普通顶栏路径。
 - 布局以可用窗口宽度为准，跨断点时复用当前会话和草稿。横屏遵循系统旋转锁定。检查悬浮或分屏窗口的挖孔、键盘和 2in1 窗口按钮在深浅主题下的可见性。
-- 根目录的 `LOGO.png` 用于新对话欢迎页，`Icon.png` 是应用启动器图标的源文件。将更新的 `Icon.png` 同步到 `harmony/AppScope/resources/base/media/app_icon.png`，注意大小写。
+- 项目图片集中在 `assets/images/`，文件名用小写，多个单词用连字符。`logo.png` 用于新对话欢迎页，`app-icon.png` 是启动器图标的源文件，更新后同步到 `harmony/AppScope/resources/base/media/app_icon.png`。README 截图放在 `assets/images/screenshots/`。
 - API Key 由用户在手机上填写，经受限的 ArkWeb 消息通道存进鸿蒙 Asset Store。代码、包、构建配置和日志不得包含真实 Key。
 
 ## 开发与验证

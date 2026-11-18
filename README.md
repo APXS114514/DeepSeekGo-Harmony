@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="LOGO.png" alt="Deepseek GO" width="128">
+  <img src="assets/images/logo.png" alt="Deepseek GO" width="128">
 </p>
 
 <h1 align="center">Deepseek GO</h1>
@@ -24,13 +24,13 @@ Deepseek GO 是一款基于 DeepSeek 官方 Chat Demo 开发的第三方 Harmony
 
 | 欢迎页 | 深度思考与代码 | 语音输入 |
 | :---: | :---: | :---: |
-| <img src="docs/screenshots/phone-welcome.png" width="240" alt="欢迎页"> | <img src="docs/screenshots/phone-chat.png" width="240" alt="深度思考与代码回答"> | <img src="docs/screenshots/phone-voice.png" width="240" alt="语音输入实时显示文字"> |
+| <img src="assets/images/screenshots/phone-welcome.png" width="240" alt="欢迎页"> | <img src="assets/images/screenshots/phone-chat.png" width="240" alt="深度思考与代码回答"> | <img src="assets/images/screenshots/phone-voice.png" width="240" alt="语音输入实时显示文字"> |
 | **识别图片文字** | **自定义指令** | **跨对话记忆** |
-| <img src="docs/screenshots/phone-scan.png" width="240" alt="拍照或从图库识字"> | <img src="docs/screenshots/phone-personalization.png" width="240" alt="自定义指令设置"> | <img src="docs/screenshots/phone-memory.png" width="240" alt="记忆管理"> |
+| <img src="assets/images/screenshots/phone-scan.png" width="240" alt="拍照或从图库识字"> | <img src="assets/images/screenshots/phone-personalization.png" width="240" alt="自定义指令设置"> | <img src="assets/images/screenshots/phone-memory.png" width="240" alt="记忆管理"> |
 
 **平板与深色主题**：宽屏时对话历史常驻左侧，可随时收起。
 
-<img src="docs/screenshots/tablet-dark.png" alt="平板宽屏深色主题" width="100%">
+<img src="assets/images/screenshots/tablet-dark.png" alt="平板宽屏深色主题" width="100%">
 
 截图为应用内置界面的渲染效果，不含系统状态栏。
 
@@ -118,7 +118,7 @@ pnpm build:harmony
 | --- | --- |
 | `harmony/` | ArkTS、ArkUI、ArkWeb 外壳，包括窗口与系统栏、Asset Store、语音、识字、分享和文件保存 |
 | `chat-demo-main/` | 内置的聊天前端（React + Rspack），在上游 Chat Demo 的基础上修改 |
-| `docs/screenshots/` | README 截图 |
+| `assets/images/` | 欢迎页 Logo、启动器图标源文件和 README 截图 |
 
 架构、验证和打包命令见 [HANDOFF.md](HANDOFF.md)，开发与提交规则见 [AGENTS.md](AGENTS.md)，每个版本的变化见 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -126,6 +126,6 @@ pnpm build:harmony
 
 本项目自有代码和相关文档按 [MIT 许可证](LICENSE) 发布，版权归 APXS 所有。内置前端基于 DeepSeek 官方的 [Chat Demo](https://github.com/deepseek-ai/chat-demo)，上游代码沿用其 [MIT 许可证](chat-demo-main/LICENSE)。分发代码时请保留两份许可证声明。
 
-`LOGO.png`、`Icon.png` 及其在应用和截图中的角色图案由 APXS 创作，采用 **CC BY-NC-ND 4.0**（署名、非商业性使用、禁止演绎）。署名后可以非商业分享原图，改作不可分发。见 [图像授权声明](ARTWORK-NOTICE.txt)。
+`assets/images/logo.png`、`assets/images/app-icon.png` 及其在应用和截图中的角色图案由 APXS 创作，采用 **CC BY-NC-ND 4.0**（署名、非商业性使用、禁止演绎）。署名后可以非商业分享原图，改作不可分发。见 [图像授权声明](ARTWORK-NOTICE.txt)。
 
 本项目为个人开发，与深度求索公司没有关联。「DeepSeek」名称及商标归其所有者所有。

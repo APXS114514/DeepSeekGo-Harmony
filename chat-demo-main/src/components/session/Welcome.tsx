@@ -7,7 +7,9 @@ import { setIncognito, useChatStore } from '../../services/chat/store.js'
 import { MobileHeader } from './MobileHeader.js'
 import styles from './Welcome.module.css'
 
-const logo = __HARMONY_APP__ ? new URL('../../../../LOGO.png', import.meta.url).href : undefined
+const logo = __HARMONY_APP__
+  ? new URL('../../../../assets/images/logo.png', import.meta.url).href
+  : undefined
 
 /** 新对话：问候语 + 输入框。桌面端居中；移动端输入框吸底 */
 export const Welcome = () => {

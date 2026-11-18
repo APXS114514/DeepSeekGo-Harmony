@@ -4,7 +4,7 @@
 
 - 当前源码为 1.3.1，版本代码为 `1000011`，调整默认配色、深色背景、位置信息、设置分隔和界面文案，见「1.3.1 配色与设置」。1.3.0 版本代码为 `1000010`，新增无痕对话、后台生成与完成通知，并做了返回手势、系统字体、2in1 键鼠等适配，见「1.3.0 无痕对话与鸿蒙适配」。1.2.1 修复宽屏居中和侧栏上下断开，见「1.2.1 宽屏修复」。1.1.0 新增系统语音输入、本机识字、接收系统分享和经系统文件管理器导出，见下方「鸿蒙独有功能」；1.2.0 新增自定义指令和跨对话记忆，见「个性化与记忆」。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
 - 最近一次交付是 `HAPS/Deepseek-GO-1.3.1-unsigned.hap`，版本代码为 `1000011`，对应 GitHub Releases 标签 `v1.3.1`。只有用户明确要求时才打包当前源码版本。
-- 远端仓库是 `origin`（GitHub `APXS114514/DeepSeekGo-Harmony`，分支 `main`）。推送身份和 SSH 配置见 [`AGENTS.md`](AGENTS.md#版本与提交)。仓库只收源码、配置、文档和图标。依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`，都由根目录和 `harmony/` 的 `.gitignore` 排除。这些文件在本机仍然保留，新克隆的仓库不需要它们也能正常构建。README 截图在 `docs/screenshots/`，用 DSH 工作区 `Game-Miscellaneous/_deepseek-go-readme-shots/readme-shots.mjs` 生成：加载 `pnpm build:harmony` 的产物，模拟接口和设备消息通道，参数是输出目录。
+- 远端仓库是 `origin`（GitHub `APXS114514/DeepSeekGo-Harmony`，分支 `main`）。推送身份和 SSH 配置见 [`AGENTS.md`](AGENTS.md#版本与提交)。仓库只收源码、配置、文档和图片资源。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`。从仓库根目录运行 `node ../Game-Miscellaneous/_deepseek-go-readme-shots/readme-shots.mjs assets/images/screenshots` 可重新生成截图。脚本加载 `pnpm build:harmony` 的产物，使用模拟接口和设备消息通道。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
 
 版本、提交和发布规则见 [`AGENTS.md`](AGENTS.md#版本与提交)，每版的用户可见变化见 [`CHANGELOG.md`](CHANGELOG.md)。
@@ -86,7 +86,7 @@
 ## 1.0.x 的界面改动
 
 - **顶栏**。上一版的蓝圈来自原生按钮使用系统材质时采用的默认填充色。1.0.5 的 `ChatHeader.ets` 使用透明底的 ArkUI 文本样式按钮。
-- **Logo 与启动器图标**。鸿蒙欢迎页引用根目录的 `LOGO.png`。Rspack 将 PNG 输出到 `static/media/`，`Index.ets` 按 `image/png` 提供资源。已将根目录最新的 `Icon.png` 原样同步至 `harmony/AppScope/resources/base/media/app_icon.png`。两个源文件的大小写以实际文件名为准。
+- **Logo 与启动器图标**。鸿蒙欢迎页引用 [`assets/images/logo.png`](assets/images/logo.png)。Rspack 将 PNG 输出到 `static/media/`，`Index.ets` 按 `image/png` 提供资源。启动器图标源文件是 [`assets/images/app-icon.png`](assets/images/app-icon.png)，鸿蒙资源副本放在 `harmony/AppScope/resources/base/media/app_icon.png`。
 - **键盘与欢迎页**。`Index.ets` 为 ArkWeb 设置 `WebKeyboardAvoidMode.RESIZE_VISUAL`。网页的 [`viewport.ts`](chat-demo-main/src/app/viewport.ts) 读取 `visualViewport`，收到逐帧高度时跟随系统，遇到大幅跳变时平滑补间。失焦后继续用实际可视高度，直到键盘收起。欢迎页用 `object-fit: contain` 随可用空间等比显示完整 Logo。 [华为 ArkWeb 键盘避让文档](https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-basic-components-web-attributes/)
 - **侧栏动效**。窄屏使用滑动抽屉。中等和宽窗口使用 `DockedSider`，侧栏滑动的同时，聊天区随侧栏占用宽度变化。收起状态沿用现有设置，并响应系统的减少动态效果偏好。
 - **其他过渡**。设置和搜索面板进出有过渡，退出期间保留原生顶栏的遮挡状态。欢迎页进入会话、编辑消息、恢复主输入栏和手动展开思考正文时轻量淡入。正文开始时，自动思考预览平滑收起。新增过渡遵循减少动态效果偏好。
