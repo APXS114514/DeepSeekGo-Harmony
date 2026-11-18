@@ -211,8 +211,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
         {listening ? (
           <div className={styles.transcript} aria-live="polite">
             <span className={clsx(!voice.transcript && styles.transcriptHint)}>
-              {voice.transcript ||
-                t(recording ? 'harmonyVoiceListening' : 'harmonyVoiceFinishing')}
+              {voice.transcript || t(recording ? 'harmonyVoiceListening' : 'harmonyVoiceFinishing')}
             </span>
           </div>
         ) : recording && isMobile ? (

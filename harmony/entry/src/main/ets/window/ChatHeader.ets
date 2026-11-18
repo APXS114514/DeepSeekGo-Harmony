@@ -17,7 +17,8 @@ export struct ChatHeader {
   @Builder
   actionButton(symbol: Resource, label: string, action: () => void) {
     Button({ type: ButtonType.Circle, buttonStyle: ButtonStyleMode.TEXTUAL, stateEffect: true }) {
-      SymbolGlyph(symbol).fontSize(22).fontColor([this.foreground()]);
+      // 图标固定 22vp，与网页顶栏一致；标题用 fp 跟随系统字体。
+      SymbolGlyph(symbol).fontSize('22vp').fontColor([this.foreground()]);
     }
     .width(44)
     .height(44)

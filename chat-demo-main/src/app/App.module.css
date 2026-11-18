@@ -7,7 +7,8 @@
 }
 
 :global(.harmony-app) .frame {
-  --frame-safe-top: max(0px, calc(var(--app-safe-top) - var(--app-viewport-top, 0px)));
+  /* 框架随视觉视口移动，屏幕上的上沿始终在状态栏下面，所以顶部安全区不扣减视口偏移。 */
+  --frame-safe-top: var(--app-safe-top);
   --frame-safe-bottom: max(
     0px,
     calc(var(--app-safe-bottom) - var(--app-viewport-obscured-bottom, 0px))

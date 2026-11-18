@@ -15,6 +15,7 @@ import {
   type SelectMessageVersion,
 } from './BranchSwitcher.js'
 import { MessageFile } from './MessageFile.js'
+import { useBackLayer } from '../../services/backStack.js'
 import { CopyButton } from './CopyButton.js'
 import styles from './UserMessage.module.css'
 
@@ -49,6 +50,7 @@ export const UserMessage = memo(function UserMessage({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const isMobile = useIsMobile()
   const canSend = !busy && (draft.trim() !== '' || message.files.length > 0)
+  useBackLayer(editing, () => onEdit(null))
 
   useLayoutEffect(() => {
     if (editing) {

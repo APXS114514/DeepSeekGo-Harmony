@@ -154,8 +154,23 @@ const putFiles = async (store: 'files' | 'filesStaging', files: StoredFile[]) =>
 
 export const saveFiles = (files: StoredFile[]): Promise<void> => putFiles('files', files)
 
+/** 无痕对话的附件原件只放在内存里，离开对话时释放。 */
+const memoryFiles = new Map<string, Blob>()
+
+export const keepFilesInMemory = (files: StoredFile[]) => {
+  for (const file of files) {
+    memoryFiles.set(file.id, file.blob)
+  }
+}
+
+export const forgetFilesInMemory = (ids: Iterable<string>) => {
+  for (const id of ids) {
+    memoryFiles.delete(id)
+  }
+}
+
 export const loadFile = async (id: string): Promise<Blob | undefined> =>
-  (await (await getDB()).get('files', id))?.blob
+  memoryFiles.get(id) ?? (await (await getDB()).get('files', id))?.blob
 
 /** 清空导入暂存：开始导入前清除上次中断（如关闭页面）遗留的数据，导入失败后清除本次写入。 */
 export const clearStaging = async (): Promise<void> => {

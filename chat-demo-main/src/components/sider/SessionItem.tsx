@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { memo, useState } from 'react'
+import { memo, useRef, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import { IconEditOutline16, IconEllipsisOutline16, IconTrashOutline16 } from '../base/icons.js'
 import { renameSession, selectSession } from '../../services/chat/store.js'
@@ -7,6 +7,7 @@ import type { SessionSummary } from '../../services/chat/types.js'
 import { IconButton } from '../base/IconButton.js'
 import { Menu } from '../base/Menu.js'
 import { closeMobileSider } from './mobileSiderState.js'
+import { useBackLayer } from '../../services/backStack.js'
 import styles from './SessionItem.module.css'
 
 export const SessionItem = memo(function SessionItem({
@@ -20,6 +21,8 @@ export const SessionItem = memo(function SessionItem({
 }) {
   const t = useTranslate()
   const [editing, setEditing] = useState(false)
+  useBackLayer(editing, () => setEditing(false))
+  const menuRef = useRef<{ open: () => void }>(null)
   const displayTitle = session.title || t('untitledChat')
 
   if (editing) {
@@ -54,10 +57,22 @@ export const SessionItem = memo(function SessionItem({
         selectSession(session.id)
         closeMobileSider()
       }}
+      onContextMenu={(event) => {
+        // 鼠标右键打开与「…」相同的菜单；触屏长按仍交给系统的文字选择。
+        if (
+          __HARMONY_APP__ &&
+          event.nativeEvent instanceof PointerEvent &&
+          event.nativeEvent.pointerType === 'mouse'
+        ) {
+          event.preventDefault()
+          menuRef.current?.open()
+        }
+      }}
     >
       <div className={styles.title}>{displayTitle}</div>
       <div className={styles.action} onClick={(event) => event.stopPropagation()}>
         <Menu
+          controlRef={menuRef}
           options={[
             {
               key: 'rename',

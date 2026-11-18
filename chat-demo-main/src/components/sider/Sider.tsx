@@ -13,11 +13,13 @@ import { showToast } from '../base/toastState.js'
 import { openSettings } from '../settings/settingsDialogState.js'
 import { closeMobileSider, useMobileSider } from './mobileSiderState.js'
 import { SessionItem } from './SessionItem.js'
+import { SHORTCUTS, useShortcutHint } from '../../app/shortcuts.js'
 import styles from './Sider.module.css'
 
 /** 展开的侧边栏：名称与收起按钮、开启新对话、按时间分组的会话列表、底部设置；移动端放在抽屉里，收起按钮关闭抽屉 */
 export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   const t = useTranslate()
+  const hint = useShortcutHint()
   const sessions = useChatStore((state) => state.sessions)
   const activeId = useChatStore((state) => state.activeId)
   const [now, setNow] = useState(Date.now)
@@ -56,7 +58,7 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
         <IconButton
           size="m"
           icon={<IconPanelLeftOutline16 />}
-          tooltip={t('collapseSiderbarButton')}
+          tooltip={hint(t('collapseSiderbarButton'), SHORTCUTS.toggleSider)}
           tooltipPlacement="bottom"
           onClick={() => (mobile ? closeMobileSider() : setSiderCollapsed(true))}
         />

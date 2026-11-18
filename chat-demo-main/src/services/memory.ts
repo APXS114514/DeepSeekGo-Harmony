@@ -20,7 +20,8 @@ const MAX_QUESTION = 4000
 const MAX_ANSWER = 1500
 const MAX_ADDS_PER_TURN = 3
 /** 疑似密钥、密码或证件号的内容一律不记。 */
-const SENSITIVE = /sk-[A-Za-z0-9]{12,}|api[_\s-]?key|密码|口令|password|身份证|银行卡|\b\d{15,19}\b/i
+const SENSITIVE =
+  /sk-[A-Za-z0-9]{12,}|api[_\s-]?key|密码|口令|password|身份证|银行卡|\b\d{15,19}\b/i
 
 const EXTRACT_PROMPT = `你负责维护用户的长期记忆，供以后的对话参考。
 阅读「已有记忆」和本轮对话，只提炼关于用户本人、以后仍然有用的稳定信息，例如身份与职业、长期目标、正在进行的项目、偏好与习惯、明确要求记住的事。

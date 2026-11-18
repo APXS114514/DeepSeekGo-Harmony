@@ -2,7 +2,7 @@
 
 ## 工作区
 
-- 当前源码为 1.2.1，版本代码为 `1000009`，修复宽屏居中和侧栏上下断开，见「1.2.1 宽屏修复」。1.1.0 新增系统语音输入、本机识字、接收系统分享和经系统文件管理器导出，见下方「鸿蒙独有功能」；1.2.0 新增自定义指令和跨对话记忆，见「个性化与记忆」。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 当前源码为 1.3.0，版本代码为 `1000010`，新增无痕对话、后台生成与完成通知，并做了返回手势、系统字体、2in1 键鼠等适配，见「1.3.0 无痕对话与鸿蒙适配」。1.2.1 修复宽屏居中和侧栏上下断开，见「1.2.1 宽屏修复」。1.1.0 新增系统语音输入、本机识字、接收系统分享和经系统文件管理器导出，见下方「鸿蒙独有功能」；1.2.0 新增自定义指令和跨对话记忆，见「个性化与记忆」。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
 - 最近一次交付是 `HAPS/Deepseek-GO-1.2.1-unsigned.hap`，版本代码为 `1000009`。只有用户明确要求时才打包当前源码版本。
 - 远端仓库是 `origin`（GitHub `APXS114514/DeepSeekGo-Harmony`，分支 `main`）。推送身份和 SSH 配置见 [`AGENTS.md`](AGENTS.md#版本与提交)。仓库只收源码、配置、文档和图标。依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`，都由根目录和 `harmony/` 的 `.gitignore` 排除。这些文件在本机仍然保留，新克隆的仓库不需要它们也能正常构建。README 截图在 `docs/screenshots/`，用 DSH 工作区 `Game-Miscellaneous/_deepseek-go-readme-shots/readme-shots.mjs` 生成：加载 `pnpm build:harmony` 的产物，模拟接口和设备消息通道，参数是输出目录。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
@@ -61,6 +61,18 @@
 - **未居中**：用户在 1.0.6 平板横屏截图中，欢迎页和输入框左边距 240、右边距 357 设备像素，状态栏图标也在右侧约 110 像素处截止。浏览器用右侧 58vp 的 inset 复现出同样的比例，推断是位于右上角的摄像头挖孔被 `TYPE_CUTOUT.rightRect` 上报，原 `includeAvoidArea` 把它当成整条右边距。[`WindowInsets.ets`](harmony/entry/src/main/ets/window/WindowInsets.ets) 现在把完全落在窗口顶部或底部 25% 以内的左右避让区改算为上下避让；跨过中段的侧边刘海仍按左右处理。每次计算会在 hilog 输出 `Window WxH avoid system=… nav=… cutout=… -> {insets}`，真机排查时用 `hdc hilog | grep PocketChat` 查看原始矩形。
 - **侧栏上下断开**：常驻侧栏原本在 `.frame` 的上下安全区 padding 以内，状态栏和手势区露出主背景色。[`Sider.module.css`](chat-demo-main/src/components/sider/Sider.module.css) 在鸿蒙下给 `.docked` 加负的上下外边距，`.sider` 用同样的 padding 避开系统栏，底色和分隔线贯穿全高。窄屏抽屉原本就是全高，未改动。
 
+## 1.3.0 无痕对话与鸿蒙适配
+
+- **顶栏切换不跳动**：窄屏顶栏平时由原生 `ChatHeader.ets` 绘制，打开抽屉或弹层时切换为网页的 `MobileHeader`。鸿蒙版网页顶栏现在与原生逐项一致：44 按钮、间距 8、标题 15px Medium、三条等长横线和方框铅笔图标（`IconMenuLines22`、`IconSquarePencil22`）。原生图标固定为 `22vp`，标题用 fp，网页标题按 `--app-font-scale` 同步缩放。
+- **跟随系统深色**：ArkWeb 默认 `WebDarkMode.Off`，网页的 `prefers-color-scheme` 永远是浅色。`Index.ets` 改为 `.darkMode(WebDarkMode.Auto).forceDarkAccess(false)`，配色仍由网页自己的深色主题负责。另外新增 `resources/dark/element/color.json`，启动页背景在深色下使用 `#161C19`。
+- **键盘弹起时顶部重叠**：`.frame` 和弹层跟随视觉视口定位，在屏幕上的上沿始终位于状态栏下方，所以顶部安全区不再扣减 `visualViewport.offsetTop`（`App.module.css` 的 `--frame-safe-top` 和 `Modal.module.css`）。旧回归脚本里「31 − 12 = 19px」的断言已改为 31px。
+- **返回手势**：[`services/backStack.ts`](chat-demo-main/src/services/backStack.ts) 维护「返回即关闭」的层，Modal、Menu、Select、搜索面板、窄屏抽屉、消息编辑、会话重命名、记忆编辑和语音收音都会登记。网页通过 window-ui 的 `canGoBack` 告诉原生；`Index.ets` 的 `onBackPress` 在有可关闭的层时发送 `window-action: back`，由网页关闭最上面一层；没有可关闭的层时交给系统处理。
+- **系统字体大小**：`AppScope/resources/base/profile/configuration.json` 声明 `fontSizeScale: followSystem` 和 `fontSizeMaxScale: 1.75`。`EntryAbility` 把 `config.fontSizeScale` 写入 AppStorage（`window/FontScale.ets`），`Index` 监听后发送 `font-scale`，取值限制在 0.8–1.75。网页在 `harmony.css` 中按 `--app-font-scale` 缩放 Markdown 字体变量、用户气泡、编辑框和输入框；按钮和间距不变。
+- **2in1 键鼠**：[`app/shortcuts.ts`](chat-demo-main/src/app/shortcuts.ts) 提供 `Ctrl+N`（新对话）、`Ctrl+B`（窄屏开关抽屉，宽屏收起或展开侧栏）、`Ctrl+,`（设置）。原生能力上报新增 `deviceType`，只有 2in1 在按钮提示里附带快捷键。鼠标右键会话条目会打开同一个菜单（`Menu` 新增 `controlRef`），触屏长按不受影响。
+- **分屏与悬浮窗**：在浏览器中按 320×568、360×420、400×800、700×500、480×320 检查欢迎页和对话页，没有控件越界或横向滚动。脚本是 `Game-Miscellaneous/_verify-deepseek-go-1.3/windows.mjs`。
+- **无痕对话**：会话带 `ephemeral: true`，只存在于 `sessionCache`，不进入 `sessions` 列表和导出，`persist` 直接跳过。附件原件通过 `db.keepFilesInMemory` 放在内存里，`loadFile` 优先读取内存。系统提示词保留自定义指令，但不附带记忆，也不触发记忆提炼。`newChat`、`selectSession` 离开时会调用 `discardEphemeral` 停止生成、移出缓存、释放附件和草稿；打开已保存的对话即退出无痕模式。入口在欢迎页问候语下方，会话页顶部有说明条，原生顶栏标题显示「无痕对话」。
+- **后台生成与完成通知**：网页通过 window-ui 的 `generating` 告诉原生是否有回答在生成。[`BackgroundReply.ets`](harmony/entry/src/main/ets/services/BackgroundReply.ets) 在 `onPageHide` 时若仍在生成，就申请短时任务 `requestSuspendDelay`；生成结束、回到前台或到期回调时取消。每条回答完成后网页发送 `reply-done`（会话 id、标题、去掉 Markdown 的摘要；无痕对话只发「回答已生成完成」），原生只在后台时发布通知，WantAgent 带 `pocketChatSessionId`。点击通知后 `EntryAbility.onNewWant` 写入 AppStorage，网页收到 `open-session` 后等会话列表加载再打开。回到前台时清除通知。首次开始生成时请求一次通知授权；设置 → 通用设置 → 回答完成通知（默认开启）在打开时会再次请求，被拒绝时给出提示。
+
 ## 1.0.x 的界面改动
 
 - **顶栏**。上一版的蓝圈来自原生按钮使用系统材质时采用的默认填充色。1.0.5 的 `ChatHeader.ets` 使用透明底的 ArkUI 文本样式按钮。
@@ -77,6 +89,8 @@
 - 检查原生代码时用 HarmonyOS 26.0.0 SDK 自带的 `codelinter`，例如在 `harmony/` 下运行 `codelinter -p default -e error entry/src/main/ets/pages/Index.ets`。1.0.6 的键盘配置已通过该检查。真机待验证项包括系统键盘与页面动效同步、横屏和分屏下的可用高度、启动器图标、折叠屏展开态侧栏及深浅主题下的顶栏反馈。
 - 回归会话和设置时，从应用入口使用测试 Key、模拟 ArkWeb 消息通道和 API 回包。检查切换会话或折叠展开后草稿仍在，编辑重发后能切回原版本，以及 Key 校验成功但设备保存失败时能正确提示并重试。真机验收记录设备、系统版本和实际安装的包版本。
 - 收到生成 HAP Release 的请求后，从 `harmony/AppScope/app.json5` 读取当前版本。先构建 ArkWeb 资源，再在 `harmony/` 下用 HarmonyOS 26.0.0 SDK 执行 `hvigorw assembleHap --mode module -p product=default -p module=entry@default -p buildMode=release --no-daemon`。核对构建日志的未签名状态及包内 `module.json` 的版本、包名和最低 API。比对图标、Logo 和打包的网页资源，最后复制到 `HAPS/` 并记录 SHA-256。
+- 1.3.0 已通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony`、改动文件的 `oxfmt`、改动的 ArkTS 文件通过 codelinter（无错误）和 ArkTS Release 编译；包内含 `configuration` 配置。回归脚本 `Game-Miscellaneous/_verify-deepseek-go-1.3/batch-1.3.mjs` 覆盖顶栏对齐、返回手势分层、字体缩放、键盘偏移时的安全区、无痕对话的创建与丢弃以及不发记忆、生成状态与完成通知内容、通知开关和授权拒绝、点击通知打开会话、2in1 快捷键提示与右键菜单。1.1、1.2 功能回归仍通过，motion、edit、brand-sider 用 `*.v13.mjs`（关闭自动记忆、键盘安全区改为 31px）通过。
+- 1.3.0 尚未真机验证：侧滑返回在各层的实际表现、ArkWeb `darkMode(Auto)` 是否让「跟随系统」生效、系统字体缩放和原生 fp 标题的一致性、平板键盘弹起时左上角是否仍与状态栏重叠、短时任务能否让 ArkWeb 在后台继续接收流式回复、通知授权弹窗与点击回到对话、2in1 快捷键是否与系统冲突。暂未打包 1.3.0 HAP。
 - 1.2.1 Release HAP 已重新构建网页资源，并通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony` 和 ArkTS Release 编译；构建日志确认未签名。包内 `module.json` 显示 `com.pocketchat.deepseek`、`1.2.1`/`1000009`、最低 API 12、目标 API 26、SDK `26.0.0.105`、Release 非调试，并包含 `MICROPHONE` 权限和 `sendData` 分享技能。Logo 和网页资源与源码逐字节一致。启动器图标被工具链从 1254px 缩为 512px，与已交付的 1.0.6 包中的图标逐字节相同。SHA-256 为 `33c29276c99819017ee620d9f5b99185e7ec6691635c3342f81b05e68be5c982`，尚未在真机签名安装。
 - 1.2.1 已通过 `pnpm lint`、`pnpm build:harmony`、`WindowInsets.ets` 的 codelinter 和 ArkTS 编译。浏览器探针确认侧栏覆盖整个窗口高度，内容位置不变；1.1、1.2 功能回归以及关闭自动记忆后的 motion、edit、brand-sider 回归都通过。挖孔改算上下避让的逻辑只能在真机验证：需要确认平板横屏时左右对称，挖孔不遮挡内容，以及顶部 inset 是否因此变大。
 - 1.2.0 已通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony` 和 ArkTS 编译，原生代码未改动。浏览器回归脚本是 DSH 工作区的 `Game-Miscellaneous/_verify-deepseek-go-1.2/personalization.mjs`，在本仓库根目录用 Node 运行。它覆盖指令保存与注入、手动添加与去重、自动提炼的新增、更新和删除、敏感信息过滤、无效返回和短消息不触发、编辑与 Esc 取消、整理、撤销和整理失败、删除、开关关闭后不注入也不提炼、刷新后保留、清空确认。1.1.0 的 harmony-features 回归仍通过；motion、edit、brand-sider 在关闭自动记忆后通过。真机待验证 ArkWeb 的 localStorage 在覆盖安装后是否保留，以及长指令和长记忆列表在小屏设置页的滚动。暂未打包 1.2.0 HAP。

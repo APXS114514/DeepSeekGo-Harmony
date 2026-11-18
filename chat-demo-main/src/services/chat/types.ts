@@ -114,6 +114,8 @@ export type Session = {
   messages: Message[]
   /** undefined 表示线性消息列表；null 表示空会话。 */
   rootMessageId?: string | null
+  /** 无痕对话：只在内存中，不写入本地数据库、不进列表和导出，也不读写记忆。 */
+  ephemeral?: true
 }
 
 /** 会话列表元数据；消息只在打开会话时加载。 */

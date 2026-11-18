@@ -25,6 +25,7 @@ import { IconEditOutline16, IconTrashOutline16 } from '../base/icons.js'
 import { Modal } from '../base/Modal.js'
 import { showToast } from '../base/toastState.js'
 import { ensureApiKey } from './settingsDialogState.js'
+import { useBackLayer } from '../../services/backStack.js'
 import styles from './Personalization.module.css'
 import settingsStyles from './Settings.module.css'
 
@@ -176,6 +177,7 @@ const MemorySetting = () => {
   const [organizing, setOrganizing] = useState(false)
   const [previous, setPrevious] = useState<string[] | null>(null)
   const full = memories.length >= MAX_MEMORIES
+  useBackLayer(editing !== null, () => setEditing(null))
 
   const add = () => {
     if (addMemory(draft)) {

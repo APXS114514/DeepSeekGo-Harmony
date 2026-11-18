@@ -21,6 +21,8 @@ type Settings = {
   thinking: boolean
   search: boolean
   siderCollapsed: boolean
+  /** 鸿蒙版：应用在后台时回答完成后发通知 */
+  replyNotify: boolean
 }
 
 const KEYS = {
@@ -34,6 +36,8 @@ const KEYS = {
   thinking: 'chat-demo:thinking',
   search: 'chat-demo:search',
   siderCollapsed: 'chat-demo:sider-collapsed',
+  replyNotify: 'chat-demo:reply-notify',
+  replyNotifyAsked: 'chat-demo:reply-notify-asked',
 } as const
 
 const read = (key: string) => {
@@ -110,6 +114,7 @@ export const useSettings = create<Settings>(() => ({
   thinking: read(KEYS.thinking) === 'true',
   search: read(KEYS.search) === 'true',
   siderCollapsed: read(KEYS.siderCollapsed) === 'true',
+  replyNotify: read(KEYS.replyNotify) !== 'false',
 }))
 
 export const setLocale = (locale: Locale) => {
@@ -184,4 +189,18 @@ export const setSearch = (search: boolean) => {
 export const setSiderCollapsed = (siderCollapsed: boolean) => {
   write(KEYS.siderCollapsed, String(siderCollapsed))
   useSettings.setState({ siderCollapsed })
+}
+
+export const setReplyNotify = (replyNotify: boolean) => {
+  write(KEYS.replyNotify, String(replyNotify))
+  useSettings.setState({ replyNotify })
+}
+
+/** 首次生成回答时请求一次通知授权，之后由设置里的开关重新请求。 */
+export const takeReplyNotifyPrompt = (): boolean => {
+  if (read(KEYS.replyNotifyAsked) === 'true') {
+    return false
+  }
+  write(KEYS.replyNotifyAsked, 'true')
+  return true
 }

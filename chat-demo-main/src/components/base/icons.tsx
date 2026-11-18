@@ -556,7 +556,15 @@ export const IconCameraOutline16 = () => (
 
 export const IconPhotoOutline16 = () => (
   <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x={1.7} y={2.2} width={12.6} height={11.6} rx={2} stroke="currentColor" strokeWidth={1.4} />
+    <rect
+      x={1.7}
+      y={2.2}
+      width={12.6}
+      height={11.6}
+      rx={2}
+      stroke="currentColor"
+      strokeWidth={1.4}
+    />
     <circle cx={5.6} cy={6} r={1.2} fill="currentColor" />
     <path
       d="M2 11.6L5.6 8.6L8.4 10.8L10.6 8.8L14 11.8"
@@ -581,5 +589,55 @@ export const IconPersonalOutline16 = () => (
       d="M12.5 9.2L13.1 10.9L14.8 11.5L13.1 12.1L12.5 13.8L11.9 12.1L10.2 11.5L11.9 10.9L12.5 9.2Z"
       fill="currentColor"
     />
+  </svg>
+)
+
+/** 鸿蒙版顶栏：与系统符号 line_3_horizontal 一致的三条等长横线，原生顶栏切换到网页顶栏时不跳动 */
+export const IconMenuLines22 = () => (
+  <svg width={22} height={22} viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M3.5 5.5H18.5M3.5 11H18.5M3.5 16.5H18.5"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+    />
+  </svg>
+)
+
+/** 鸿蒙版顶栏：与系统符号 square_and_pencil 一致的新对话图标 */
+export const IconSquarePencil22 = () => (
+  <svg width={22} height={22} viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M10.5 3.5H6.5C4.84315 3.5 3.5 4.84315 3.5 6.5V15.5C3.5 17.1569 4.84315 18.5 6.5 18.5H15.5C17.1569 18.5 18.5 17.1569 18.5 15.5V11.5"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+    />
+    <path
+      d="M16.6 3.4C17.3 2.7 18.4 2.7 19.1 3.4C19.8 4.1 19.8 5.2 19.1 5.9L11.6 13.4L8.8 14.2L9.6 11.4L16.6 3.4Z"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinejoin="round"
+    />
+  </svg>
+)
+
+/** 无痕对话：划掉的眼睛 */
+export const IconIncognitoOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M6.2 3.6C6.78 3.47 7.38 3.4 8 3.4C11.3 3.4 13.7 5.6 14.8 8C14.43 8.8 13.92 9.56 13.28 10.22M10.9 11.84C10.02 12.31 9.04 12.6 8 12.6C4.7 12.6 2.3 10.4 1.2 8C1.76 6.78 2.62 5.65 3.74 4.79"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M9.62 9.48C9.21 9.9 8.64 10.15 8 10.15C6.81 10.15 5.85 9.19 5.85 8C5.85 7.37 6.12 6.8 6.55 6.41"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+    />
+    <path d="M2 2L14 14" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
   </svg>
 )

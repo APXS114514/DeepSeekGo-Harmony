@@ -56,8 +56,7 @@ const writeJson = (key: string, value: unknown) => {
   }
 }
 
-const clip = (value: unknown, max: number) =>
-  typeof value === 'string' ? value.slice(0, max) : ''
+const clip = (value: unknown, max: number) => (typeof value === 'string' ? value.slice(0, max) : '')
 
 /** 记忆统一成单行，去掉首尾空白和列表符号。 */
 export const normalizeMemoryText = (value: string) =>
@@ -165,9 +164,7 @@ export const updateMemory = (id: string, value: string) => {
   }
   usePersonalization.setState((state) => ({
     memories: state.memories.map((memory) =>
-      memory.id === id && memory.text !== text
-        ? { ...memory, text, updatedAt: Date.now() }
-        : memory
+      memory.id === id && memory.text !== text ? { ...memory, text, updatedAt: Date.now() } : memory
     ),
   }))
   saveMemory()
@@ -198,14 +195,16 @@ export const replaceMemories = (texts: string[]) => {
       continue
     }
     seen.add(text)
-    next.push(byText.get(text) ?? { id: createId(), text, source: 'auto', createdAt: now, updatedAt: now })
+    next.push(
+      byText.get(text) ?? { id: createId(), text, source: 'auto', createdAt: now, updatedAt: now }
+    )
   }
   usePersonalization.setState({ memories: next.slice(-MAX_MEMORIES) })
   saveMemory()
 }
 
 /** 每轮请求的系统提示词：基础身份 + 用户背景 + 回复偏好 + 记忆。 */
-export const buildSystemPrompt = (base: string): string => {
+export const buildSystemPrompt = (base: string, { memory = true } = {}): string => {
   const { aboutUser, responseStyle, instructionsEnabled, memoryEnabled, memories } =
     usePersonalization.getState()
   const parts = [base]
@@ -215,7 +214,7 @@ export const buildSystemPrompt = (base: string): string => {
   if (instructionsEnabled && responseStyle.trim()) {
     parts.push(`${translate('personalPromptResponseStyle')}\n${responseStyle.trim()}`)
   }
-  if (memoryEnabled && memories.length > 0) {
+  if (memory && memoryEnabled && memories.length > 0) {
     parts.push(
       `${translate('personalPromptMemory')}\n${memories.map((memory) => `- ${memory.text}`).join('\n')}`
     )

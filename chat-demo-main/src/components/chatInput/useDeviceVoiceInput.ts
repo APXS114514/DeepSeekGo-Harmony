@@ -9,6 +9,7 @@ import {
   type DeviceVoiceEvent,
 } from '../../services/harmony.js'
 import { showToast } from '../base/toastState.js'
+import { useBackLayer } from '../../services/backStack.js'
 import type { VoiceInputStatus } from './useVoiceInput.js'
 
 /**
@@ -140,6 +141,9 @@ export const useDeviceVoiceInput = (onText: (text: string) => void) => {
     },
     []
   )
+
+  // 收音或识别中按返回取消，不退出页面。
+  useBackLayer(status !== 'idle', cancel)
 
   const getAnalyser = useCallback((): AnalyserNode | null => null, [])
 

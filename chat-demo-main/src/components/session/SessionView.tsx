@@ -19,7 +19,7 @@ export const SessionView = ({
 }) => {
   const t = useTranslate()
   const isMobile = useIsMobile()
-  const title = session.title || t('untitledChat')
+  const title = session.ephemeral ? t('incognitoTitle') : session.title || t('untitledChat')
   return (
     <div className={styles.view}>
       {isMobile ? (
@@ -31,6 +31,11 @@ export const SessionView = ({
           </div>
         </div>
       )}
+      {session.ephemeral ? (
+        <div className={styles.incognitoBanner} role="note">
+          {t('incognitoBanner')}
+        </div>
+      ) : null}
       <MessageList
         key={session.id}
         session={session}

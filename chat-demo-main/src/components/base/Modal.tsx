@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { useTranslate } from '../../i18n/index.js'
 import { IconCloseOutline16 } from './icons.js'
 import { IconButton } from './IconButton.js'
+import { useBackLayer } from '../../services/backStack.js'
 import styles from './Modal.module.css'
 
 /** 当前打开的弹窗，后打开的在末尾；叠放时 Esc 只关闭最上层 */
@@ -43,6 +44,7 @@ export const Modal = ({
   const titleId = useId()
   const onCloseRef = useRef(onClose)
   onCloseRef.current = closing ? () => {} : onClose
+  useBackLayer(!closing, () => onCloseRef.current())
   useEffect(() => {
     const token = {}
     openModals.push(token)

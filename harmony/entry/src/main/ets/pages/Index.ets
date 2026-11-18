@@ -4,7 +4,9 @@ import { webview } from '@kit.ArkWeb';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
 import { DeviceBridge } from '../services/DeviceBridge';
+import { OPEN_SESSION_KEY } from '../services/BackgroundReply';
 import { ShareInbox } from '../services/ShareInbox';
+import { clampFontScale, FONT_SCALE_KEY } from '../window/FontScale';
 import { ChatHeader } from '../window/ChatHeader';
 import { EMPTY_INSETS, readWindowInsets, systemBarProperties, WindowInsets } from '../window/WindowInsets';
 
@@ -34,6 +36,8 @@ interface WebWindowUi {
   menuLabel: string;
   newChatLabel: string;
   showNewChat: boolean;
+  canGoBack: boolean;
+  generating: boolean;
 }
 
 @Entry
@@ -46,9 +50,12 @@ struct Index {
   private disposed: boolean = false;
   private hasWindowUi: boolean = false;
   @State private insets: WindowInsets = EMPTY_INSETS;
+  @StorageProp(FONT_SCALE_KEY) @Watch('sendFontScale') private fontScale: number = 1;
+  @StorageLink(OPEN_SESSION_KEY) @Watch('openPendingSession') private pendingSession: string = '';
   @State private windowUi: WebWindowUi = {
     mobile: false, covered: false, dark: false,
-    title: '', menuLabel: '', newChatLabel: '', showNewChat: false
+    title: '', menuLabel: '', newChatLabel: '', showNewChat: false, canGoBack: false,
+    generating: false
   };
 
   aboutToAppear(): void {
@@ -101,8 +108,31 @@ struct Index {
     }
   };
 
+  /** 网页有打开的菜单、弹窗、面板、抽屉或编辑时，返回手势只关闭最上面一层；否则交给系统。 */
+  onBackPress(): boolean {
+    if (this.windowUi.canGoBack && this.devicePort) {
+      this.sendWebMessage('{"type":"window-action","action":"back"}');
+      return true;
+    }
+    return false;
+  }
+
   onPageHide(): void {
-    this.bridge?.interrupt();
+    this.bridge?.onHide();
+  }
+
+  onPageShow(): void {
+    this.bridge?.onShow();
+  }
+
+  /** 点击回答完成通知回到应用后，打开对应对话。 */
+  private openPendingSession(): void {
+    const sessionId = this.pendingSession;
+    if (!sessionId || !this.devicePort) {
+      return;
+    }
+    this.pendingSession = '';
+    this.sendWebMessage(JSON.stringify({ type: 'window-action', action: 'open-session', value: sessionId }));
   }
 
   private onWindowStatusChange = (): void => {
@@ -138,13 +168,15 @@ struct Index {
     if (typeof next?.mobile !== 'boolean' || typeof next.covered !== 'boolean' ||
       typeof next.dark !== 'boolean' || typeof next.title !== 'string' ||
       typeof next.menuLabel !== 'string' || typeof next.newChatLabel !== 'string' ||
-      typeof next.showNewChat !== 'boolean') {
+      typeof next.showNewChat !== 'boolean' || typeof next.canGoBack !== 'boolean' ||
+      typeof next.generating !== 'boolean') {
       return;
     }
     const themeChanged = !this.hasWindowUi || next.dark !== this.windowUi.dark;
     const headerChanged = next.mobile !== this.windowUi.mobile || next.covered !== this.windowUi.covered;
     this.windowUi = next;
     this.hasWindowUi = true;
+    this.bridge?.setGenerating(next.generating);
     if (themeChanged) {
       this.updateSystemBars();
     }
@@ -159,6 +191,11 @@ struct Index {
       insets: this.insets,
       nativeHeader: this.windowUi.mobile && !this.windowUi.covered
     }));
+  }
+
+  /** 网页正文、输入框和顶栏标题按系统字体缩放，上限与原生 fontSizeMaxScale 一致。 */
+  private sendFontScale(): void {
+    this.sendWebMessage(JSON.stringify({ type: 'font-scale', scale: clampFontScale(this.fontScale) }));
   }
 
   private sendWebMessage(message: string): void {
@@ -186,7 +223,9 @@ struct Index {
       this.controller.postMessage(PORT_MESSAGE, [ports[1]], APP_ORIGIN);
       this.sendWindowLayout();
       this.sendWebMessage(bridge.features());
+      this.sendFontScale();
       this.flushShares();
+      this.openPendingSession();
     } catch (error) {
       this.closeDevicePort();
       hilog.error(0x0000, 'PocketChat', 'Cannot connect local page: %{public}d',
@@ -262,6 +301,9 @@ struct Index {
         .width('100%')
         .height('100%')
         .keyboardAvoidMode(WebKeyboardAvoidMode.RESIZE_VISUAL)
+        // 让网页的 prefers-color-scheme 跟随系统深浅色；配色由网页自己的深色主题负责，不做强制反色。
+        .darkMode(WebDarkMode.Auto)
+        .forceDarkAccess(false)
         .backgroundColor(this.windowUi.dark ? '#161C19' : '#F8F9F5')
         .javaScriptAccess(true)
         .domStorageAccess(true)

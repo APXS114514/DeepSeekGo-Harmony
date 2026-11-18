@@ -16,6 +16,12 @@
   padding-bottom: 0;
 }
 
+/* 与原生 ChatHeader 逐项对齐：按钮 44、间距 8、标题 15 号 Medium。打开侧栏时两者切换不跳动。 */
+:global(.harmony-app) .title {
+  margin: 0 8px;
+  font: 500 calc(15px * var(--app-font-scale, 1)) / 22px var(--dsw-font-family);
+}
+
 .title {
   flex: 1;
   min-width: 0;

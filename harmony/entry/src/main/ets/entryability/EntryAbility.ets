@@ -1,16 +1,34 @@
-import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { OPEN_SESSION_KEY, OPEN_SESSION_PARAM } from '../services/BackgroundReply';
 import { ShareInbox } from '../services/ShareInbox';
+import { FONT_SCALE_KEY } from '../window/FontScale';
 import { systemBarProperties } from '../window/WindowInsets';
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, _launchParam: AbilityConstant.LaunchParam): void {
-    ShareInbox.receive(want);
+    AppStorage.setOrCreate(FONT_SCALE_KEY, this.context.config.fontSizeScale ?? 1);
+    this.receive(want);
+  }
+
+  /** 系统字体大小变化时通知页面，由页面同步给网页。 */
+  onConfigurationUpdate(config: Configuration): void {
+    AppStorage.setOrCreate(FONT_SCALE_KEY, config.fontSizeScale ?? 1);
   }
 
   onNewWant(want: Want, _launchParam: AbilityConstant.LaunchParam): void {
+    this.receive(want);
+  }
+
+  /** 系统分享交给 ShareInbox；点击回答完成通知时记下要打开的对话。 */
+  private receive(want: Want): void {
+    const sessionId = want.parameters?.[OPEN_SESSION_PARAM];
+    if (typeof sessionId === 'string' && sessionId) {
+      AppStorage.setOrCreate(OPEN_SESSION_KEY, sessionId);
+      return;
+    }
     ShareInbox.receive(want);
   }
 

@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition, useDismiss } from './anchored.js'
+import { useBackLayer } from '../../services/backStack.js'
 import { IconCheckOutline16, IconChevronDownOutline14 } from './icons.js'
 import styles from './Select.module.css'
 
@@ -37,6 +38,7 @@ export const Select = <T extends string>({
   >(open, { align: 'end', maxHeight: 320, minSpace: 160 })
   // Esc 只关菜单，不让外层弹窗一起关闭
   useDismiss(open, [anchorRef, floatingRef], () => setOpen(false), { captureEscape: true })
+  useBackLayer(open, () => setOpen(false))
 
   return (
     <>

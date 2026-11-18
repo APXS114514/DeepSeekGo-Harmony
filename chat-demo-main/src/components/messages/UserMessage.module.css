@@ -109,3 +109,10 @@
   gap: 8px;
   margin: 6px 10px 10px;
 }
+
+/* 跟随系统字体大小：气泡和编辑框文字按 --app-font-scale 缩放 */
+:global(.harmony-app) .bubble,
+:global(.harmony-app) .textarea {
+  font-size: calc(16px * var(--app-font-scale, 1));
+  line-height: calc(24px * var(--app-font-scale, 1));
+}

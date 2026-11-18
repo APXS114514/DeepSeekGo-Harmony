@@ -2,7 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslate } from '../i18n/index.js'
 import { loadDeviceApiKey, useSettings } from '../services/settings.js'
 import { bindSharedContent, bindWindowActions, sendWindowUi } from '../services/harmony.js'
+import { handleBack, useBackDepth, useBackLayer } from '../services/backStack.js'
 import { receiveSharedContent } from './receiveShare.js'
+import { useKeyboardShortcuts } from './shortcuts.js'
+import { useReplyNotifications } from './replyNotifications.js'
 import { useTheme } from './theme.js'
 import { useMobileViewport, usePreventPageScroll, useResponsiveLayout } from './viewport.js'
 import { useSurfacePresence } from './useSurfacePresence.js'
@@ -45,10 +48,17 @@ export const App = () => {
   const immersiveLight = useSettings((state) => state.immersiveLight)
   const modalOpen = useModalOpen()
   const mobileSiderOpen = useMobileSider((state) => state.open) && isMobile
+  useBackLayer(mobileSiderOpen, closeMobileSider)
+  useKeyboardShortcuts(isMobile)
+  useReplyNotifications()
+  const generating = useChatStore((state) => Object.keys(state.streaming).length > 0)
   const mainRef = useRef<HTMLElement>(null)
   const [drawerCoversHeader, setDrawerCoversHeader] = useState(false)
   const searchOpen = useSearchPanel((state) => state.entry !== null)
   const searchPanel = useSurfacePresence<HTMLElement>(searchOpen)
+  // 系统返回手势依次关闭：最后打开的菜单或弹窗、搜索面板、侧栏抽屉
+  useBackLayer(searchOpen, closeSearchPanel)
+  const backDepth = useBackDepth((state) => state.depth)
   // 移动端侧边栏以独立抽屉管理开合状态
   const siderCollapsed = useSettings((state) => state.siderCollapsed) && !isMobile
   const ready = useChatStore((state) => state.ready)
@@ -68,7 +78,11 @@ export const App = () => {
     state.activeId === null ? false : Object.hasOwn(state.streaming, state.activeId)
   )
   const activeId = useChatStore((state) => state.activeId)
-  const nativeHeaderTitle = session ? session.title || t('untitledChat') : t('harmonyAppName')
+  const nativeHeaderTitle = session
+    ? session.ephemeral
+      ? t('incognitoTitle')
+      : session.title || t('untitledChat')
+    : t('harmonyAppName')
   const menuLabel = t('expandSiderbarButton')
   const newChatLabel = t('newChat')
   const showNewChat = session !== undefined
@@ -123,9 +137,19 @@ export const App = () => {
 
   useEffect(() => {
     if (__HARMONY_APP__) {
-      return bindWindowActions((action) => {
+      return bindWindowActions((action, value) => {
         if (action === 'sidebar') {
           openMobileSider()
+        } else if (action === 'back') {
+          handleBack()
+        } else if (action === 'open-session' && value) {
+          // 从回答完成通知回来：等会话列表加载后再打开。
+          void initChat().then(() => {
+            if (useChatStore.getState().activeId !== value) {
+              selectSession(value)
+            }
+            closeMobileSider()
+          })
         } else {
           newChat()
         }
@@ -144,9 +168,22 @@ export const App = () => {
         menuLabel,
         newChatLabel,
         showNewChat,
+        canGoBack: backDepth > 0,
+        generating,
       })
     }
-  }, [isMobile, saveError, covered, theme, nativeHeaderTitle, menuLabel, newChatLabel, showNewChat])
+  }, [
+    isMobile,
+    saveError,
+    covered,
+    theme,
+    nativeHeaderTitle,
+    menuLabel,
+    newChatLabel,
+    showNewChat,
+    backDepth,
+    generating,
+  ])
 
   // 文件数、存储空间达到上限时，附件上只显示「上传失败」，原因用 toast 说明
   useEffect(() => onUploadNotice(showToast), [])

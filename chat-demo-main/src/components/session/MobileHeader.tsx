@@ -1,4 +1,9 @@
-import { IconMenuOutline20, IconNewChatOutline20 } from '../base/icons.js'
+import {
+  IconMenuLines22,
+  IconMenuOutline20,
+  IconNewChatOutline20,
+  IconSquarePencil22,
+} from '../base/icons.js'
 import { useTranslate } from '../../i18n/index.js'
 import { newChat } from '../../services/chat/store.js'
 import { IconButton } from '../base/IconButton.js'
@@ -13,7 +18,7 @@ export const MobileHeader = ({ title }: { title?: string }) => {
       <IconButton
         size="xl"
         tone="primary"
-        icon={<IconMenuOutline20 />}
+        icon={__HARMONY_APP__ ? <IconMenuLines22 /> : <IconMenuOutline20 />}
         aria-label={t('expandSiderbarButton')}
         onClick={openMobileSider}
       />
@@ -27,7 +32,7 @@ export const MobileHeader = ({ title }: { title?: string }) => {
           <IconButton
             size="xl"
             tone="primary"
-            icon={<IconNewChatOutline20 />}
+            icon={__HARMONY_APP__ ? <IconSquarePencil22 /> : <IconNewChatOutline20 />}
             aria-label={t('newChat')}
             onClick={newChat}
           />

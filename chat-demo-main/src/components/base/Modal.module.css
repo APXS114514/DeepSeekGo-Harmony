@@ -39,7 +39,7 @@
   top: var(--app-viewport-top, 0px);
   bottom: auto;
   height: var(--app-viewport-height, 100dvh);
-  padding-top: max(0px, calc(var(--app-safe-top) - var(--app-viewport-top, 0px)));
+  padding-top: var(--app-safe-top);
   overflow: hidden;
   transition: var(--viewport-transition);
   animation: overlay-enter var(--surface-motion) both;

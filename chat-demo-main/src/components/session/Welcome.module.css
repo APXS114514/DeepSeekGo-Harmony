@@ -92,3 +92,39 @@
     user-select: none;
   }
 }
+
+/* 无痕对话开关：问候语下方的小按钮，打开后高亮并显示说明 */
+.incognitoToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 5px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 100px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: 400 13px/20px var(--dsw-font-family);
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--dsw-alias-interactive-bg-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--dsw-alias-button-primary-fill);
+    outline-offset: 2px;
+  }
+}
+
+.incognitoActive {
+  border-color: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-label-primary);
+}
+
+.incognitoHint {
+  max-width: 320px;
+  margin: 6px 0 0;
+  font: 400 13px/20px var(--dsw-font-family);
+  color: var(--dsw-alias-label-tertiary);
+}

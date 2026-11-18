@@ -59,6 +59,16 @@ const serverTools = (search: boolean): CreateMessageRequest['tools'] => {
   return tools
 }
 
+const replyDoneListeners = new Set<(session: Session, reply: AssistantMessage) => void>()
+
+/** 订阅「回答已完成」，鸿蒙版据此在后台时发系统通知。 */
+export const onReplyDone = (listener: (session: Session, reply: AssistantMessage) => void) => {
+  replyDoneListeners.add(listener)
+  return () => {
+    replyDoneListeners.delete(listener)
+  }
+}
+
 /** 允许自动补标题的请求；手动重命名后取消本轮标题写入，包含主动清空标题的情况。 */
 const titleRequests = new Set<AbortController>()
 
@@ -76,6 +86,8 @@ type ChatState = {
   activeId: string | null
   /** 正在生成回复的会话 */
   streaming: Record<string, AbortController>
+  /** 新对话页的无痕开关：打开时下一条消息创建无痕会话 */
+  incognito: boolean
 }
 
 export const useChatStore = create<ChatState>(() => ({
@@ -88,6 +100,7 @@ export const useChatStore = create<ChatState>(() => ({
   sessionSaveErrors: {},
   activeId: null,
   streaming: {},
+  incognito: false,
 }))
 
 const { getState: get, setState: set } = useChatStore
@@ -162,13 +175,14 @@ const updateSession = (id: string, update: (session: Session) => Session) =>
     }
     return {
       sessionCache: { ...state.sessionCache, [id]: session },
-      sessions: sameSummary(previous, session)
-        ? state.sessions
-        : sortSessions(
-            state.sessions.map((summary) =>
-              summary.id === id ? toSessionSummary(session) : summary
-            )
-          ),
+      sessions:
+        sameSummary(previous, session) || session.ephemeral
+          ? state.sessions
+          : sortSessions(
+              state.sessions.map((summary) =>
+                summary.id === id ? toSessionSummary(session) : summary
+              )
+            ),
     }
   })
 
@@ -184,6 +198,9 @@ const updateReply = (sessionId: string, reply: AssistantMessage) =>
 
 const persist = (sessionId: string) => {
   const session = getSession(sessionId)
+  if (session?.ephemeral) {
+    return
+  }
   if (session) {
     unsavedSessions.add(sessionId)
     if (deletingSessions.has(sessionId)) {
@@ -443,9 +460,46 @@ export const replaceHistory = async (write: () => Promise<void>): Promise<number
   }
 }
 
+/** 离开无痕对话后立即丢弃：停止生成，移出内存，释放附件原件和草稿。 */
+const discardEphemeral = () => {
+  const { sessionCache, activeId } = get()
+  const discarded = Object.values(sessionCache).filter(
+    (session) => session.ephemeral && session.id !== activeId
+  )
+  if (discarded.length === 0) {
+    return
+  }
+  const ids = new Set(discarded.map((session) => session.id))
+  for (const session of discarded) {
+    getStreamController(session.id)?.abort()
+    sessionAccess.delete(session.id)
+    clearDraft(session.id)
+    db.forgetFilesInMemory(
+      session.messages.flatMap((message) =>
+        message.role === 'user' ? message.files.map((file) => file.id) : []
+      )
+    )
+  }
+  set((state) => ({
+    sessionCache: Object.fromEntries(
+      Object.entries(state.sessionCache).filter(([id]) => !ids.has(id))
+    ),
+  }))
+}
+
+export const isEphemeralActive = () => getSession(get().activeId ?? '')?.ephemeral === true
+
+/** 切换新对话页的无痕开关；只影响下一次新建的对话。 */
+export const setIncognito = (incognito: boolean) => {
+  if (!get().importingHistory) {
+    set({ incognito })
+  }
+}
+
 export const newChat = () => {
   if (!get().importingHistory) {
     set({ activeId: null })
+    discardEphemeral()
     trimSessionCache()
   }
 }
@@ -453,7 +507,9 @@ export const newChat = () => {
 export const selectSession = (id: string) => {
   if (!get().importingHistory && get().sessions.some((session) => session.id === id)) {
     touchSession(id)
-    set({ activeId: id })
+    // 打开已保存的对话即退出无痕模式。
+    set({ activeId: id, incognito: false })
+    discardEphemeral()
     void ensureSessionLoaded(id)
     trimSessionCache()
   }
@@ -566,6 +622,7 @@ export const sendMessage = (targetSessionId: string | null) => {
     return false
   }
   if (sessionId === null) {
+    const ephemeral = get().incognito
     const session: Session = {
       id: createId(),
       title: '',
@@ -573,11 +630,12 @@ export const sendMessage = (targetSessionId: string | null) => {
       updatedAt: now,
       messages: [],
       rootMessageId: null,
+      ...(ephemeral ? { ephemeral: true as const } : {}),
     }
     sessionId = session.id
     touchSession(session.id)
     set((state) => ({
-      sessions: [toSessionSummary(session), ...state.sessions],
+      sessions: ephemeral ? state.sessions : [toSessionSummary(session), ...state.sessions],
       sessionCache: { ...state.sessionCache, [session.id]: session },
       activeId: session.id,
     }))
@@ -606,7 +664,9 @@ export const sendMessage = (targetSessionId: string | null) => {
     ...appendBranch(session, history.at(-1)?.id ?? null, [question, reply]),
     updatedAt: now,
   }))
-  if (files.length > 0) {
+  if (files.length > 0 && current.ephemeral) {
+    db.keepFilesInMemory(files.map(({ id, blob }) => ({ id, blob })))
+  } else if (files.length > 0) {
     pendingFiles.set(sessionId, [
       ...(pendingFiles.get(sessionId) ?? []),
       ...files.map(({ id, blob }) => ({ id, blob })),
@@ -1003,7 +1063,9 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
           useSettings.getState().apiKey ?? '',
           {
             model: initial.model ?? MODEL,
-            system: buildSystemPrompt(SYSTEM_PROMPT),
+            system: buildSystemPrompt(SYSTEM_PROMPT, {
+              memory: !getSession(sessionId)?.ephemeral,
+            }),
             messages,
             thinking: { type: initial.thinking ? 'enabled' : 'disabled' },
             safety_check: SAFETY_CHECK,
@@ -1093,8 +1155,12 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
       ),
     }))
     persist(sessionId)
-    if (reply.status === 'done' && !get().importingHistory) {
-      rememberFromTurn(request.question.content, getReplyText(reply))
+    const finished = getSession(sessionId)
+    if (reply.status === 'done' && finished && !get().importingHistory) {
+      if (!finished.ephemeral) {
+        rememberFromTurn(request.question.content, getReplyText(reply))
+      }
+      replyDoneListeners.forEach((listener) => listener(finished, reply))
     }
   }
 }

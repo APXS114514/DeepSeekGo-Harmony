@@ -8,7 +8,7 @@ let connectedPort: MessagePort | undefined
 let requestId = 0
 let windowUiMessage: string | undefined
 
-type WindowAction = 'sidebar' | 'new-chat'
+type WindowAction = 'sidebar' | 'new-chat' | 'back' | 'open-session'
 type WindowUi = {
   mobile: boolean
   covered: boolean
@@ -17,9 +17,13 @@ type WindowUi = {
   menuLabel: string
   newChatLabel: string
   showNewChat: boolean
+  /** 有可由返回手势关闭的层 */
+  canGoBack: boolean
+  /** 有回答正在生成，切到后台时原生据此申请短时任务 */
+  generating: boolean
 }
 
-let windowAction: ((action: WindowAction) => void) | undefined
+let windowAction: ((action: WindowAction, value?: string) => void) | undefined
 
 /** 与原生 DeviceStatus 一致；其余正数为系统错误码，-1 为通用失败。 */
 export const DeviceStatus = {
@@ -32,7 +36,13 @@ export const DeviceStatus = {
 } as const
 
 /** 原生连接后上报的设备能力，未连接时全部关闭。 */
-export const useDeviceFeatures = create(() => ({ voice: false, scan: false, save: false }))
+export const useDeviceFeatures = create(() => ({
+  voice: false,
+  scan: false,
+  save: false,
+  /** 2in1 设备，按钮提示里附带键盘快捷键 */
+  keyboard: false,
+}))
 
 export type DeviceVoiceEvent =
   | { event: 'result'; text: string; final: boolean; last: boolean }
@@ -41,7 +51,9 @@ export type DeviceVoiceEvent =
 
 let voiceListener: ((event: DeviceVoiceEvent) => void) | undefined
 
-export type SharedItem = { kind: 'text'; text: string } | { kind: 'file'; name: string; data: string }
+export type SharedItem =
+  | { kind: 'text'; text: string }
+  | { kind: 'file'; name: string; data: string }
 export type SharedContent = { items: SharedItem[]; skipped: number }
 
 const pendingShares: SharedContent[] = []
@@ -72,14 +84,26 @@ const onWindowMessage = (event: MessageEvent<string>) => {
   try {
     const message = JSON.parse(event.data)
     if (message?.type === 'window-action') {
-      if (message.action === 'sidebar' || message.action === 'new-chat') {
+      if (
+        message.action === 'sidebar' ||
+        message.action === 'new-chat' ||
+        message.action === 'back'
+      ) {
         windowAction?.(message.action)
+      } else if (message.action === 'open-session' && typeof message.value === 'string') {
+        windowAction?.('open-session', message.value)
+      }
+    } else if (message?.type === 'font-scale') {
+      const scale = Number(message.scale)
+      if (Number.isFinite(scale) && scale >= 0.5 && scale <= 4) {
+        document.body.style.setProperty('--app-font-scale', String(scale))
       }
     } else if (message?.type === 'device-features') {
       useDeviceFeatures.setState({
         voice: message.voice === true,
         scan: message.scan === true,
         save: message.save === true,
+        keyboard: message.deviceType === '2in1',
       })
     } else if (message?.type === 'voice') {
       if (message.event === 'result' && typeof message.text === 'string') {
@@ -157,7 +181,7 @@ export const sendWindowUi = (state: WindowUi) => {
   connectedPort?.postMessage(windowUiMessage)
 }
 
-export const bindWindowActions = (listener: (action: WindowAction) => void) => {
+export const bindWindowActions = (listener: (action: WindowAction, value?: string) => void) => {
   windowAction = listener
   return () => {
     windowAction = undefined
@@ -177,14 +201,13 @@ const waitForPort = () =>
 
 type DeviceReply = { id: number; status: number; value: string }
 
-type DeviceOperation = 'read' | 'save' | 'voice' | 'scan'
+type DeviceOperation = 'read' | 'save' | 'voice' | 'scan' | 'reply-done' | 'notify-permission'
 
 const requestDevice = (
   operation: DeviceOperation,
   value?: string,
   timeout = PORT_TIMEOUT
-): Promise<DeviceReply> =>
-  sendRequest((id) => JSON.stringify({ id, operation, value }), timeout)
+): Promise<DeviceReply> => sendRequest((id) => JSON.stringify({ id, operation, value }), timeout)
 
 /** 二进制请求：4 字节小端头长度 + JSON 头 + 内容，避免大文件转 Base64。 */
 const requestDeviceFrame = (
@@ -295,6 +318,19 @@ export const scanDeviceText = async (
     return { status: reply.status, text: reply.value }
   } catch {
     return { status: DeviceStatus.failed, text: '' }
+  }
+}
+
+/** 回答完成：原生只在应用处于后台时发出系统通知，点击后回到这个对话。 */
+export const notifyReplyDone = (reply: { sessionId: string; title: string; text: string }) =>
+  postDevice('reply-done', JSON.stringify(reply))
+
+/** 申请系统通知授权，返回 DeviceStatus。 */
+export const requestNotificationPermission = async (): Promise<number> => {
+  try {
+    return (await requestDevice('notify-permission', '', PICKER_TIMEOUT)).status
+  } catch {
+    return DeviceStatus.failed
   }
 }
 

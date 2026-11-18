@@ -377,3 +377,9 @@
     cursor: not-allowed;
   }
 }
+
+/* 跟随系统字体大小：输入框文字和行高按 --app-font-scale 缩放，最小高度随行高一起变化 */
+:global(.harmony-app) .wrapper {
+  --line-height: calc(24px * var(--app-font-scale, 1));
+  font-size: calc(16px * var(--app-font-scale, 1));
+}

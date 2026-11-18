@@ -2,8 +2,9 @@ import { common } from '@kit.AbilityKit';
 import { webview } from '@kit.ArkWeb';
 import { util } from '@kit.ArkTS';
 import { asset } from '@kit.AssetStoreKit';
-import { BusinessError } from '@kit.BasicServicesKit';
+import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { BackgroundReply, ReplyDone } from './BackgroundReply';
 import { DeviceStatus } from './DeviceStatus';
 import { FileSaver } from './FileSaver';
 import { TextScanner } from './TextScanner';
@@ -26,6 +27,7 @@ interface DeviceFeatures {
   voice: boolean;
   scan: boolean;
   save: boolean;
+  deviceType: string;
 }
 
 /** 二进制消息：4 字节小端头长度 + JSON 头 + 文件内容。 */
@@ -38,12 +40,14 @@ export class DeviceBridge {
   private readonly voice: VoiceInput;
   private readonly scanner: TextScanner;
   private readonly saver: FileSaver;
+  private readonly background: BackgroundReply;
 
   constructor(context: common.UIAbilityContext, emit: (message: string) => void) {
     this.context = context;
     this.voice = new VoiceInput(context, emit);
     this.scanner = new TextScanner(context);
     this.saver = new FileSaver(context);
+    this.background = new BackgroundReply(context);
   }
 
   features(): string {
@@ -51,7 +55,8 @@ export class DeviceBridge {
       type: 'device-features',
       voice: VoiceInput.supported(),
       scan: TextScanner.supported(),
-      save: true
+      save: true,
+      deviceType: deviceInfo.deviceType
     };
     return JSON.stringify(features);
   }
@@ -61,8 +66,23 @@ export class DeviceBridge {
     this.voice.interrupt();
   }
 
+  /** 应用切到后台：停止收音；仍在生成回答时申请短时任务。 */
+  onHide(): void {
+    this.voice.interrupt();
+    this.background.onHide();
+  }
+
+  onShow(): void {
+    this.background.onShow();
+  }
+
+  setGenerating(generating: boolean): void {
+    this.background.setGenerating(generating);
+  }
+
   dispose(): void {
     this.voice.dispose();
+    this.background.dispose();
   }
 
   handle(message: webview.WebMessage, port: webview.WebMessagePort, onWindowUi: (value: string) => void): void {
@@ -97,6 +117,14 @@ export class DeviceBridge {
         case 'voice':
           this.handleVoice(request, port);
           return;
+        case 'reply-done':
+          this.handleReplyDone(request.value);
+          return;
+        case 'notify-permission':
+          this.background.requestPermission().then((status) => {
+            this.reply(port, { id: request.id, status: status, value: '' });
+          });
+          return;
         case 'scan':
           this.scanner.scan(request.value ?? '').then((result) => {
             this.reply(port, { id: request.id, status: result.status, value: result.text });
@@ -108,6 +136,17 @@ export class DeviceBridge {
       this.reply(port, reply);
     } catch {
       hilog.warn(0x0000, 'PocketChat', 'Unable to handle a local page message');
+    }
+  }
+
+  private handleReplyDone(value?: string): void {
+    if (typeof value !== 'string') {
+      return;
+    }
+    const reply = JSON.parse(value) as ReplyDone;
+    if (typeof reply?.sessionId === 'string' && reply.sessionId.length <= 64 &&
+      typeof reply.title === 'string' && typeof reply.text === 'string') {
+      this.background.replyDone(reply);
     }
   }
 

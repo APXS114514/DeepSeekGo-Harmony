@@ -1,7 +1,8 @@
 import clsx from 'clsx'
-import { useState, type ReactNode } from 'react'
+import { useImperativeHandle, useState, type ReactNode, type Ref } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition, useDismiss } from './anchored.js'
+import { useBackLayer } from '../../services/backStack.js'
 import styles from './Menu.module.css'
 
 export type MenuOption = {
@@ -16,11 +17,15 @@ export type MenuOption = {
 export const Menu = ({
   options,
   children,
+  controlRef,
 }: {
   options: MenuOption[]
   children: (props: { open: boolean; toggle: () => void }) => ReactNode
+  /** 供外部打开菜单，例如 2in1 上右键会话条目 */
+  controlRef?: Ref<{ open: () => void }>
 }) => {
   const [open, setOpen] = useState(false)
+  useImperativeHandle(controlRef, () => ({ open: () => setOpen(true) }), [])
   const close = () => setOpen(false)
   // 左侧对齐并再左移 5px，让菜单文字与触发元素图标对齐
   const { anchorRef, floatingRef, position } = useAnchoredPosition<HTMLSpanElement, HTMLDivElement>(
@@ -28,6 +33,7 @@ export const Menu = ({
     { align: 'start', alignOffset: -5, offset: 4 }
   )
   useDismiss(open, [anchorRef, floatingRef], close)
+  useBackLayer(open, close)
 
   return (
     <>

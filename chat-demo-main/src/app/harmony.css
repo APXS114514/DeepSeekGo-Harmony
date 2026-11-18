@@ -83,3 +83,35 @@
   --dsw-static-blue-900: color-mix(in srgb, var(--user-accent) 13%, #151515);
   --dsw-specific-bubble: var(--dsw-static-blue-800);
 }
+
+/*
+ * 跟随系统字体大小：原生上报 --app-font-scale（0.8–1.75），
+ * 只放大阅读和输入的文字，按钮、间距等布局尺寸保持不变。
+ */
+.harmony-app {
+  --app-font-scale: 1;
+  --dsw-font-markdown-h1: 700 calc(24px * var(--app-font-scale)) /
+    calc(34px * var(--app-font-scale)) var(--dsw-font-family);
+  --dsw-font-markdown-h2: 700 calc(22px * var(--app-font-scale)) /
+    calc(32px * var(--app-font-scale)) var(--dsw-font-family);
+  --dsw-font-markdown-h3: 700 calc(20px * var(--app-font-scale)) /
+    calc(30px * var(--app-font-scale)) var(--dsw-font-family);
+  --dsw-font-markdown-h4: 600 calc(16px * var(--app-font-scale)) /
+    calc(28px * var(--app-font-scale)) var(--dsw-font-family);
+  --dsw-font-markdown-base: calc(16px * var(--app-font-scale)) / calc(28px * var(--app-font-scale))
+    var(--dsw-font-family);
+  --dsw-font-markdown-base-strong: 600 calc(16px * var(--app-font-scale)) /
+    calc(28px * var(--app-font-scale)) var(--dsw-font-family);
+  --dsw-font-markdown-table: calc(15px * var(--app-font-scale)) / calc(25px * var(--app-font-scale))
+    var(--dsw-font-family);
+  --dsw-font-markdown-table-head: 500 calc(15px * var(--app-font-scale)) /
+    calc(25px * var(--app-font-scale)) var(--dsw-font-family);
+  --dsw-font-markdown-small: calc(14px * var(--app-font-scale)) / calc(24px * var(--app-font-scale))
+    var(--dsw-font-family);
+  --dsw-font-markdown-small-strong: 600 calc(14px * var(--app-font-scale)) /
+    calc(24px * var(--app-font-scale)) var(--dsw-font-family);
+  --dsw-font-markdown-code: calc(14px * var(--app-font-scale)) / calc(22px * var(--app-font-scale))
+    var(--ds-font-family-code);
+  --dsw-font-markdown-code-block: calc(13px * var(--app-font-scale)) /
+    calc(22px * var(--app-font-scale)) var(--ds-font-family-code);
+}

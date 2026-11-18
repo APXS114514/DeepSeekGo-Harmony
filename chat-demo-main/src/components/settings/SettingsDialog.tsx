@@ -19,11 +19,16 @@ import {
 import { useIsMobile } from '../../app/viewport.js'
 import { useSurfacePresence } from '../../app/useSurfacePresence.js'
 import { useChatStore } from '../../services/chat/store.js'
-import { DeviceStatus, saveDeviceFile } from '../../services/harmony.js'
+import {
+  DeviceStatus,
+  requestNotificationPermission,
+  saveDeviceFile,
+} from '../../services/harmony.js'
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
 import {
   isChineseBrowser,
   setImmersiveLight,
+  setReplyNotify,
   setLocale,
   setLocation,
   setThemePreference,
@@ -123,6 +128,7 @@ const SettingsContent = ({
                 <>
                   <AccentSetting />
                   <ImmersiveLightSetting />
+                  <ReplyNotifySetting />
                 </>
               ) : null}
               <LocaleSetting />
@@ -443,6 +449,42 @@ const ImmersiveLightSetting = () => {
         aria-describedby={descriptionId}
         checked={immersiveLight}
         onChange={(event) => setImmersiveLight(event.target.checked)}
+      />
+    </label>
+  )
+}
+
+/** 鸿蒙版：应用在后台时回答完成后发通知；打开开关时请求系统通知授权。 */
+const ReplyNotifySetting = () => {
+  const t = useTranslate()
+  const descriptionId = useId()
+  const replyNotify = useSettings((state) => state.replyNotify)
+  return (
+    <label className={styles.immersiveLight}>
+      <span>
+        {t('replyNotifyTitle')}
+        <span id={descriptionId} className={styles.immersiveLightDescription}>
+          {t('replyNotifyDescription')}
+        </span>
+      </span>
+      <input
+        className={styles.immersiveLightSwitch}
+        type="checkbox"
+        role="switch"
+        aria-label={t('replyNotifyTitle')}
+        aria-describedby={descriptionId}
+        checked={replyNotify}
+        onChange={(event) => {
+          const enabled = event.target.checked
+          setReplyNotify(enabled)
+          if (enabled) {
+            void requestNotificationPermission().then((status) => {
+              if (status !== DeviceStatus.ok) {
+                showToast({ key: 'replyNotifyDenied' })
+              }
+            })
+          }
+        }}
       />
     </label>
   )

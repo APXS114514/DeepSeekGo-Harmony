@@ -123,10 +123,24 @@ export const en = {
   immersiveLightTitle: 'Immersive lighting',
   immersiveLightDescription: 'Add translucency and highlights to the message composer.',
   harmonyWelcome: 'What’s on your mind?',
+  replyNotifyTitle: 'Reply notifications',
+  replyNotifyDescription:
+    'Keep generating in the background and notify you when the reply is ready.',
+  replyNotifyDenied:
+    'Notifications are off. Allow Deepseek GO to send notifications in system settings.',
+  replyDoneNotification: 'Your reply is ready',
+  incognitoEnter: 'Incognito chat',
+  incognitoExit: 'Exit incognito',
+  incognitoWelcome: 'Incognito chat',
+  incognitoDescription: 'Not saved, doesn’t use or update memory, and is discarded when you leave.',
+  incognitoTitle: 'Incognito chat',
+  incognitoBanner:
+    'Incognito chats aren’t saved, don’t use or update memory, and are discarded when you leave',
   personalSectionLabel: 'Personalization',
   personalInstructionsTitle: 'Custom instructions',
   personalInstructionsEnabled: 'Use in all chats',
-  personalInstructionsEnabledDescription: 'Send the background and preferences below with every message. Turning this off keeps them without sending.',
+  personalInstructionsEnabledDescription:
+    'Send the background and preferences below with every message. Turning this off keeps them without sending.',
   personalAboutUser: 'What should DeepSeek know about you?',
   personalAboutUserPlaceholder: 'e.g. I’m a front-end engineer who mostly writes TypeScript.',
   personalResponseStyle: 'How should DeepSeek respond?',
@@ -135,9 +149,11 @@ export const en = {
   personalInstructionsSaved: 'Custom instructions saved for future messages',
   memoryTitle: 'Memory',
   memoryEnabled: 'Reference memories',
-  memoryEnabledDescription: 'Use the memories below so DeepSeek remembers you across chats. Turning this off keeps them without using them.',
+  memoryEnabledDescription:
+    'Use the memories below so DeepSeek remembers you across chats. Turning this off keeps them without using them.',
   memoryAuto: 'Remember new details automatically',
-  memoryAutoDescription: 'After each reply, the model picks out details worth keeping. Uses a few extra tokens. Saying “remember…” or “forget…” also works.',
+  memoryAutoDescription:
+    'After each reply, the model picks out details worth keeping. Uses a few extra tokens. Saying “remember…” or “forget…” also works.',
   memoryListTitle: 'Saved memories ({count})',
   memoryOrganize: 'Tidy up',
   memoryOrganizing: 'Tidying…',
@@ -163,7 +179,8 @@ export const en = {
   personalPromptResponseStyle: '## How the user wants responses',
   personalPromptMemory:
     '## Memories about the user\nThese come from earlier chats. Use them naturally only when relevant and don’t list them back; if the user asks, you may explain what you remember.',
-  harmonyMicrophoneDenied: 'Microphone unavailable. Allow Deepseek GO to use it in system settings.',
+  harmonyMicrophoneDenied:
+    'Microphone unavailable. Allow Deepseek GO to use it in system settings.',
   harmonyVoiceListening: 'Listening… stops automatically when you pause',
   harmonyVoiceFinishing: 'Recognizing…',
   harmonyScanText: 'Recognize text in an image',
