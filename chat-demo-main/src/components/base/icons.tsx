@@ -566,3 +566,20 @@ export const IconPhotoOutline16 = () => (
     />
   </svg>
 )
+
+/** 个性化：头像加一颗记忆星点 */
+export const IconPersonalOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx={7} cy={5} r={2.8} stroke="currentColor" strokeWidth={1.4} />
+    <path
+      d="M1.8 14.2C2.3 11.6 4.4 9.8 7 9.8C7.9 9.8 8.7 10 9.4 10.4"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+    />
+    <path
+      d="M12.5 9.2L13.1 10.9L14.8 11.5L13.1 12.1L12.5 13.8L11.9 12.1L10.2 11.5L11.9 10.9L12.5 9.2Z"
+      fill="currentColor"
+    />
+  </svg>
+)

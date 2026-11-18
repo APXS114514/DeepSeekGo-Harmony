@@ -19,9 +19,12 @@ import {
   applyEvent,
   canContinueReply,
   getContextRounds,
+  getReplyText,
   settleReply,
   toRequestMessages,
 } from './reply.js'
+import { rememberFromTurn } from '../memory.js'
+import { buildSystemPrompt } from '../personalization.js'
 import {
   toSessionSummary,
   type AssistantMessage,
@@ -1000,7 +1003,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
           useSettings.getState().apiKey ?? '',
           {
             model: initial.model ?? MODEL,
-            system: SYSTEM_PROMPT,
+            system: buildSystemPrompt(SYSTEM_PROMPT),
             messages,
             thinking: { type: initial.thinking ? 'enabled' : 'disabled' },
             safety_check: SAFETY_CHECK,
@@ -1090,5 +1093,8 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
       ),
     }))
     persist(sessionId)
+    if (reply.status === 'done' && !get().importingHistory) {
+      rememberFromTurn(request.question.content, getReplyText(reply))
+    }
   }
 }
