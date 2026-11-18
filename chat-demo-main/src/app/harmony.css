@@ -63,11 +63,16 @@
   }
 
   .harmony-app[data-custom-accent][data-ds-dark-theme] {
-    --composer-tint: color-mix(in srgb, var(--user-accent) 17%, rgba(38, 47, 43, 0.66));
+    --composer-tint: color-mix(in srgb, var(--user-accent) 14%, rgba(36, 36, 36, 0.66));
+    --composer-highlight: color-mix(in srgb, var(--user-accent) 25%, rgba(255, 255, 255, 0.1));
+    --composer-rim: color-mix(in srgb, var(--user-accent) 25%, rgba(255, 255, 255, 0.14));
   }
 }
 
+/* 背景和浅色中性色只带一点主题色，深色模式不再固定偏绿 */
 .harmony-app[data-custom-accent] {
+  --dsw-static-neutral-bluish-50: color-mix(in srgb, var(--user-accent) 5%, #f3f4f5);
+  --dsw-alias-bg-base: color-mix(in srgb, var(--user-accent) 3%, #fafafa);
   --dsw-static-blue-50: color-mix(in srgb, var(--user-accent) 10%, white);
   --dsw-static-blue-100: color-mix(in srgb, var(--user-accent) 18%, white);
   --dsw-static-blue-300: color-mix(in srgb, var(--user-accent) 45%, white);
@@ -77,6 +82,8 @@
 }
 
 .harmony-app[data-custom-accent][data-ds-dark-theme] {
+  --dsw-static-neutral-bluish-50: color-mix(in srgb, var(--user-accent) 4%, #f2f2f2);
+  --dsw-alias-bg-base: color-mix(in srgb, var(--user-accent) 5%, #141414);
   --dsw-static-blue-400: color-mix(in srgb, var(--user-accent) 48%, white);
   --dsw-static-blue-600: color-mix(in srgb, var(--user-accent) 60%, #303030);
   --dsw-static-blue-800: color-mix(in srgb, var(--user-accent) 22%, #1b1b1b);

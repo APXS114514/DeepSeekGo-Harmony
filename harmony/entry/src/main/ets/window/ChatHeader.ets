@@ -11,7 +11,7 @@ export struct ChatHeader {
   onNewChat: () => void = () => {};
 
   private foreground(): string {
-    return this.dark ? '#F1F6F2' : '#172219';
+    return this.dark ? '#F2F2F2' : '#1A1A1A';
   }
 
   @Builder

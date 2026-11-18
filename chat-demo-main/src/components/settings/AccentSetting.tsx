@@ -1,13 +1,19 @@
 import { useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
-import { normalizeAccentColor, setAccentColor, useSettings } from '../../services/settings.js'
+import {
+  DEFAULT_ACCENT,
+  normalizeAccentColor,
+  setAccentColor,
+  useSettings,
+} from '../../services/settings.js'
 import { Button } from '../base/Button.js'
 import styles from './AccentSetting.module.css'
 
-const defaultColor = '#24634d'
-const presets = [null, '#2869bc', '#7449ad', '#ad4836', '#647584'] as const
+const defaultColor = DEFAULT_ACCENT
+const presets = [null, '#24634d', '#2869bc', '#7449ad', '#ad4836', '#647584'] as const
 const labels = [
   'accentDefault',
+  'accentGreen',
   'accentBlue',
   'accentPurple',
   'accentCoral',

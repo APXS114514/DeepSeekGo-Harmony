@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { useSettings, type ThemePreference } from '../services/settings.js'
+import { DEFAULT_ACCENT, useSettings, type ThemePreference } from '../services/settings.js'
 
 export type Theme = 'light' | 'dark'
 
@@ -60,14 +60,11 @@ const syncTheme = () => {
   }
 }
 
+/** 鸿蒙版的强调色、浅色和深色背景都从主题色派生；未选择时使用默认的 #66ccff。 */
 const syncAccent = (color: string | null) => {
   const body = document.body
-  body.toggleAttribute('data-custom-accent', color !== null)
-  if (color) {
-    body.style.setProperty('--user-accent', color)
-  } else {
-    body.style.removeProperty('--user-accent')
-  }
+  body.toggleAttribute('data-custom-accent', true)
+  body.style.setProperty('--user-accent', color ?? DEFAULT_ACCENT)
 }
 
 /** 首屏渲染前同步应用一次，之后随主题设置与系统深浅色变化更新 */

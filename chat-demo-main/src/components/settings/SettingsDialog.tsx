@@ -26,7 +26,6 @@ import {
 } from '../../services/harmony.js'
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
 import {
-  isChineseBrowser,
   setImmersiveLight,
   setReplyNotify,
   setLocale,
@@ -253,11 +252,26 @@ const LocationSetting = () => {
   return (
     <SettingCell
       label={t('settingsLocation')}
+      description={t('settingsLocationDescription')}
       status={null}
       className={styles.locationCell}
       action={
         <div className={styles.locationSelectors}>
-          {isChineseBrowser() ? (
+          {/* 先选国家或地区，海外用户只需这一级；选中国时再细化到省市。 */}
+          <Select
+            ariaLabel={t('settingsLocationRegion')}
+            className={styles.regionSelect}
+            value={location?.region ?? ''}
+            placeholder={t('settingsLocationRegion')}
+            options={[
+              { value: '', label: t('settingsLocationNone') },
+              ...regionCodes
+                .map((code) => ({ value: code, label: getRegionName(code, locale) }))
+                .sort((a, b) => a.label.localeCompare(b.label, locale)),
+            ]}
+            onChange={(value) => setLocation(value ? { region: value } : null)}
+          />
+          {location?.region === 'CN' ? (
             <>
               <Select
                 ariaLabel={t('settingsLocationProvince')}
@@ -287,18 +301,7 @@ const LocationSetting = () => {
                 }}
               />
             </>
-          ) : (
-            <Select
-              ariaLabel={t('settingsLocationRegion')}
-              className={styles.regionSelect}
-              value={location?.region ?? ''}
-              placeholder={t('settingsLocationRegion')}
-              options={regionCodes
-                .map((code) => ({ value: code, label: getRegionName(code, locale) }))
-                .sort((a, b) => a.label.localeCompare(b.label, locale))}
-              onChange={(value) => setLocation({ region: value })}
-            />
-          )}
+          ) : null}
         </div>
       }
     />
@@ -434,7 +437,7 @@ const ImmersiveLightSetting = () => {
   const descriptionId = useId()
   const immersiveLight = useSettings((state) => state.immersiveLight)
   return (
-    <label className={styles.immersiveLight}>
+    <label className={clsx(styles.cell, styles.immersiveLight)}>
       <span>
         {t('immersiveLightTitle')}
         <span id={descriptionId} className={styles.immersiveLightDescription}>
@@ -460,7 +463,7 @@ const ReplyNotifySetting = () => {
   const descriptionId = useId()
   const replyNotify = useSettings((state) => state.replyNotify)
   return (
-    <label className={styles.immersiveLight}>
+    <label className={clsx(styles.cell, styles.immersiveLight)}>
       <span>
         {t('replyNotifyTitle')}
         <span id={descriptionId} className={styles.immersiveLightDescription}>

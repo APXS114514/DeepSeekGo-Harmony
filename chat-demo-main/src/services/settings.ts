@@ -74,15 +74,8 @@ const initialLocale = (): Locale => {
 
 const initialLocation = (): UserLocation | null => {
   try {
-    const location = normalizeLocation(JSON.parse(read(KEYS.location) ?? 'null'))
-    if (!location) {
-      return null
-    }
-    return isChineseBrowser()
-      ? location.region === 'CN' && location.province
-        ? location
-        : null
-      : { region: location.region }
+    // 任何语言的用户都可以选择任意国家或地区，只有中国需要细化到省市。
+    return normalizeLocation(JSON.parse(read(KEYS.location) ?? 'null'))
   } catch {
     return null
   }
@@ -93,6 +86,9 @@ const initialThemePreference = (): ThemePreference => {
   const saved = read(KEYS.themePreference)
   return saved === 'light' || saved === 'dark' ? saved : 'system'
 }
+
+/** 鸿蒙版默认主题色；未选择过主题色时使用 */
+export const DEFAULT_ACCENT = '#66ccff'
 
 export const normalizeAccentColor = (value: string): string | null => {
   const color = value.trim().replace(/^#/, '')

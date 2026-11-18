@@ -14,7 +14,7 @@ const CORNER_RATIO = 0.25;
 export const EMPTY_INSETS: WindowInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 
 export function systemBarProperties(dark: boolean): window.SystemBarProperties {
-  const foreground = dark ? '#F1F6F2' : '#172219';
+  const foreground = dark ? '#F2F2F2' : '#1A1A1A';
   return {
     statusBarColor: '#00000000',
     navigationBarColor: '#00000000',

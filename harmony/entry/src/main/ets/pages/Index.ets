@@ -304,7 +304,7 @@ struct Index {
         // 让网页的 prefers-color-scheme 跟随系统深浅色；配色由网页自己的深色主题负责，不做强制反色。
         .darkMode(WebDarkMode.Auto)
         .forceDarkAccess(false)
-        .backgroundColor(this.windowUi.dark ? '#161C19' : '#F8F9F5')
+        .backgroundColor(this.windowUi.dark ? '#151515' : '#FAFAFA')
         .javaScriptAccess(true)
         .domStorageAccess(true)
         .fileAccess(false)

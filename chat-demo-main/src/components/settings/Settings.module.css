@@ -119,7 +119,7 @@
 
 .locationSelectors {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: flex-end;
   gap: 16px;
@@ -144,6 +144,11 @@
 
 .regionSelect {
   max-width: min(285px, 100%);
+}
+
+/* 开关行沿用设置单元格的间距和分隔线，与相邻设置项分开 */
+.cell.immersiveLight {
+  padding: 12px 0;
 }
 
 .theme {
@@ -409,6 +414,11 @@
   .locationSelectors {
     width: 100%;
     gap: 12px;
+  }
+
+  .regionSelect {
+    flex: 1 1 100%;
+    max-width: none;
   }
 
   .provinceSelect,
