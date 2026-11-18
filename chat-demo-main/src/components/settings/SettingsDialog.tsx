@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useId, useRef, useState, type ReactNode } from 'react'
+import { useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 import {
   IconDarkOutline16,
   IconDataOutline16,
@@ -16,6 +16,7 @@ import {
   importHistory,
 } from '../../services/chat/backup.js'
 import { useIsMobile } from '../../app/viewport.js'
+import { useSurfacePresence } from '../../app/useSurfacePresence.js'
 import { useChatStore } from '../../services/chat/store.js'
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
 import {
@@ -44,7 +45,8 @@ import styles from './Settings.module.css'
  */
 export const SettingsDialog = () => {
   const open = useSettingsDialog((state) => state.open)
-  return open ? <SettingsContent /> : null
+  const { ref, present, closing } = useSurfacePresence<HTMLDivElement>(open)
+  return present ? <SettingsContent overlayRef={ref} closing={closing} /> : null
 }
 
 const sections: { value: SettingsSection; label: TranslationKey; icon: ReactNode }[] = [
@@ -56,11 +58,22 @@ const sections: { value: SettingsSection; label: TranslationKey; icon: ReactNode
   { value: 'data', label: 'settingDialogAsideDataOptionLabel', icon: <IconDataOutline16 /> },
 ]
 
-const SettingsContent = () => {
+const SettingsContent = ({
+  overlayRef,
+  closing,
+}: {
+  overlayRef: Ref<HTMLDivElement>
+  closing: boolean
+}) => {
   const t = useTranslate()
   const isMobile = useIsMobile()
   // 打开时按调用方指定的分组选中，之后在弹窗内切换
   const [section, setSection] = useState(() => useSettingsDialog.getState().section)
+  useLayoutEffect(() => {
+    if (!closing) {
+      setSection(useSettingsDialog.getState().section)
+    }
+  }, [closing])
   // 切换分组不丢失正在输入的 API Key 与导入状态
   const apiKeyEditor = useApiKeyEditor()
   const historyImport = useHistoryImport()
@@ -74,6 +87,8 @@ const SettingsContent = () => {
         closable
         className={styles.dialog}
         mainClassName={styles.dialogMain}
+        overlayRef={overlayRef}
+        closing={closing}
         onClose={() => {
           if (!historyDelete.busy) {
             closeSettings()
@@ -134,8 +149,8 @@ const SettingsContent = () => {
           )}
         </div>
       </Modal>
-      {historyImport.file ? <ImportConfirm historyImport={historyImport} /> : null}
-      {historyDelete.opened ? <DeleteAllConfirm historyDelete={historyDelete} /> : null}
+      {!closing && historyImport.file ? <ImportConfirm historyImport={historyImport} /> : null}
+      {!closing && historyDelete.opened ? <DeleteAllConfirm historyDelete={historyDelete} /> : null}
     </>
   )
 }

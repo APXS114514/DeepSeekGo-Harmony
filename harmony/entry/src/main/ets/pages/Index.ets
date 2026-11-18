@@ -14,21 +14,21 @@ const PORT_MESSAGE = 'pocket-chat-device-port';
 const PAGE_POLICY = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
   "font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob:; " +
   "connect-src https://api.deepseek.com; frame-src 'none'; base-uri 'none'; form-action 'none'";
-const PACKAGED_PATH = /^\/static\/(?:js|css|media)\/(?:async\/)?[a-zA-Z0-9._-]+\.(?:js|css|woff2?|ttf)$/;
+const PACKAGED_PATH = /^\/static\/(?:js|css|media)\/(?:async\/)?[a-zA-Z0-9._-]+\.(?:js|css|woff2?|ttf|png)$/;
 const MEDIA_TYPES: Map<string, string> = new Map([
   ['html', 'text/html'],
   ['js', 'text/javascript'],
   ['css', 'text/css'],
   ['woff', 'font/woff'],
   ['woff2', 'font/woff2'],
-  ['ttf', 'font/ttf']
+  ['ttf', 'font/ttf'],
+  ['png', 'image/png']
 ]);
 
 interface WebWindowUi {
   mobile: boolean;
   covered: boolean;
   dark: boolean;
-  immersiveLight: boolean;
   title: string;
   menuLabel: string;
   newChatLabel: string;
@@ -45,7 +45,7 @@ struct Index {
   private hasWindowUi: boolean = false;
   @State private insets: WindowInsets = EMPTY_INSETS;
   @State private windowUi: WebWindowUi = {
-    mobile: false, covered: false, dark: false, immersiveLight: true,
+    mobile: false, covered: false, dark: false,
     title: '', menuLabel: '', newChatLabel: '', showNewChat: false
   };
 
@@ -118,7 +118,7 @@ struct Index {
   private applyWindowUi(value: string): void {
     const next = JSON.parse(value) as WebWindowUi;
     if (typeof next?.mobile !== 'boolean' || typeof next.covered !== 'boolean' ||
-      typeof next.dark !== 'boolean' || typeof next.immersiveLight !== 'boolean' || typeof next.title !== 'string' ||
+      typeof next.dark !== 'boolean' || typeof next.title !== 'string' ||
       typeof next.menuLabel !== 'string' || typeof next.newChatLabel !== 'string' ||
       typeof next.showNewChat !== 'boolean') {
       return;
@@ -235,6 +235,7 @@ struct Index {
       Web({ src: APP_PAGE, controller: this.controller })
         .width('100%')
         .height('100%')
+        .keyboardAvoidMode(WebKeyboardAvoidMode.RESIZE_VISUAL)
         .backgroundColor(this.windowUi.dark ? '#161C19' : '#F8F9F5')
         .javaScriptAccess(true)
         .domStorageAccess(true)
@@ -253,7 +254,6 @@ struct Index {
             newChatLabel: this.windowUi.newChatLabel,
             showNewChat: this.windowUi.showNewChat,
             dark: this.windowUi.dark,
-            immersiveLight: this.windowUi.immersiveLight,
             onMenu: () => this.sendWebMessage('{"type":"window-action","action":"sidebar"}'),
             onNewChat: () => this.sendWebMessage('{"type":"window-action","action":"new-chat"}')
           })

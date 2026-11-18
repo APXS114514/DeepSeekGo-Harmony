@@ -69,18 +69,18 @@
 }
 
 :global([data-chat-layout='compact']) .panel {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 700;
   width: auto;
   max-width: none;
   border-left: none;
-  padding: var(--app-safe-top) var(--app-safe-right) var(--app-safe-bottom) var(--app-safe-left);
+  padding: var(--frame-safe-top) var(--app-safe-right) var(--frame-safe-bottom) var(--app-safe-left);
 }
 
 :global([data-chat-layout='medium']) .panel {
   position: absolute;
-  inset: var(--app-safe-top) var(--app-safe-right) var(--app-safe-bottom) auto;
+  inset: var(--frame-safe-top) var(--app-safe-right) var(--frame-safe-bottom) auto;
   z-index: 700;
   width: min(340px, 52%);
   height: auto;
@@ -89,6 +89,46 @@
   box-shadow: -12px 0 36px rgba(0, 0, 0, 0.14);
 }
 
-:global([data-chat-layout='wide']) .panel {
+:global(.harmony-app) .panel {
+  animation: panel-enter var(--surface-motion) both;
+
+  &[data-closing] {
+    animation-name: panel-exit;
+  }
+}
+
+:global(.harmony-app[data-chat-layout='wide']) .panel {
   width: clamp(240px, 28%, 344px);
+  overflow: hidden;
+  animation-name: dock-enter;
+
+  &[data-closing] {
+    animation-name: dock-exit;
+  }
+}
+
+@keyframes panel-enter {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes panel-exit {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes dock-enter {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes dock-exit {
+  to {
+    width: 0;
+    opacity: 0;
+  }
 }

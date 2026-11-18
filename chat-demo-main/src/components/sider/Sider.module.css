@@ -3,11 +3,38 @@
   flex-direction: column;
   flex-shrink: 0;
   box-sizing: border-box;
-  width: 261px;
+  width: var(--docked-sider-width, 261px);
   height: 100%;
   padding: 6px 12px 0;
   border-right: 1px solid var(--dsw-alias-border-l1);
   background-color: var(--dsw-specific-sidebar-fill);
+}
+
+.docked {
+  --docked-sider-width: 261px;
+  flex-shrink: 0;
+  width: var(--docked-sider-width);
+  overflow: hidden;
+  transition:
+    width var(--drawer-motion),
+    visibility var(--drawer-motion);
+
+  .sider {
+    transition: transform var(--drawer-motion);
+  }
+
+  &[data-collapsed] {
+    width: 0;
+    visibility: hidden;
+
+    .sider {
+      transform: translateX(-100%);
+    }
+  }
+}
+
+:global([data-chat-layout='medium']) .docked {
+  --docked-sider-width: clamp(176px, 26vw, 224px);
 }
 
 .top {
@@ -183,6 +210,18 @@
   margin: 12px 0 0 16px;
 }
 
+:global(.harmony-app) .collapsed {
+  transition:
+    opacity var(--drawer-motion),
+    visibility var(--drawer-motion);
+
+  &[data-hidden] {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
 .collapsedGroup {
   display: flex;
   align-items: center;
@@ -246,10 +285,6 @@
   padding-bottom: var(--frame-safe-bottom);
   padding-left: calc(12px + var(--app-safe-left));
   box-shadow: 8px 0 22px rgba(11, 25, 18, 0.12);
-}
-
-:global([data-chat-layout='medium']) .sider {
-  width: clamp(176px, 26vw, 224px);
 }
 
 .mobile {

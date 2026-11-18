@@ -1,6 +1,6 @@
 import { useTranslate } from '../../i18n/index.js'
 import clsx from 'clsx'
-import { memo, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useLayoutEffect, useRef, useState, type Ref } from 'react'
 import { useIsMobile } from '../../app/viewport.js'
 import { IconEditOutline16 } from '../base/icons.js'
 import { editMessage, retryUpload } from '../../services/chat/store.js'
@@ -25,6 +25,9 @@ export const UserMessage = memo(function UserMessage({
   isFirst,
   isLast,
   busy,
+  editing,
+  editorRef,
+  onEdit,
   versions,
   onSelectVersion,
 }: {
@@ -35,28 +38,36 @@ export const UserMessage = memo(function UserMessage({
   isFirst: boolean
   isLast: boolean
   busy: boolean
+  editing: boolean
+  editorRef?: Ref<HTMLDivElement>
+  onEdit: (messageId: string | null) => void
   versions: MessageVersions
   onSelectVersion: SelectMessageVersion
 }) {
   const t = useTranslate()
-  const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.content)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const isMobile = useIsMobile()
   const canSend = !busy && (draft.trim() !== '' || message.files.length > 0)
 
   useLayoutEffect(() => {
+    if (editing) {
+      textareaRef.current?.focus({ preventScroll: true })
+    }
+  }, [editing])
+
+  useLayoutEffect(() => {
     const textarea = textareaRef.current
     if (editing && textarea) {
       textarea.style.height = 'auto'
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 202)}px`
+      textarea.style.height = `${textarea.scrollHeight}px`
     }
   }, [editing, draft])
 
   const sendEdit = () => {
     if (canSend && ensureApiKey() && editMessage(sessionId, message.id, draft.trim())) {
       stopReadAloud()
-      setEditing(false)
+      onEdit(null)
     }
   }
 
@@ -79,12 +90,11 @@ export const UserMessage = memo(function UserMessage({
         </div>
       ) : null}
       {editing ? (
-        <div className={styles.editor}>
+        <div ref={editorRef} className={styles.editor} data-content-enter>
           <textarea
             ref={textareaRef}
             className={styles.textarea}
             aria-label={t('editMessage')}
-            autoFocus
             rows={1}
             value={draft}
             disabled={busy}
@@ -94,7 +104,7 @@ export const UserMessage = memo(function UserMessage({
                 return
               }
               if (event.key === 'Escape') {
-                setEditing(false)
+                onEdit(null)
               } else if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !isMobile) {
                 event.preventDefault()
                 sendEdit()
@@ -102,7 +112,7 @@ export const UserMessage = memo(function UserMessage({
             }}
           />
           <div className={styles.editorActions}>
-            <Button size="s" variant="outlined" onClick={() => setEditing(false)}>
+            <Button size="s" variant="outlined" onClick={() => onEdit(null)}>
               {t('cancel')}
             </Button>
             <Button size="s" disabled={!canSend} onClick={sendEdit}>
@@ -123,7 +133,7 @@ export const UserMessage = memo(function UserMessage({
                 disabled={busy}
                 onClick={() => {
                   setDraft(message.content)
-                  setEditing(true)
+                  onEdit(message.id)
                 }}
               />
             </div>

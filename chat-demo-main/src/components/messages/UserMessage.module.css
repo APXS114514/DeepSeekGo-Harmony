@@ -84,7 +84,14 @@
   width: 100%;
   box-sizing: border-box;
   min-height: 44px;
-  max-height: 202px;
+  max-height: clamp(
+    44px,
+    calc(
+      var(--app-viewport-height, 100dvh) - var(--frame-safe-top, 0px) -
+        var(--frame-safe-bottom, 0px) - 124px
+    ),
+    202px
+  );
   padding: 10px 16px;
   border: none;
   outline: none;

@@ -23,6 +23,7 @@
   padding-right: var(--app-safe-right);
   padding-bottom: var(--frame-safe-bottom);
   padding-left: var(--app-safe-left);
+  transition: var(--viewport-transition);
 }
 
 .main {

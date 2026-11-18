@@ -12,11 +12,9 @@
   display: contents;
 }
 
-@media not all and (min-width: 768px) {
-  .container {
-    overflow: hidden;
-    scrollbar-gutter: auto;
-  }
+.compact {
+  overflow: hidden;
+  scrollbar-gutter: auto;
 
   .scroll {
     display: flex;

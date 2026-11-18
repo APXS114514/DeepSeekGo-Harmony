@@ -9,7 +9,6 @@ type WindowUi = {
   mobile: boolean
   covered: boolean
   dark: boolean
-  immersiveLight: boolean
   title: string
   menuLabel: string
   newChatLabel: string

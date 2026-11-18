@@ -18,6 +18,7 @@
 
 .greeting {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   margin-bottom: 21px;
@@ -28,6 +29,33 @@
   color: var(--dsw-alias-label-primary);
 }
 
+.logo {
+  width: 132px;
+  height: 80px;
+  min-height: 0;
+  object-fit: contain;
+}
+
+:global(.harmony-app) .compact {
+  .welcome {
+    --composer-reserved-space: calc(var(--frame-safe-top) + var(--frame-safe-bottom) + 132px);
+  }
+
+  .greeting {
+    flex: 1 1 0;
+    min-height: 0;
+    margin: 0;
+  }
+
+  .greeting span {
+    flex-shrink: 0;
+  }
+}
+
+:global(.harmony-app[data-soft-keyboard]) .compact .caveat {
+  padding-block: 3px;
+}
+
 @media (max-width: 439px) {
   .greeting {
     font-size: 20px;
@@ -36,10 +64,8 @@
   }
 }
 
-@media not all and (min-width: 768px) {
-  .container {
-    flex-direction: column;
-  }
+.compact {
+  flex-direction: column;
 
   .welcome {
     flex: 1;

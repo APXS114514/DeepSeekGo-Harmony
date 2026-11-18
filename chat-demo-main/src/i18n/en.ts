@@ -121,8 +121,7 @@ export const en = {
   harmonyAppName: 'Deepseek GO',
   historyNavigation: 'Chat history',
   immersiveLightTitle: 'Immersive lighting',
-  immersiveLightDescription:
-    'Use a translucent composer and enable system lighting for toolbar buttons on supported devices.',
+  immersiveLightDescription: 'Add translucency and highlights to the message composer.',
   harmonyWelcome: 'What’s on your mind?',
   apiKeyEdit: 'Edit API Key',
   apiKeyPlaceholder: 'Enter API Key',

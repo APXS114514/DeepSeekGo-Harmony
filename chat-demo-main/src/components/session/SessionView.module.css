@@ -54,6 +54,10 @@
   background: transparent;
 }
 
+:global(.harmony-app) .title {
+  transition: margin-left var(--drawer-motion);
+}
+
 .caveat {
   width: 100%;
   padding: 6px 0;
@@ -64,12 +68,14 @@
   user-select: none;
 }
 
-@media not all and (min-width: 768px) {
-  .inputContainer {
-    position: relative;
-    bottom: auto;
-    flex-shrink: 0;
-    margin: 0 auto;
-    padding-bottom: var(--chat-footer-inset, env(safe-area-inset-bottom));
-  }
+.compactInput {
+  position: relative;
+  bottom: auto;
+  flex-shrink: 0;
+  margin: 0 auto;
+  padding-bottom: var(--chat-footer-inset, env(safe-area-inset-bottom));
+}
+
+.inputContainer[hidden] {
+  display: none;
 }

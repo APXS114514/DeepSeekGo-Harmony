@@ -32,14 +32,19 @@ export const SessionView = ({
         </div>
       )}
       <MessageList
+        key={session.id}
         session={session}
         streaming={streaming}
-        footer={
-          <div className={styles.inputContainer}>
+        footer={(editing) => (
+          <div
+            className={clsx(styles.inputContainer, isMobile && styles.compactInput)}
+            hidden={editing}
+            data-content-enter
+          >
             <ChatInput sessionId={session.id} />
             <div className={styles.caveat}>{t('contentCaveat')}</div>
           </div>
-        }
+        )}
       />
     </div>
   )

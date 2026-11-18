@@ -1,6 +1,7 @@
 import { useTranslate } from '../../i18n/index.js'
 import clsx from 'clsx'
-import { memo, useEffect, useState, type ReactNode } from 'react'
+import { memo, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useSurfacePresence } from '../../app/useSurfacePresence.js'
 import {
   IconBrowseOutline16,
   IconBrowseWarningOutline16,
@@ -65,41 +66,77 @@ export const ReplyArea = memo(function ReplyArea({
   hasResponse: boolean
 }) {
   useTranslate()
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState<boolean | null>(null)
+  const stepsId = useId()
+  const expanded = open ?? !__HARMONY_APP__
   const titleActive = streaming && !hasResponse
   useTicker(titleActive, 1000)
-  if (view.steps.length === 0 && !(message.thinking && streaming)) {
-    return null
-  }
   // 未记录请求开关时，按是否有思考内容显示标题。
   const thinking = message.thinking ?? view.steps.some((step) => step.type === 'thinking')
   const title = thinking ? getAreaTitle(view, streaming, Date.now(), hasResponse) : null
   const stopped = !streaming && !hasResponse
+  const latest = view.steps.at(-1)
+  const preview =
+    __HARMONY_APP__ && open === null && titleActive && latest?.type === 'thinking'
+      ? latest.blocks
+          .map((block) => block.thinking)
+          .join('')
+          .trimEnd()
+          .slice(-400)
+      : ''
+  const previewSurface = useSurfacePresence<HTMLDivElement>(!!title && !!preview)
+  const lastPreview = useRef('')
+  useLayoutEffect(() => {
+    if (preview) {
+      lastPreview.current = preview
+    }
+  }, [preview])
+  if (view.steps.length === 0 && !(message.thinking && streaming) && !previewSurface.present) {
+    return null
+  }
   return (
     <div className={styles.area}>
       {title ? (
-        <div className={styles.title} onClick={() => setOpen((value) => !value)}>
+        <button
+          type="button"
+          className={styles.title}
+          aria-expanded={expanded}
+          aria-controls={stepsId}
+          onClick={() => setOpen(!expanded)}
+        >
           <span className={clsx(styles.titleIcon, stopped && styles.stoppedIcon)}>
             <IconThinkOutline16 />
           </span>
           <span className={clsx(styles.titleText, titleActive && styles.shimmer)}>{title}</span>
-          {open ? <IconChevronDownOutline14 /> : <IconChevronRightOutline14 />}
+          {expanded ? <IconChevronDownOutline14 /> : <IconChevronRightOutline14 />}
+        </button>
+      ) : null}
+      {!expanded && previewSurface.present ? (
+        <div
+          ref={previewSurface.ref}
+          className={styles.previewSurface}
+          aria-hidden="true"
+          data-closing={previewSurface.closing ? '' : undefined}
+        >
+          <div className={styles.preview}>
+            <div>{preview || lastPreview.current}</div>
+          </div>
         </div>
       ) : null}
-      {open || !title ? (
-        <div className={styles.steps}>
-          {view.steps.map((step, index) => (
-            <StepItem
-              key={stepKey(step, index)}
-              step={step}
-              message={message}
-              sources={view.sources}
-              streaming={streaming}
-              isLast={index === view.steps.length - 1}
-            />
-          ))}
-        </div>
-      ) : null}
+      <div id={stepsId} hidden={!!title && !expanded} data-content-enter>
+        {expanded || !title
+          ? view.steps.map((step, index) => (
+              <StepItem
+                key={stepKey(step, index)}
+                step={step}
+                message={message}
+                sources={view.sources}
+                streaming={streaming}
+                isLast={index === view.steps.length - 1}
+              />
+            ))
+          : null}
+      </div>
     </div>
   )
 })

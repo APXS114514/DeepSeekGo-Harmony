@@ -140,6 +140,28 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   )
 }
 
+export const DockedSider = ({ collapsed }: { collapsed: boolean }) => {
+  const t = useTranslate()
+  const ref = useRef<HTMLElement>(null)
+
+  useLayoutEffect(() => {
+    if (ref.current) {
+      ref.current.inert = collapsed
+    }
+  }, [collapsed])
+
+  return (
+    <nav
+      ref={ref}
+      className={styles.docked}
+      data-collapsed={collapsed ? '' : undefined}
+      aria-label={t('historyNavigation')}
+    >
+      <Sider />
+    </nav>
+  )
+}
+
 /** 移动端抽屉：浮在页面上方，点空白区域关闭。 */
 export const MobileSider = () => {
   const t = useTranslate()

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 import { getHorizontalInsets } from '../services/harmony.js'
 
 const query = window.matchMedia('not all and (min-width: 768px)')
+const KEYBOARD_RESIZE_THRESHOLD = 48
 
 const subscribe = (onChange: () => void) => {
   if (__HARMONY_APP__) {
@@ -74,28 +75,59 @@ export const useMobileViewport = (enabled: boolean) => {
     const viewport = window.visualViewport
     const style = __HARMONY_APP__ ? document.body.style : frame.style
     const inputSelector = 'textarea, input:not([type="file"])'
+    let restingHeight = viewport?.height ?? window.innerHeight
+    let previousHeight = restingHeight
+    let previousWidth = window.innerWidth
+    let keyboardOpen = false
     let animationFrame = 0
     const reset = () => {
       style.removeProperty('--app-viewport-height')
       style.removeProperty('--app-viewport-top')
       style.removeProperty('--app-viewport-obscured-bottom')
+      if (__HARMONY_APP__) {
+        document.body.removeAttribute('data-viewport-transition')
+        document.body.removeAttribute('data-soft-keyboard')
+      }
     }
     const update = () => {
       // 双指缩放由浏览器处理，保持当前布局尺寸。
       if (viewport && viewport.scale !== 1) {
         return
       }
-      // 失焦后直接恢复 CSS 的全高布局，不等 Safari 收键盘后的 resize。
-      if (!document.activeElement?.matches(inputSelector)) {
+      const focused = document.activeElement?.matches(inputSelector) === true
+      const height = viewport?.height ?? window.innerHeight
+      const top = viewport?.offsetTop ?? 0
+      if (__HARMONY_APP__) {
+        const width = window.innerWidth
+        const resized = width !== previousWidth
+        const wasOpen = keyboardOpen
+        if (resized || (!focused && !wasOpen) || height > restingHeight) {
+          restingHeight = height
+        }
+        keyboardOpen = (focused || wasOpen) && restingHeight - height > KEYBOARD_RESIZE_THRESHOLD
+        if (height !== previousHeight || resized) {
+          // 用动画接住 ArkWeb 一次性上报的大跳变，逐帧上报时直接跟随系统键盘。
+          const jump =
+            (keyboardOpen || wasOpen) &&
+            Math.abs(height - previousHeight) > KEYBOARD_RESIZE_THRESHOLD
+          const inMotion =
+            document.body.hasAttribute('data-viewport-transition') &&
+            (frame.getAnimations?.().length ?? 0) > 0
+          document.body.toggleAttribute('data-viewport-transition', !resized && (jump || inMotion))
+        }
+        document.body.toggleAttribute('data-soft-keyboard', keyboardOpen)
+        previousHeight = height
+        previousWidth = width
+        // 失焦时键盘可能尚未收起，继续跟随真实的可视视口。
+        const obscured = Math.max(0, window.innerHeight - height - top)
+        style.setProperty('--app-viewport-obscured-bottom', `${obscured}px`)
+      } else if (!focused) {
+        // 普通网页在失焦后恢复全高，避免等待 Safari 的键盘 resize。
         reset()
         return
       }
-      style.setProperty('--app-viewport-height', `${viewport?.height ?? window.innerHeight}px`)
-      style.setProperty('--app-viewport-top', `${viewport?.offsetTop ?? 0}px`)
-      if (__HARMONY_APP__ && viewport) {
-        const obscured = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
-        style.setProperty('--app-viewport-obscured-bottom', `${obscured}px`)
-      }
+      style.setProperty('--app-viewport-height', `${height}px`)
+      style.setProperty('--app-viewport-top', `${top}px`)
     }
     const scheduleFrame = () => {
       cancelAnimationFrame(animationFrame)

@@ -116,7 +116,7 @@ export const zh = {
   harmonyAppName: 'Deepseek GO',
   historyNavigation: '对话历史',
   immersiveLightTitle: '沉浸光感',
-  immersiveLightDescription: '为输入区启用通透材质，并在支持的设备上启用顶栏按钮的系统光感。',
+  immersiveLightDescription: '为聊天输入区启用半透明材质和高光。',
   harmonyWelcome: '今天想聊什么？',
   apiKeyEdit: '修改 API Key',
   apiKeyPlaceholder: '请输入 API Key',

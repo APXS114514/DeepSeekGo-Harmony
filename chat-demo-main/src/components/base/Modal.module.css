@@ -40,10 +40,46 @@
   bottom: auto;
   height: var(--app-viewport-height, 100dvh);
   padding-top: max(0px, calc(var(--app-safe-top) - var(--app-viewport-top, 0px)));
+  overflow: hidden;
+  transition: var(--viewport-transition);
+  animation: overlay-enter var(--surface-motion) both;
 }
 
 :global(.harmony-app) .content {
   max-height: 100%;
+  animation: dialog-enter var(--surface-motion) both;
+}
+
+:global(.harmony-app) .overlay[data-closing] {
+  animation-name: overlay-exit;
+
+  .content {
+    animation-name: dialog-exit;
+  }
+}
+
+@keyframes overlay-enter {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes overlay-exit {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-enter {
+  from {
+    transform: translateY(16px);
+  }
+}
+
+@keyframes dialog-exit {
+  to {
+    transform: translateY(16px);
+  }
 }
 
 .header {

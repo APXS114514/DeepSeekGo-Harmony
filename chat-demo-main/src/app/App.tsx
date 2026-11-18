@@ -4,6 +4,7 @@ import { loadDeviceApiKey, useSettings } from '../services/settings.js'
 import { bindWindowActions, sendWindowUi } from '../services/harmony.js'
 import { useTheme } from './theme.js'
 import { useMobileViewport, usePreventPageScroll, useResponsiveLayout } from './viewport.js'
+import { useSurfacePresence } from './useSurfacePresence.js'
 import {
   bindChatPersistence,
   initChat,
@@ -31,7 +32,7 @@ import {
   useMobileSider,
 } from '../components/sider/mobileSiderState.js'
 import { useModalOpen } from '../components/base/Modal.js'
-import { MobileSider, Sider } from '../components/sider/Sider.js'
+import { DockedSider, MobileSider, Sider } from '../components/sider/Sider.js'
 import styles from './App.module.css'
 
 export const App = () => {
@@ -46,6 +47,7 @@ export const App = () => {
   const mainRef = useRef<HTMLElement>(null)
   const [drawerCoversHeader, setDrawerCoversHeader] = useState(false)
   const searchOpen = useSearchPanel((state) => state.entry !== null)
+  const searchPanel = useSurfacePresence<HTMLElement>(searchOpen)
   // 移动端侧边栏以独立抽屉管理开合状态
   const siderCollapsed = useSettings((state) => state.siderCollapsed) && !isMobile
   const ready = useChatStore((state) => state.ready)
@@ -69,7 +71,8 @@ export const App = () => {
   const menuLabel = t('expandSiderbarButton')
   const newChatLabel = t('newChat')
   const showNewChat = session !== undefined
-  const covered = modalOpen || mobileSiderOpen || (isMobile && drawerCoversHeader) || searchOpen
+  const covered =
+    modalOpen || mobileSiderOpen || (isMobile && drawerCoversHeader) || searchPanel.present
 
   usePreventPageScroll(isMobile)
 
@@ -136,24 +139,13 @@ export const App = () => {
         mobile: isMobile && !saveError,
         covered,
         dark: theme === 'dark',
-        immersiveLight,
         title: nativeHeaderTitle,
         menuLabel,
         newChatLabel,
         showNewChat,
       })
     }
-  }, [
-    isMobile,
-    saveError,
-    covered,
-    theme,
-    immersiveLight,
-    nativeHeaderTitle,
-    menuLabel,
-    newChatLabel,
-    showNewChat,
-  ])
+  }, [isMobile, saveError, covered, theme, nativeHeaderTitle, menuLabel, newChatLabel, showNewChat])
 
   // 文件数、存储空间达到上限时，附件上只显示「上传失败」，原因用 toast 说明
   useEffect(() => onUploadNotice(showToast), [])
@@ -183,7 +175,13 @@ export const App = () => {
         className={styles.frame}
         data-drawer-open={__HARMONY_APP__ && mobileSiderOpen ? '' : undefined}
       >
-        {isMobile ? <MobileSider /> : siderCollapsed ? null : <Sider />}
+        {isMobile ? (
+          <MobileSider />
+        ) : __HARMONY_APP__ ? (
+          <DockedSider collapsed={siderCollapsed} />
+        ) : siderCollapsed ? null : (
+          <Sider />
+        )}
         <main ref={mainRef} className={styles.main}>
           {saveError ? (
             <div className={styles.saveError} role="alert">
@@ -199,7 +197,9 @@ export const App = () => {
             </div>
           ) : null}
           <div className={styles.content}>
-            {siderCollapsed ? <CollapsedSider /> : null}
+            {!isMobile && (__HARMONY_APP__ || siderCollapsed) ? (
+              <CollapsedSider visible={siderCollapsed} />
+            ) : null}
             {!ready || (activeId !== null && !session) ? (
               <div className={styles.loadingView}>
                 {isMobile ? <MobileHeader /> : null}
@@ -237,7 +237,9 @@ export const App = () => {
             )}
           </div>
         </main>
-        <SearchPanel />
+        {searchPanel.present ? (
+          <SearchPanel panelRef={searchPanel.ref} closing={searchPanel.closing} />
+        ) : null}
       </div>
       <SettingsDialog />
       <Toast />

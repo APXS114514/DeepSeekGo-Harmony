@@ -6,16 +6,17 @@ import { IconButton } from '../base/IconButton.js'
 import styles from './Sider.module.css'
 
 /** 收起后左上角的按钮组 */
-export const CollapsedSider = () => {
+export const CollapsedSider = ({ visible }: { visible: boolean }) => {
   const t = useTranslate()
   return (
-    <div className={styles.collapsed}>
+    <div className={styles.collapsed} data-hidden={visible ? undefined : ''}>
       <div className={styles.collapsedGroup}>
         <IconButton
           size="m"
           tone="primary"
           icon={<IconPanelLeftOutline16 />}
           tooltip={t('expandSiderbarButton')}
+          disabled={!visible}
           onClick={() => setSiderCollapsed(false)}
         />
         <IconButton
@@ -23,6 +24,7 @@ export const CollapsedSider = () => {
           tone="primary"
           icon={<NewChatIcon />}
           tooltip={t('newChat')}
+          disabled={!visible}
           onClick={newChat}
         />
       </div>

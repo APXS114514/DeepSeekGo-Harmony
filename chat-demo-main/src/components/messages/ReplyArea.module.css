@@ -5,8 +5,13 @@
 .title {
   display: flex;
   align-items: center;
+  width: 100%;
   height: 34px;
   margin-bottom: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: start;
   color: var(--dsw-alias-label-secondary);
   cursor: pointer;
   user-select: none;
@@ -14,6 +19,53 @@
 
   &:hover {
     color: var(--dsw-alias-label-primary);
+  }
+}
+
+.previewSurface {
+  display: grid;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+  animation: preview-enter var(--surface-motion) both;
+
+  &[data-closing] {
+    animation-name: preview-exit;
+  }
+}
+
+@keyframes preview-enter {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+
+@keyframes preview-exit {
+  to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  max-height: 7.5em;
+  min-height: 0;
+  margin-inline-start: 8px;
+  margin-block: 4px 8px;
+  padding-inline-start: 12px;
+  overflow: hidden;
+  border-inline-start: 1px solid var(--dsw-alias-label-dimmed);
+  font: var(--dsw-font-markdown-small);
+  line-height: 1.5;
+  color: var(--dsw-alias-label-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+
+  > div {
+    flex: none;
   }
 }
 

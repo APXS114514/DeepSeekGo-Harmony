@@ -1,3 +1,4 @@
+import { useState, type Ref } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import { IconCloseOutline16 } from '../base/icons.js'
 import { IconButton } from '../base/IconButton.js'
@@ -6,15 +7,21 @@ import { SourceCard } from './SourceCard.js'
 import styles from './SearchPanel.module.css'
 
 /** 右侧「搜索结果」面板 */
-export const SearchPanel = () => {
+export const SearchPanel = ({
+  panelRef,
+  closing,
+}: {
+  panelRef: Ref<HTMLElement>
+  closing: boolean
+}) => {
   const t = useTranslate()
-  const entry = useSearchPanel((state) => state.entry)
   const sources = useSearchPanel((state) => state.sources)
-  if (!entry) {
-    return null
+  const [lastSources, setLastSources] = useState(sources)
+  if (!closing && sources !== lastSources) {
+    setLastSources(sources)
   }
   return (
-    <aside className={styles.panel}>
+    <aside ref={panelRef} className={styles.panel} data-closing={closing ? '' : undefined}>
       <div className={styles.header}>
         <div role="heading" className={styles.title}>
           {t('searchResult')}
@@ -26,7 +33,7 @@ export const SearchPanel = () => {
         />
       </div>
       <div className={styles.content}>
-        {sources.map((source) => (
+        {(closing ? lastSources : sources).map((source) => (
           <SourceCard key={source.url} source={source} className={styles.item} />
         ))}
       </div>

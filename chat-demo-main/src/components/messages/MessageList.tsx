@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import clsx from 'clsx'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useIsMobile } from '../../app/viewport.js'
 import {
   buildMessageVersions,
@@ -40,15 +49,20 @@ export const MessageList = ({
 }: {
   session: Session
   streaming: boolean
-  footer: React.ReactNode
+  footer: (editing: boolean) => ReactNode
 }) => {
   const isMobile = useIsMobile()
   const scrollRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<HTMLDivElement>(null)
   const stickyRef = useRef(true)
   const scrollTopRef = useRef(0)
   const restoreScrollRef = useRef<{ messageId: string; top: number } | null>(null)
   const messages = getVisibleMessages(session)
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const activeEditor = messages.some((message) => message.id === editingMessageId)
+    ? editingMessageId
+    : null
   const [previousVersions, setPreviousVersions] = useState(() =>
     buildMessageVersions(session, new Map())
   )
@@ -62,24 +76,46 @@ export const MessageList = ({
   const lastMessageId = messages.at(-1)?.id
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current
-    if (el && stickyRef.current) {
+    if (el && !editorRef.current && stickyRef.current) {
       el.scrollTop = el.scrollHeight
       scrollTopRef.current = el.scrollTop
     }
   }, [])
 
-  // 内容、键盘和输入框高度变化时，继续遵循当前跟随状态。
+  // 键盘改变滚动区高度时，优先保留编辑框及其操作按钮。
   useLayoutEffect(() => {
     const content = contentRef.current
     const scroll = scrollRef.current
     if (!content || !scroll) {
       return
     }
-    const observer = new ResizeObserver(scrollToBottom)
+    const editor = editorRef.current
+    const keepVisible = () => {
+      if (!editor) {
+        scrollToBottom()
+        return
+      }
+      const viewport = scroll.getBoundingClientRect()
+      const bounds = editor.getBoundingClientRect()
+      const top = bounds.top - viewport.top - 8
+      const bottom = bounds.bottom - viewport.bottom + 8
+      if (bottom > 0 || top < 0) {
+        scroll.scrollTop += Math.min(top, Math.max(0, bottom))
+        scrollTopRef.current = scroll.scrollTop
+      }
+    }
+    if (editor) {
+      stickyRef.current = false
+      keepVisible()
+    }
+    const observer = new ResizeObserver(keepVisible)
     observer.observe(content)
     observer.observe(scroll)
+    if (editor) {
+      observer.observe(editor)
+    }
     return () => observer.disconnect()
-  }, [isMobile, scrollToBottom])
+  }, [activeEditor, isMobile, scrollToBottom])
 
   // 切换版本后将选择器留在原位置，避免回答长短变化导致操作区跳出视口。
   useLayoutEffect(() => {
@@ -108,6 +144,7 @@ export const MessageList = ({
       }
       restoreScrollRef.current = { messageId, top: anchorTop }
       stickyRef.current = false
+      setEditingMessageId(null)
       closeSearchPanel()
       selectMessageVersion(session.id, messageId)
     },
@@ -143,9 +180,12 @@ export const MessageList = ({
   const uploadRetryId = getUploadRetryId(messages, streaming)
   return (
     <ScrollToBottomContext.Provider value={scrollToBottom}>
-      <div ref={isMobile ? undefined : scrollRef} className={styles.container}>
+      <div
+        ref={isMobile ? undefined : scrollRef}
+        className={clsx(styles.container, isMobile && styles.compact)}
+      >
         <div ref={isMobile ? scrollRef : undefined} className={styles.scroll}>
-          <div ref={contentRef} className={styles.column}>
+          <div ref={contentRef} className={styles.column} data-content-enter>
             {messages.map((message, index) =>
               message.role === 'user' ? (
                 <UserMessage
@@ -156,6 +196,9 @@ export const MessageList = ({
                   isFirst={index === 0}
                   isLast={index === lastIndex || index === lastIndex - 1}
                   busy={streaming}
+                  editing={message.id === activeEditor}
+                  editorRef={message.id === activeEditor ? editorRef : undefined}
+                  onEdit={setEditingMessageId}
                   versions={versions.get(message.id) ?? EMPTY_VERSIONS}
                   onSelectVersion={selectVersion}
                 />
@@ -174,7 +217,7 @@ export const MessageList = ({
             )}
           </div>
         </div>
-        {footer}
+        {footer(activeEditor !== null)}
       </div>
     </ScrollToBottomContext.Provider>
   )
