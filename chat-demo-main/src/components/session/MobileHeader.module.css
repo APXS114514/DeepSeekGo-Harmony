@@ -11,6 +11,11 @@
   visibility: hidden;
 }
 
+:global(.harmony-app) .header {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 .title {
   flex: 1;
   min-width: 0;

@@ -31,6 +31,30 @@
   }
 }
 
+:global(.harmony-app) .wrapper {
+  border-color: transparent;
+  box-shadow: 0 3px 14px rgba(12, 24, 17, 0.06);
+}
+
+:global(.harmony-app[data-immersive-light]) .wrapper {
+  background:
+    radial-gradient(
+      ellipse at var(--composer-highlight-x, 14%) 0%,
+      var(--composer-highlight),
+      transparent 70%
+    ),
+    var(--composer-tint);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 var(--composer-rim),
+    0 4px 18px rgba(12, 24, 17, 0.1);
+}
+
+:global(.harmony-app[data-immersive-light]) .wrapper:focus-within {
+  --composer-highlight-x: 50%;
+}
+
 .attachments {
   display: flex;
   align-items: flex-end;

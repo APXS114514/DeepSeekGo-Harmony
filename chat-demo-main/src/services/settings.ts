@@ -8,13 +8,14 @@ export type Locale = 'zh-CN' | 'en-US'
 /** 主题偏好；默认跟随系统 */
 export type ThemePreference = 'light' | 'dark' | 'system'
 
-/** 本机设置，存 localStorage：API Key、语言、主题、位置、朗读音色、深度思考与智能搜索开关、侧边栏收起状态 */
+/** 本机设置，鸿蒙端的 API Key 由系统资产服务保管。 */
 type Settings = {
   apiKey: string | null
   apiKeyTemporary: boolean
   locale: Locale
   themePreference: ThemePreference
   accentColor: string | null
+  immersiveLight: boolean
   location: UserLocation | null
   ttsVoice: TtsVoice
   thinking: boolean
@@ -28,6 +29,7 @@ const KEYS = {
   location: 'chat-demo:location',
   themePreference: 'chat-demo:theme-preference',
   accentColor: 'chat-demo:accent-color',
+  immersiveLight: 'chat-demo:immersive-light',
   ttsVoice: 'chat-demo:tts-voice',
   thinking: 'chat-demo:thinking',
   search: 'chat-demo:search',
@@ -103,6 +105,7 @@ export const useSettings = create<Settings>(() => ({
   location: initialLocation(),
   themePreference: initialThemePreference(),
   accentColor: normalizeAccentColor(read(KEYS.accentColor) ?? ''),
+  immersiveLight: read(KEYS.immersiveLight) !== 'false',
   ttsVoice: initialTtsVoice(),
   thinking: read(KEYS.thinking) === 'true',
   search: read(KEYS.search) === 'true',
@@ -132,6 +135,11 @@ export const setAccentColor = (value: string | null) => {
   }
   write(KEYS.accentColor, accentColor)
   useSettings.setState({ accentColor })
+}
+
+export const setImmersiveLight = (immersiveLight: boolean) => {
+  write(KEYS.immersiveLight, String(immersiveLight))
+  useSettings.setState({ immersiveLight })
 }
 
 export const setTtsVoice = (ttsVoice: TtsVoice) => {

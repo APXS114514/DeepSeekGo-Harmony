@@ -1,6 +1,6 @@
 {
   "modelVersion": "26.0.0",
-  "name": "deepseek-pocket",
+  "name": "deepseek-go",
   "version": "1.0.0",
   "description": "基于 DeepSeek Chat Demo 的鸿蒙个人客户端",
   "dependencies": {}

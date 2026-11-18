@@ -151,6 +151,61 @@
   margin-top: 10px;
 }
 
+.immersiveLight {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.immersiveLightDescription {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.immersiveLightSwitch {
+  appearance: none;
+  display: grid;
+  align-items: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 42px;
+  height: 24px;
+  margin: 0;
+  padding-inline: 3px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 100px;
+  background: var(--dsw-alias-bg-layer-2);
+  cursor: inherit;
+
+  &::before {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--dsw-alias-label-secondary);
+  }
+
+  &:checked {
+    justify-items: end;
+    background: var(--dsw-alias-button-primary-fill);
+    border-color: transparent;
+  }
+
+  &:checked::before {
+    background: white;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--dsw-alias-button-primary-fill);
+    outline-offset: 2px;
+  }
+}
+
 .themeOptions {
   display: flex;
   flex-wrap: wrap;

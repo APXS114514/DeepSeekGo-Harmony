@@ -1,9 +1,9 @@
 {
   "app": {
     "bundleName": "com.pocketchat.deepseek",
-    "vendor": "Pocket Chat",
-    "versionCode": 1000002,
-    "versionName": "1.0.2",
+    "vendor": "Deepseek GO",
+    "versionCode": 1000003,
+    "versionName": "1.0.3",
     "icon": "$media:app_icon",
     "label": "$string:app_name"
   }

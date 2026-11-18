@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslate } from '../i18n/index.js'
 import { loadDeviceApiKey, useSettings } from '../services/settings.js'
 import { bindWindowActions, sendWindowUi } from '../services/harmony.js'
@@ -40,8 +40,11 @@ export const App = () => {
   const isMobile = layout === 'compact'
   const locale = useSettings((state) => state.locale)
   const theme = useTheme()
+  const immersiveLight = useSettings((state) => state.immersiveLight)
   const modalOpen = useModalOpen()
-  const mobileSiderOpen = useMobileSider((state) => state.open)
+  const mobileSiderOpen = useMobileSider((state) => state.open) && isMobile
+  const mainRef = useRef<HTMLElement>(null)
+  const [drawerCoversHeader, setDrawerCoversHeader] = useState(false)
   const searchOpen = useSearchPanel((state) => state.entry !== null)
   // 移动端侧边栏以独立抽屉管理开合状态
   const siderCollapsed = useSettings((state) => state.siderCollapsed) && !isMobile
@@ -66,7 +69,7 @@ export const App = () => {
   const menuLabel = t('expandSiderbarButton')
   const newChatLabel = t('newChat')
   const showNewChat = session !== undefined
-  const covered = modalOpen || mobileSiderOpen || searchOpen
+  const covered = modalOpen || mobileSiderOpen || (isMobile && drawerCoversHeader) || searchOpen
 
   usePreventPageScroll(isMobile)
 
@@ -75,6 +78,40 @@ export const App = () => {
       document.body.dataset.chatLayout = layout
     }
   }, [layout])
+
+  useLayoutEffect(() => {
+    if (__HARMONY_APP__) {
+      document.body.toggleAttribute('data-immersive-light', immersiveLight)
+    }
+  }, [immersiveLight])
+
+  useLayoutEffect(() => {
+    const main = mainRef.current
+    if (!__HARMONY_APP__ || !main) {
+      return
+    }
+    main.inert = mobileSiderOpen
+    if (!isMobile || mobileSiderOpen) {
+      setDrawerCoversHeader(mobileSiderOpen)
+      return
+    }
+
+    // Wait for the web header to slide back before showing the native overlay again.
+    const transitions = main.getAnimations?.() ?? []
+    if (transitions.length === 0) {
+      setDrawerCoversHeader(false)
+      return
+    }
+    let current = true
+    void Promise.allSettled(transitions.map((animation) => animation.finished)).then(() => {
+      if (current) {
+        setDrawerCoversHeader(false)
+      }
+    })
+    return () => {
+      current = false
+    }
+  }, [isMobile, mobileSiderOpen])
 
   useEffect(() => {
     document.documentElement.lang = locale
@@ -99,13 +136,24 @@ export const App = () => {
         mobile: isMobile && !saveError,
         covered,
         dark: theme === 'dark',
+        immersiveLight,
         title: nativeHeaderTitle,
         menuLabel,
         newChatLabel,
         showNewChat,
       })
     }
-  }, [isMobile, saveError, covered, theme, nativeHeaderTitle, menuLabel, newChatLabel, showNewChat])
+  }, [
+    isMobile,
+    saveError,
+    covered,
+    theme,
+    immersiveLight,
+    nativeHeaderTitle,
+    menuLabel,
+    newChatLabel,
+    showNewChat,
+  ])
 
   // 文件数、存储空间达到上限时，附件上只显示「上传失败」，原因用 toast 说明
   useEffect(() => onUploadNotice(showToast), [])
@@ -130,9 +178,13 @@ export const App = () => {
 
   return (
     <>
-      <div ref={frameRef} className={styles.frame}>
+      <div
+        ref={frameRef}
+        className={styles.frame}
+        data-drawer-open={__HARMONY_APP__ && mobileSiderOpen ? '' : undefined}
+      >
         {isMobile ? <MobileSider /> : siderCollapsed ? null : <Sider />}
-        <main className={styles.main}>
+        <main ref={mainRef} className={styles.main}>
           {saveError ? (
             <div className={styles.saveError} role="alert">
               <span>{t('sessionSaveFailed')}</span>

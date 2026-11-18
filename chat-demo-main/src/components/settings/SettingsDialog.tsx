@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useRef, useState, type ReactNode } from 'react'
+import { useId, useRef, useState, type ReactNode } from 'react'
 import {
   IconDarkOutline16,
   IconDataOutline16,
@@ -20,6 +20,7 @@ import { useChatStore } from '../../services/chat/store.js'
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
 import {
   isChineseBrowser,
+  setImmersiveLight,
   setLocale,
   setLocation,
   setThemePreference,
@@ -98,7 +99,12 @@ const SettingsContent = () => {
           {section === 'general' ? (
             <>
               <ThemeSetting />
-              {__HARMONY_APP__ ? <AccentSetting /> : null}
+              {__HARMONY_APP__ ? (
+                <>
+                  <AccentSetting />
+                  <ImmersiveLightSetting />
+                </>
+              ) : null}
               <LocaleSetting />
               <TtsVoiceSetting />
               <LocationSetting />
@@ -392,6 +398,31 @@ const ThemeSetting = () => {
         ))}
       </div>
     </div>
+  )
+}
+
+const ImmersiveLightSetting = () => {
+  const t = useTranslate()
+  const descriptionId = useId()
+  const immersiveLight = useSettings((state) => state.immersiveLight)
+  return (
+    <label className={styles.immersiveLight}>
+      <span>
+        {t('immersiveLightTitle')}
+        <span id={descriptionId} className={styles.immersiveLightDescription}>
+          {t('immersiveLightDescription')}
+        </span>
+      </span>
+      <input
+        className={styles.immersiveLightSwitch}
+        type="checkbox"
+        role="switch"
+        aria-label={t('immersiveLightTitle')}
+        aria-describedby={descriptionId}
+        checked={immersiveLight}
+        onChange={(event) => setImmersiveLight(event.target.checked)}
+      />
+    </label>
   )
 }
 

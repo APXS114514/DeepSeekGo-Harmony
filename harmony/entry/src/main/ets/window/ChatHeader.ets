@@ -12,8 +12,8 @@ enum HeaderMaterial {
 
 function getHeaderMaterial(): HeaderMaterial {
   try {
-    if (deviceInfo.sdkApiVersion >= 26) {
-      return uiMaterial.isImmersiveMaterialSupported() ? HeaderMaterial.ArkUI : HeaderMaterial.Plain;
+    if (deviceInfo.sdkApiVersion >= 26 && uiMaterial.isImmersiveMaterialSupported()) {
+      return HeaderMaterial.ArkUI;
     }
     if (deviceInfo.distributionOSApiVersion >= 60100) {
       if (hdsMaterial.getSystemMaterialTypes().includes(hdsMaterial.MaterialType.IMMERSIVE)) {
@@ -33,6 +33,7 @@ export struct ChatHeader {
   @Prop newChatLabel: string;
   @Prop showNewChat: boolean;
   @Prop dark: boolean;
+  @Prop immersiveLight: boolean;
   onMenu: () => void = () => {};
   onNewChat: () => void = () => {};
   @State private material: HeaderMaterial = HeaderMaterial.Plain;
@@ -43,10 +44,6 @@ export struct ChatHeader {
 
   private foreground(): string {
     return this.dark ? '#F1F6F2' : '#172219';
-  }
-
-  private surface(): string {
-    return this.dark ? '#161C19' : '#F8F9F5';
   }
 
   @Builder
@@ -62,9 +59,33 @@ export struct ChatHeader {
   }
 
   @Builder
+  immersiveButton(symbol: Resource, label: string, action: () => void) {
+    Button({ type: ButtonType.Circle, stateEffect: true }) {
+      SymbolGlyph(symbol).fontSize(22).fontColor([this.foreground()]);
+    }
+    .width(44)
+    .height(44)
+    .systemMaterial(new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.THIN,
+      lightEffect: {}
+    }))
+    .accessibilityText(label)
+    .onClick(action)
+  }
+
+  @Builder
+  headerButton(symbol: Resource, label: string, action: () => void) {
+    if (this.immersiveLight && this.material === HeaderMaterial.ArkUI) {
+      this.immersiveButton(symbol, label, action)
+    } else {
+      this.actionButton(symbol, label, action)
+    }
+  }
+
+  @Builder
   titleRow() {
     Row({ space: 8 }) {
-      this.actionButton($r('sys.symbol.line_3_horizontal'), this.menuLabel, this.onMenu)
+      this.headerButton($r('sys.symbol.line_3_horizontal'), this.menuLabel, this.onMenu)
       Text(this.title)
         .layoutWeight(1)
         .fontSize(15)
@@ -73,29 +94,12 @@ export struct ChatHeader {
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       if (this.showNewChat) {
-        this.actionButton($r('sys.symbol.square_and_pencil'), this.newChatLabel, this.onNewChat)
+        this.headerButton($r('sys.symbol.square_and_pencil'), this.newChatLabel, this.onNewChat)
       }
     }
     .width('100%')
     .height(CHAT_HEADER_HEIGHT)
     .padding({ left: 10, right: 10 })
-  }
-
-  @Builder
-  arkTitle() {
-    Navigation() {
-    }
-    .mode(NavigationMode.Stack)
-    .titleMode(NavigationTitleMode.Mini)
-    .hideBackButton(true)
-    .hideToolBar(true)
-    .title({ builder: (): void => this.titleRow(), height: CHAT_HEADER_HEIGHT }, {
-      barStyle: BarStyle.STACK,
-      systemMaterial: new uiMaterial.ImmersiveMaterial({
-        style: uiMaterial.ImmersiveStyle.THIN,
-        lightEffect: {}
-      })
-    })
   }
 
   private hdsMenu(): HdsNavigationMenuItemOptions[] {
@@ -118,6 +122,7 @@ export struct ChatHeader {
     .hideToolBar(true)
     .titleBar({
       avoidLayoutSafeArea: false,
+      enableComponentSafeArea: false,
       content: {
         title: { mainTitle: this.title },
         backIcon: {
@@ -130,6 +135,7 @@ export struct ChatHeader {
       style: {
         scrollEffectOpts: { enableScrollEffect: false },
         originalStyle: {
+          backgroundStyle: { backgroundColor: Color.Transparent },
           contentStyle: {
             titleStyle: { mainTitleColor: this.foreground() },
             menuStyle: { iconColor: this.foreground() },
@@ -146,9 +152,7 @@ export struct ChatHeader {
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
-      if (this.material === HeaderMaterial.ArkUI) {
-        this.arkTitle()
-      } else if (this.material === HeaderMaterial.Hds) {
+      if (this.immersiveLight && this.material === HeaderMaterial.Hds) {
         this.hdsTitle()
       } else {
         this.titleRow()
@@ -157,6 +161,5 @@ export struct ChatHeader {
     .width('100%')
     .height(CHAT_HEADER_HEIGHT)
     .clip(true)
-    .backgroundColor(this.material === HeaderMaterial.Plain ? this.surface() : Color.Transparent)
   }
 }

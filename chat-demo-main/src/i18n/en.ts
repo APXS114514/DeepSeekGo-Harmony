@@ -118,7 +118,11 @@ export const en = {
   apiKeySaveFailed: 'Your API Key is valid. Device storage failed ({code}).',
   apiKeyUseTemporarily: 'Use for this session',
   apiKeyTemporaryStorage: 'This API Key is temporary. Enter it again when you reopen the app.',
-  harmonyAppName: 'DeepSeek Pocket',
+  harmonyAppName: 'Deepseek GO',
+  historyNavigation: 'Chat history',
+  immersiveLightTitle: 'Immersive lighting',
+  immersiveLightDescription:
+    'Use a translucent composer and enable system lighting for toolbar buttons on supported devices.',
   harmonyWelcome: 'What’s on your mind?',
   apiKeyEdit: 'Edit API Key',
   apiKeyPlaceholder: 'Enter API Key',

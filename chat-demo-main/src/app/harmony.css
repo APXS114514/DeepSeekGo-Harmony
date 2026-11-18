@@ -15,6 +15,9 @@
   --dsw-static-blue-900: #20382e;
   --dsw-static-neutral-bluish-50: #f1f3ed;
   --dsw-alias-bg-base: #f8f9f5;
+  --composer-tint: rgba(237, 247, 240, 0.72);
+  --composer-highlight: rgba(255, 255, 255, 0.95);
+  --composer-rim: rgba(255, 255, 255, 0.96);
 }
 
 .harmony-app[data-ds-dark-theme] {
@@ -22,6 +25,19 @@
   --dsw-static-blue-500: #2a6d55;
   --dsw-static-neutral-bluish-50: #f1f6f2;
   --dsw-alias-bg-base: #161c19;
+  --composer-tint: rgba(45, 66, 55, 0.56);
+  --composer-highlight: rgba(159, 195, 177, 0.15);
+  --composer-rim: rgba(214, 239, 224, 0.17);
+}
+
+@supports (color: color-mix(in srgb, white, black)) {
+  .harmony-app[data-custom-accent] {
+    --composer-tint: color-mix(in srgb, var(--user-accent) 10%, rgba(251, 252, 250, 0.7));
+  }
+
+  .harmony-app[data-custom-accent][data-ds-dark-theme] {
+    --composer-tint: color-mix(in srgb, var(--user-accent) 17%, rgba(38, 47, 43, 0.66));
+  }
 }
 
 .harmony-app[data-custom-accent] {

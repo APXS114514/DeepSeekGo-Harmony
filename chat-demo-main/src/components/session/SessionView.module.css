@@ -49,6 +49,11 @@
   );
 }
 
+:global(.harmony-app) .header,
+:global(.harmony-app) .inputContainer {
+  background: transparent;
+}
+
 .caveat {
   width: 100%;
   padding: 6px 0;

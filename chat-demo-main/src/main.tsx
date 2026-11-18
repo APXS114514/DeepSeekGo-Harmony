@@ -12,7 +12,7 @@ if (__HARMONY_APP__) {
     .querySelector('meta[name="viewport"]')
     ?.setAttribute('content', 'width=device-width,initial-scale=1,viewport-fit=cover')
   document.body.classList.add('harmony-app')
-  document.title = 'DeepSeek 随身'
+  document.title = 'Deepseek GO'
   routeDeviceLinks()
 }
 ensureKatex()

@@ -28,6 +28,7 @@ interface WebWindowUi {
   mobile: boolean;
   covered: boolean;
   dark: boolean;
+  immersiveLight: boolean;
   title: string;
   menuLabel: string;
   newChatLabel: string;
@@ -44,7 +45,8 @@ struct Index {
   private hasWindowUi: boolean = false;
   @State private insets: WindowInsets = EMPTY_INSETS;
   @State private windowUi: WebWindowUi = {
-    mobile: false, covered: false, dark: false, title: '', menuLabel: '', newChatLabel: '', showNewChat: false
+    mobile: false, covered: false, dark: false, immersiveLight: true,
+    title: '', menuLabel: '', newChatLabel: '', showNewChat: false
   };
 
   aboutToAppear(): void {
@@ -116,13 +118,13 @@ struct Index {
   private applyWindowUi(value: string): void {
     const next = JSON.parse(value) as WebWindowUi;
     if (typeof next?.mobile !== 'boolean' || typeof next.covered !== 'boolean' ||
-      typeof next.dark !== 'boolean' || typeof next.title !== 'string' ||
+      typeof next.dark !== 'boolean' || typeof next.immersiveLight !== 'boolean' || typeof next.title !== 'string' ||
       typeof next.menuLabel !== 'string' || typeof next.newChatLabel !== 'string' ||
       typeof next.showNewChat !== 'boolean') {
       return;
     }
     const themeChanged = !this.hasWindowUi || next.dark !== this.windowUi.dark;
-    const headerChanged = next.mobile !== this.windowUi.mobile;
+    const headerChanged = next.mobile !== this.windowUi.mobile || next.covered !== this.windowUi.covered;
     this.windowUi = next;
     this.hasWindowUi = true;
     if (themeChanged) {
@@ -137,7 +139,7 @@ struct Index {
     this.sendWebMessage(JSON.stringify({
       type: 'window-layout',
       insets: this.insets,
-      nativeHeader: this.windowUi.mobile
+      nativeHeader: this.windowUi.mobile && !this.windowUi.covered
     }));
   }
 
@@ -251,6 +253,7 @@ struct Index {
             newChatLabel: this.windowUi.newChatLabel,
             showNewChat: this.windowUi.showNewChat,
             dark: this.windowUi.dark,
+            immersiveLight: this.windowUi.immersiveLight,
             onMenu: () => this.sendWebMessage('{"type":"window-action","action":"sidebar"}'),
             onNewChat: () => this.sendWebMessage('{"type":"window-action","action":"new-chat"}')
           })

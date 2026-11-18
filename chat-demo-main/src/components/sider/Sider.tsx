@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import { IconPanelLeftOutline16, IconSettingsOutline16, NewChatIcon } from '../base/icons.js'
 import { setSiderCollapsed } from '../../services/settings.js'
@@ -142,14 +142,38 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
 
 /** 移动端抽屉：浮在页面上方，点空白区域关闭。 */
 export const MobileSider = () => {
+  const t = useTranslate()
   const open = useMobileSider((state) => state.open)
-  if (!open) {
+  const drawerRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const drawer = drawerRef.current
+    if (!__HARMONY_APP__ || !drawer) {
+      return
+    }
+    drawer.inert = !open
+    if (open) {
+      drawer.focus({ preventScroll: true })
+    }
+  }, [open])
+
+  if (!__HARMONY_APP__ && !open) {
     return null
   }
   return (
     <>
-      <div className={styles.drawerMask} onClick={closeMobileSider} />
-      <div className={styles.drawer}>
+      <div className={styles.drawerMask} aria-hidden="true" onClick={closeMobileSider} />
+      <div
+        ref={drawerRef}
+        className={styles.drawer}
+        role="navigation"
+        aria-label={t('historyNavigation')}
+        tabIndex={__HARMONY_APP__ ? -1 : undefined}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && event.currentTarget.contains(event.target as Node)) {
+            closeMobileSider()
+          }
+        }}
+      >
         <Sider mobile />
       </div>
     </>
