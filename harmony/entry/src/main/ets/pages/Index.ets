@@ -32,6 +32,7 @@ interface WebWindowUi {
   mobile: boolean;
   covered: boolean;
   dark: boolean;
+  themePreference?: string;
   title: string;
   menuLabel: string;
   newChatLabel: string;
@@ -49,6 +50,7 @@ struct Index {
   private mainWindow: window.Window | null = null;
   private disposed: boolean = false;
   private hasWindowUi: boolean = false;
+  private nativeColorMode?: ConfigurationConstant.ColorMode;
   @State private insets: WindowInsets = EMPTY_INSETS;
   @StorageProp(FONT_SCALE_KEY) @Watch('sendFontScale') private fontScale: number = 1;
   @StorageLink(OPEN_SESSION_KEY) @Watch('openPendingSession') private pendingSession: string = '';
@@ -177,11 +179,40 @@ struct Index {
     this.windowUi = next;
     this.hasWindowUi = true;
     this.bridge?.setGenerating(next.generating);
+    this.updateNativeTheme(next.themePreference);
     if (themeChanged) {
       this.updateSystemBars();
     }
     if (headerChanged) {
       this.sendWindowLayout();
+    }
+  }
+
+  private updateNativeTheme(preference?: string): void {
+    let mode: ConfigurationConstant.ColorMode;
+    switch (preference) {
+      case 'light':
+        mode = ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT;
+        break;
+      case 'dark':
+        mode = ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
+        break;
+      case 'system':
+        mode = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET;
+        break;
+      default:
+        return;
+    }
+    // API 26 是原生光感菜单的最低版本。主题偏好用于当前 UIAbility。
+    if (this.nativeColorMode === mode || deviceInfo.sdkApiVersion < 26) {
+      return;
+    }
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      context.setColorMode(mode);
+      this.nativeColorMode = mode;
+    } catch (error) {
+      hilog.warn(0x0000, 'PocketChat', 'Unable to update native theme: %{public}d', (error as BusinessError).code);
     }
   }
 

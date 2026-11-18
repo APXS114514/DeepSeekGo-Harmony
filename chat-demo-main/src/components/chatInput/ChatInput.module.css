@@ -55,6 +55,11 @@
   :global(.harmony-app[data-immersive-light]) .wrapper:focus-within {
     --composer-highlight-x: 50%;
   }
+
+  :global(.harmony-app[data-immersive-light][data-soft-keyboard]) .wrapper {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {

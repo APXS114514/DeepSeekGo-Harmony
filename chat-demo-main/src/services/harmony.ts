@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { ThemePreference } from './settings.js'
 
 const PORT_MESSAGE = 'pocket-chat-device-port'
 const PORT_TIMEOUT = 4000
@@ -13,6 +14,7 @@ type WindowUi = {
   mobile: boolean
   covered: boolean
   dark: boolean
+  themePreference: ThemePreference
   title: string
   menuLabel: string
   newChatLabel: string

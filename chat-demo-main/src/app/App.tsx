@@ -45,6 +45,7 @@ export const App = () => {
   const isMobile = layout === 'compact'
   const locale = useSettings((state) => state.locale)
   const theme = useTheme()
+  const themePreference = useSettings((state) => state.themePreference)
   const immersiveLight = useSettings((state) => state.immersiveLight)
   const modalOpen = useModalOpen()
   const mobileSiderOpen = useMobileSider((state) => state.open) && isMobile
@@ -164,6 +165,7 @@ export const App = () => {
         mobile: isMobile && !saveError,
         covered,
         dark: theme === 'dark',
+        themePreference,
         title: nativeHeaderTitle,
         menuLabel,
         newChatLabel,
@@ -177,6 +179,7 @@ export const App = () => {
     saveError,
     covered,
     theme,
+    themePreference,
     nativeHeaderTitle,
     menuLabel,
     newChatLabel,

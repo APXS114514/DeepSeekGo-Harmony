@@ -22,9 +22,10 @@
     }
 
     &:hover,
+    &:focus-within,
     &.active {
       .action {
-        display: flex;
+        opacity: 1;
       }
     }
   }
@@ -40,9 +41,17 @@
 }
 
 .action {
-  display: none;
+  display: flex;
   flex-shrink: 0;
   margin-left: 4px;
+
+  @media (hover: hover) {
+    opacity: 0;
+
+    &:has([aria-expanded='true']) {
+      opacity: 1;
+    }
+  }
 }
 
 .renameInput {
@@ -57,12 +66,6 @@
   font: inherit;
   font-size: 14px;
   outline: none;
-}
-
-@media (hover: none) {
-  .action {
-    display: flex;
-  }
 }
 
 @media not all and (min-width: 768px) {
