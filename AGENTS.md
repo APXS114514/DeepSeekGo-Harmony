@@ -28,5 +28,5 @@
 - 仅在用户明确要求生成 HAP Release 时，使用当前源码版本打包。构建命令和包内校验见 [`HANDOFF.md`](HANDOFF.md#验证与后续)。将未签名成品以 `Deepseek-GO-<版本>-unsigned.hap` 命名并放入根目录的 `HAPS/`，保留历史包，由用户签名。
 - 发布到 GitHub Releases 须有用户明确要求。用用户身份打附注标签 `v<版本>`，指向已推送的提交，并且该提交的源码版本与 HAP 一致。说明用中文，按 `CHANGELOG.md` 写本版和上次发布以来的变化，注明安装包未签名及安装方式，附上 HAP 和 SHA-256。发布后用 `gh release view` 核对标签、附件和说明。
 - `CHANGELOG.md` 按版本记录用户看得到的变化，每条一句话，通常每版 3–6 条。小补丁按实际变化记录。实现细节、测试结果和已知限制写在 `HANDOFF.md` 或提交说明。
-- 项目以 MIT 许可证发布：根目录 `LICENSE` 归 APXS，`chat-demo-main/LICENSE` 是上游 DeepSeek Chat Demo 的许可证，两份都要保留，不要合并或改写上游版权行。
+- 自有代码和相关文档按 MIT 许可证发布。根目录 `LICENSE` 归 APXS，`chat-demo-main/LICENSE` 是上游 DeepSeek Chat Demo 的许可证，两份都要保留，不要合并或改写上游版权行。原创角色图像按 CC BY-NC-ND 4.0 授权，范围见 [`ARTWORK-NOTICE.txt`](ARTWORK-NOTICE.txt)。鸿蒙构建随附此声明。
 - 开发规则集中在 `AGENTS.md`，架构、验证与打包命令放在 `HANDOFF.md`，用户安装使用说明放在 `README.md`。其他文档链接到对应位置。

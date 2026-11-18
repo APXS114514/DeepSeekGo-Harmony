@@ -124,6 +124,8 @@ pnpm build:harmony
 
 ## 许可证
 
-本项目以 [MIT 许可证](LICENSE) 发布，版权归 APXS 所有，包括作者自绘的 `LOGO.png` 和 `Icon.png`。应用图标上的角色是作者的原创角色。`chat-demo-main/` 基于 DeepSeek 官方的 [Chat Demo](https://github.com/deepseek-ai/chat-demo)，这部分沿用其 [MIT 许可证](chat-demo-main/LICENSE)，版权归 DeepSeek 所有。分发或修改时请同时保留两份许可证声明。
+本项目自有代码和相关文档按 [MIT 许可证](LICENSE) 发布，版权归 APXS 所有。内置前端基于 DeepSeek 官方的 [Chat Demo](https://github.com/deepseek-ai/chat-demo)，上游代码沿用其 [MIT 许可证](chat-demo-main/LICENSE)。分发代码时请保留两份许可证声明。
+
+`LOGO.png`、`Icon.png` 及其在应用和截图中的角色图案由 APXS 创作，采用 **CC BY-NC-ND 4.0**（署名、非商业性使用、禁止演绎）。署名后可以非商业分享原图，改作不可分发。见 [图像授权声明](ARTWORK-NOTICE.txt)。
 
 本项目为个人开发，与深度求索公司没有关联。「DeepSeek」名称及商标归其所有者所有。

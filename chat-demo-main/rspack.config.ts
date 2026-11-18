@@ -88,7 +88,12 @@ export const createConfig = ({
       __HARMONY_APP__: JSON.stringify(harmony),
     }),
     new rspack.CopyRspackPlugin({
-      patterns: [{ from: path.resolve(root, 'LICENSE'), to: 'LICENSE', toType: 'file' }],
+      patterns: [
+        { from: path.resolve(root, 'LICENSE'), to: 'LICENSE', toType: 'file' },
+        ...(harmony
+          ? [{ from: path.resolve(root, '../ARTWORK-NOTICE.txt'), to: 'ARTWORK-NOTICE.txt' }]
+          : []),
+      ],
     }),
   ],
   performance: { hints: false },
