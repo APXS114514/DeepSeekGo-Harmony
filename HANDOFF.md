@@ -6,10 +6,7 @@
 - 最近一次交付是 `HAPS/Deepseek-GO-1.0.5-unsigned.hap`，版本代码为 `1000005`。只有用户明确要求时才打包当前源码版本。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
 
-## 版本与开发流程
-
-- 按 [`AGENTS.md`](AGENTS.md) 的 `x.y.z` 规则升版并提交一次本地 Git。用户明确要求时调整 `x`，新增功能时递增 `y` 并将 `z` 归零，Bug 修复时递增 `z`。每次升版都将 `versionCode` 加一。
-- 完成修改后依次更新 `harmony/AppScope/app.json5`、运行相关验证、更新交接文档并提交源码。单独请求生成 HAP 时直接使用当前源码版本。
+版本、提交和发布规则见 [`AGENTS.md`](AGENTS.md#版本与提交)，每版的用户可见变化见 [`CHANGELOG.md`](CHANGELOG.md)。
 
 ## SDK 与编译工具
 
@@ -45,7 +42,8 @@
 ## 验证与后续
 
 - 前端已通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony` 和 `pnpm build`。这些命令在 `chat-demo-main/` 下执行，`pnpm build:harmony` 生成 ArkWeb 网页资源。
-- 浏览器模拟已验证键盘弹出和收起存在中间帧、失焦时布局保持到视口恢复、Logo 完整显示、键盘打开时发送首条消息、设置与搜索面板的进出、小窗抽屉和宽窗侧栏、减少动态效果、草稿保留，以及思考折叠和历史消息编辑。
-- `Index.ets` 的键盘配置已通过 HarmonyOS 26.0.0 SDK 的 CodeLinter。真机待验证项包括系统键盘与页面动效同步、横屏和分屏下的可用高度、启动器图标和折叠屏展开态侧栏动画，以及深浅主题下的顶栏按压反馈。
-- 1.0.5 的 Release 构建已通过。已核对包名、最低 API 12、启动器图标、欢迎页 Logo 和全部 154 个内置网页资源。包的 SHA-256 为 `7b003bdb5835bfe89503603ccee2fee12fd644fc0da8587c0ff0ab93ae5528cf`。
-- 收到生成 HAP Release 的请求后，从 `harmony/AppScope/app.json5` 读取当前版本。先构建 ArkWeb 资源，再在 `harmony/` 下用 HarmonyOS 26.0.0 SDK 执行 `hvigorw assembleHap --mode module -p product=default -p module=entry@default -p buildMode=release --no-daemon`。核对未签名包的版本、包名、最低 API、应用图标和网页资源后，复制到 `HAPS/`。
+- 1.0.6 浏览器模拟已验证键盘开合与失焦、Logo 完整显示、首条消息、设置和搜索面板、小窗抽屉和宽窗侧栏、减少动态效果、草稿保留、思考折叠与历史消息编辑。
+- 检查原生代码时用 HarmonyOS 26.0.0 SDK 自带的 `codelinter`，例如在 `harmony/` 下运行 `codelinter -p default -e error entry/src/main/ets/pages/Index.ets`。1.0.6 的键盘配置已通过该检查。真机待验证项包括系统键盘与页面动效同步、横屏和分屏下的可用高度、启动器图标、折叠屏展开态侧栏及深浅主题下的顶栏反馈。
+- 回归会话和设置时，从应用入口使用测试 Key、模拟 ArkWeb 消息通道和 API 回包。检查切换会话或折叠展开后草稿仍在，编辑重发后能切回原版本，以及 Key 校验成功但设备保存失败时能正确提示并重试。真机验收记录设备、系统版本和实际安装的包版本。
+- 收到生成 HAP Release 的请求后，从 `harmony/AppScope/app.json5` 读取当前版本。先构建 ArkWeb 资源，再在 `harmony/` 下用 HarmonyOS 26.0.0 SDK 执行 `hvigorw assembleHap --mode module -p product=default -p module=entry@default -p buildMode=release --no-daemon`。核对构建日志的未签名状态及包内 `module.json` 的版本、包名和最低 API。比对图标、Logo 和打包的网页资源，最后复制到 `HAPS/` 并记录 SHA-256。
+- 已交付的 1.0.5 HAP 通过上述包内检查，SHA-256 为 `7b003bdb5835bfe89503603ccee2fee12fd644fc0da8587c0ff0ab93ae5528cf`。
