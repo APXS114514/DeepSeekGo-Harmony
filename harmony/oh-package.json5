@@ -3,5 +3,6 @@
   "name": "deepseek-go",
   "version": "1.0.0",
   "description": "基于 DeepSeek Chat Demo 的鸿蒙个人客户端",
+  "license": "MIT",
   "dependencies": {}
 }
