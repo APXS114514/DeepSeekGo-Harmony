@@ -13,13 +13,13 @@
   <a href="CONTRIBUTING.md">参与改进</a>
 </p>
 
-Deepseek GO 是一款基于 DeepSeek 官方 Chat Demo 开发的第三方 HarmonyOS 客户端，适配手机、折叠屏、平板和 2in1，支持系统语音输入、图片文字识别和系统分享。
+Deepseek GO 是一款基于 DeepSeek 官方 Chat Demo 开发的第三方 HarmonyOS 客户端，支持系统语音输入、图片文字识别和系统分享。
 
-它用 ArkTS 和 ArkWeb 把 MIT 开源的 [Chat Demo](https://github.com/deepseek-ai/chat-demo) 包装成原生鸿蒙应用，保留了网页版的流式对话、深度思考、联网搜索和 Markdown 渲染，并加入无痕对话、后台完成通知、跨对话记忆等鸿蒙版独有的能力。
+使用 ArkTS 和 ArkWeb 把官方开源的 [Chat Demo](https://github.com/deepseek-ai/chat-demo) 包装成原生鸿蒙应用，保留了网页版的流式对话、深度思考、联网搜索和 Markdown 渲染，并加入无痕对话、后台完成通知、跨对话记忆等能力。
 
 应用直接连接 `https://api.deepseek.com`，不经过任何第三方服务器。你需要自备 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 的 API Key。
 
-应用图标和欢迎页上的角色是本人 APXS 的原创角色。
+本项目代码基于 MIT 协议开源，但应用图标及欢迎页中的原创角色形象版权归本人所有，不包含在 MIT 授权范围内，使用或分享时须遵循 CC BY-NC-ND 4.0 协议。
 
 ## 截图
 
