@@ -1,0 +1,13 @@
+.hvigor/
+.idea/
+.preview/
+local.properties
+oh_modules/
+build/
+entry/.preview/
+entry/build/
+entry/oh_modules/
+entry/src/main/resources/rawfile/chat/
+*.cer
+*.p12
+*.p7b

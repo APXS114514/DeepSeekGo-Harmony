@@ -1,0 +1,42 @@
+.harmony-app {
+  --app-safe-top: max(env(safe-area-inset-top, 0px), var(--native-inset-top, 0px));
+  --app-safe-right: max(env(safe-area-inset-right, 0px), var(--native-inset-right, 0px));
+  --app-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--native-inset-bottom, 0px));
+  --app-safe-left: max(env(safe-area-inset-left, 0px), var(--native-inset-left, 0px));
+  --chat-footer-inset: 0px;
+  --dsw-static-blue-50: #e6f2ea;
+  --dsw-static-blue-100: #d5e9dc;
+  --dsw-static-blue-300: #a3c8b2;
+  --dsw-static-blue-400: #71c9a3;
+  --dsw-static-blue-450: #2a7659;
+  --dsw-static-blue-500: #24634d;
+  --dsw-static-blue-600: #477561;
+  --dsw-static-blue-800: #27493b;
+  --dsw-static-blue-900: #20382e;
+  --dsw-static-neutral-bluish-50: #f1f3ed;
+  --dsw-alias-bg-base: #f8f9f5;
+}
+
+.harmony-app[data-ds-dark-theme] {
+  --dsw-static-blue-450: #377f65;
+  --dsw-static-blue-500: #2a6d55;
+  --dsw-static-neutral-bluish-50: #f1f6f2;
+  --dsw-alias-bg-base: #161c19;
+}
+
+.harmony-app[data-custom-accent] {
+  --dsw-static-blue-50: color-mix(in srgb, var(--user-accent) 10%, white);
+  --dsw-static-blue-100: color-mix(in srgb, var(--user-accent) 18%, white);
+  --dsw-static-blue-300: color-mix(in srgb, var(--user-accent) 45%, white);
+  --dsw-static-blue-450: color-mix(in srgb, var(--user-accent) 44%, #151515);
+  --dsw-static-blue-500: color-mix(in srgb, var(--user-accent) 39%, #111);
+  --dsw-static-blue-600: color-mix(in srgb, var(--user-accent) 43%, #333);
+}
+
+.harmony-app[data-custom-accent][data-ds-dark-theme] {
+  --dsw-static-blue-400: color-mix(in srgb, var(--user-accent) 48%, white);
+  --dsw-static-blue-600: color-mix(in srgb, var(--user-accent) 60%, #303030);
+  --dsw-static-blue-800: color-mix(in srgb, var(--user-accent) 22%, #1b1b1b);
+  --dsw-static-blue-900: color-mix(in srgb, var(--user-accent) 13%, #151515);
+  --dsw-specific-bubble: var(--dsw-static-blue-800);
+}
