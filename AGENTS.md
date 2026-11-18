@@ -19,7 +19,7 @@
 - 新增功能时将 `y` 加一并把 `z` 归零，例如 `1.0.5 → 1.1.0`。修复 Bug 时将 `z` 加一，例如 `1.0.5 → 1.0.6`。同一批交付同时有功能和修复时按功能升版一次。
 - 每次完成一次 Bug 修复或功能添加时，更新 `harmony/AppScope/app.json5` 的 `versionName`，将 `versionCode` 加一，验证改动并更新 `HANDOFF.md` 和本版 `CHANGELOG.md`，再提交一次本地 Git。仅改文档或开发流程时沿用当前应用版本。
 - 本地提交与远端推送分别处理。远端推送或公开发布须有用户明确授权。获准推送时先确认目标分支和远端状态，只推送已检查的完整改动。用远端实际结果确认推送或发布是否成功。
-- 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。推送前检查 `git remote -v`，确认当前克隆中远端别名实际指向的仓库。通过 Fork 贡献时，将改动推送到自己的 Fork，再向上游发起 Pull Request。
+- 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。推送前检查 `git remote -v`，确认当前克隆中远端别名实际指向的仓库。Fork 和 Pull Request 流程见 [`CONTRIBUTING.md`](CONTRIBUTING.md#提交改动)。
 - 开发者以自己配置的 Git 身份提交，并使用自己的 GitHub 凭据推送。代理代表开发者操作时，先核对 `git config user.name` 和 `git config user.email`。身份缺失或与用户预期不符时，先请用户确认。
 
 ## HAP 与文档

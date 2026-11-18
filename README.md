@@ -9,7 +9,8 @@
 <p align="center">
   <a href="https://github.com/APXS114514/DeepSeekGo-Harmony/releases/latest">下载最新版本</a> ·
   <a href="CHANGELOG.md">更新日志</a> ·
-  <a href="#从源码构建">从源码构建</a>
+  <a href="#从源码构建">从源码构建</a> ·
+  <a href="CONTRIBUTING.md">参与改进</a>
 </p>
 
 Deepseek GO 是一款基于 DeepSeek 官方 Chat Demo 开发的第三方 HarmonyOS 客户端，适配手机、折叠屏、平板和 2in1，支持系统语音输入、图片文字识别和系统分享。

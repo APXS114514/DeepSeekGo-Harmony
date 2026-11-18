@@ -2,9 +2,9 @@
 
 ## 工作区
 
-- 当前源码为 1.3.1，版本代码为 `1000011`，调整默认配色、深色背景、位置信息、设置分隔和界面文案，见「1.3.1 配色与设置」。1.3.0 版本代码为 `1000010`，新增无痕对话、后台生成与完成通知，并做了返回手势、系统字体、2in1 键鼠等适配，见「1.3.0 无痕对话与鸿蒙适配」。1.2.1 修复宽屏居中和侧栏上下断开，见「1.2.1 宽屏修复」。1.1.0 新增系统语音输入、本机识字、接收系统分享和经系统文件管理器导出，见下方「鸿蒙独有功能」；1.2.0 新增自定义指令和跨对话记忆，见「个性化与记忆」。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 当前源码为 1.3.1，版本代码为 `1000011`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
 - 最近一次交付是 `HAPS/Deepseek-GO-1.3.1-unsigned.hap`，版本代码为 `1000011`，对应 GitHub Releases 标签 `v1.3.1`。只有用户明确要求时才打包当前源码版本。
-- 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。贡献方式见 [`AGENTS.md`](AGENTS.md#版本与提交)。仓库只收源码、配置、文档和图片资源。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`，使用鸿蒙版网页构建产物、模拟接口和设备消息通道生成。维护者的截图生成命令见本机 `AGENTS.local.md`。
+- 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。贡献方式见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。仓库只收源码、配置、文档和图片资源。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`，使用鸿蒙版网页构建产物、模拟接口和设备消息通道生成。维护者的截图生成命令见本机 `AGENTS.local.md`。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
 
 版本、提交和发布规则见 [`AGENTS.md`](AGENTS.md#版本与提交)，每版的用户可见变化见 [`CHANGELOG.md`](CHANGELOG.md)。
