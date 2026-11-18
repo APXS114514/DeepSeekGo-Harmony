@@ -110,6 +110,11 @@ pnpm build:harmony
 | `harmony/` | ArkTS、ArkUI、ArkWeb 外壳，包括窗口与系统栏、Asset Store、语音、识字、分享和文件保存 |
 | `chat-demo-main/` | 内置的聊天前端（React + Rspack），在上游 Chat Demo 的基础上修改 |
 | `docs/screenshots/` | README 截图 |
+| `.gitignore` | 根目录的忽略规则：系统与编辑器文件、依赖和缓存、`HAPS/` 与各类安装包、签名材料与密钥、`.env` 和 `local.properties`，以及用不上的上游遗留文件 |
+| `harmony/.gitignore` | Hvigor、ohpm、DevEco Studio 生成的目录，构建产物 `rawfile/chat/` 和签名材料 |
+| `chat-demo-main/.gitignore` | 上游 Chat Demo 自带的规则：`node_modules/`、`dist/`、日志和 `.env` |
+
+仓库只收源码、配置、文档和图标。安装包请到 [Releases](https://github.com/APXS114514/DeepSeekGo-Harmony/releases) 下载，内置聊天界面需要按上面的命令在本机生成。
 
 架构、验证和打包命令见 [HANDOFF.md](HANDOFF.md)，开发与提交规则见 [AGENTS.md](AGENTS.md)，每个版本的变化见 [CHANGELOG.md](CHANGELOG.md)。
 
