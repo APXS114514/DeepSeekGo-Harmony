@@ -39,6 +39,7 @@ export const DeviceStatus = {
 export const useDeviceFeatures = create(() => ({
   voice: false,
   scan: false,
+  immersiveScanMenu: false,
   save: false,
   /** 2in1 设备，按钮提示里附带键盘快捷键 */
   keyboard: false,
@@ -102,6 +103,7 @@ const onWindowMessage = (event: MessageEvent<string>) => {
       useDeviceFeatures.setState({
         voice: message.voice === true,
         scan: message.scan === true,
+        immersiveScanMenu: message.immersiveScanMenu === true,
         save: message.save === true,
         keyboard: message.deviceType === '2in1',
       })
@@ -201,7 +203,14 @@ const waitForPort = () =>
 
 type DeviceReply = { id: number; status: number; value: string }
 
-type DeviceOperation = 'read' | 'save' | 'voice' | 'scan' | 'reply-done' | 'notify-permission'
+type DeviceOperation =
+  | 'read'
+  | 'save'
+  | 'voice'
+  | 'scan'
+  | 'scan-source'
+  | 'reply-done'
+  | 'notify-permission'
 
 const requestDevice = (
   operation: DeviceOperation,
@@ -309,9 +318,34 @@ export const bindDeviceVoice = (listener: (event: DeviceVoiceEvent) => void) => 
   }
 }
 
+export type ScanSource = 'camera' | 'album'
+
+export const chooseDeviceScanSource = async (labels: {
+  title: string
+  camera: string
+  album: string
+}): Promise<ScanSource | 'cancelled' | 'unavailable'> => {
+  try {
+    const { status, value } = await requestDevice(
+      'scan-source',
+      JSON.stringify(labels),
+      PICKER_TIMEOUT
+    )
+    if (status === DeviceStatus.ok && (value === 'camera' || value === 'album')) {
+      return value
+    }
+    if (status === DeviceStatus.cancelled) {
+      return 'cancelled'
+    }
+  } catch {
+    // 端口或原生菜单失效时仍可从网页菜单选择来源。
+  }
+  return 'unavailable'
+}
+
 /** 用系统相机或图库取图，在本机识别文字。 */
 export const scanDeviceText = async (
-  source: 'camera' | 'album'
+  source: ScanSource
 ): Promise<{ status: number; text: string }> => {
   try {
     const reply = await requestDevice('scan', source, PICKER_TIMEOUT)

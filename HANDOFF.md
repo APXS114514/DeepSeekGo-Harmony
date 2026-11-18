@@ -2,17 +2,12 @@
 
 ## 工作区
 
-- 当前源码为 1.3.1，版本代码为 `1000011`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 当前源码为 1.3.2，版本代码为 `1000012`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
 - 最近一次交付是 `HAPS/Deepseek-GO-1.3.1-unsigned.hap`，版本代码为 `1000011`，对应 GitHub Releases 标签 `v1.3.1`。只有用户明确要求时才打包当前源码版本。
 - 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。贡献方式见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。仓库只收源码、配置、文档和图片资源。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`，使用鸿蒙版网页构建产物、模拟接口和设备消息通道生成。维护者的截图生成命令见本机 `AGENTS.local.md`。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
 
 版本、提交和发布规则见 [`AGENTS.md`](AGENTS.md#版本与提交)，每版的用户可见变化见 [`CHANGELOG.md`](CHANGELOG.md)。
-
-## 下一版 1.3.2
-
-- 补丁主题为「沉浸光感优化适配鸿蒙特性」。重点优化现有沉浸光感体验，按系统版本和设备能力适配鸿蒙原生材质，保留普通样式路径。
-- 验收重点是浅色和深色主题下的可读性、键盘弹起及分屏或悬浮窗中的表现，以及 HarmonyOS 5.0（API 12）下的普通样式。
 
 ## SDK 与编译工具
 
@@ -36,7 +31,14 @@
   | `disable` | 在应用级禁用系统材质，组件级开启也不生效。 |
 
 - **原生组件级配置**可通过 `systemMaterial` 等属性调整支持的组件。应用级未禁用时，组件配置优先，个别组件可通过 `uiMaterial.Material.empty` 关闭。排查时，在支持的系统上用 `uiMaterial.getMaterialInfo()` 读取应用级配置状态，用 `uiMaterial.isImmersiveMaterialSupported()` 检查设备能力，再用真机验证呈现。 [组件适配指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
-- **设置 → 通用设置 → 沉浸光感**是当前应用的网页输入区偏好，默认开启，保存在本地的 `chat-demo:immersive-light`。切换时由 [`App.tsx`](chat-demo-main/src/app/App.tsx) 更新 `data-immersive-light`，由 [`ChatInput.module.css`](chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。原生 `module.metadata` 在构建时写入 HAP。
+- **设置 → 通用设置 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
+
+## 1.3.2 沉浸光感优化适配鸿蒙特性
+
+- **图片识字菜单**。`DeviceBridge` 在 API 26.0.0 及以上按需加载 `ScanSourceMenu.ets`，按系统材质和识字能力上报 `immersiveScanMenu`。开关开启时网页通过 `scan-source` 请求选择图片来源，再沿用 `scan` 打开相机或图库。取消后回到输入区，系统不支持或菜单打开失败时用现有网页菜单。原生菜单配色跟随系统，网页输入区跟随应用内主题。
+- **聊天输入区**。降低背景模糊半径、提高底色不透明度，仍沿用主题色。ArkWeb 不支持背景模糊、光感关闭，或浏览器报告减少透明度、高对比度或强制颜色时，使用普通背景。
+- **验证**。通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony`、改动前端文件的 `oxfmt`、改动 ArkTS 文件的 `codelinter` 和 HarmonyOS 26.0.0 SDK Debug 编译。核对 Debug 包的版本、包名、最低 API 12 和 155 个网页资源。浏览器专项回归用模拟消息通道验证识字来源选择、取消、失败回退与重试、旧端口兼容、光感开关持久化、深浅和高对比度主题，以及 320px 窄窗的键盘视口。1.3.1 的鸿蒙功能、1.3、配色设置和动效回归通过。
+- **真机待验证**。原生菜单在深浅主题、键盘弹起、分屏和悬浮窗中的观感与交互，包括系统返回手势关闭菜单和从菜单切换到相机或图库。另需在 API 12 真机上确认启动和普通网页菜单。
 
 ## 鸿蒙独有功能（1.1.0）
 

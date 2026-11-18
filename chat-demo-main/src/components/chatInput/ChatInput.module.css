@@ -32,27 +32,39 @@
 }
 
 :global(.harmony-app) .wrapper {
-  border-color: transparent;
   box-shadow: 0 3px 14px rgba(12, 24, 17, 0.06);
 }
 
-:global(.harmony-app[data-immersive-light]) .wrapper {
-  background:
-    radial-gradient(
-      ellipse at var(--composer-highlight-x, 14%) 0%,
-      var(--composer-highlight),
-      transparent 70%
-    ),
-    var(--composer-tint);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  backdrop-filter: blur(18px) saturate(140%);
-  box-shadow:
-    inset 0 1px 0 var(--composer-rim),
-    0 4px 18px rgba(12, 24, 17, 0.1);
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :global(.harmony-app[data-immersive-light]) .wrapper {
+    border-color: transparent;
+    background:
+      radial-gradient(
+        ellipse at var(--composer-highlight-x, 14%) 0%,
+        var(--composer-highlight),
+        transparent 70%
+      ),
+      var(--composer-tint);
+    -webkit-backdrop-filter: blur(12px) saturate(120%);
+    backdrop-filter: blur(12px) saturate(120%);
+    box-shadow:
+      inset 0 1px 0 var(--composer-rim),
+      0 4px 18px rgba(12, 24, 17, 0.1);
+  }
+
+  :global(.harmony-app[data-immersive-light]) .wrapper:focus-within {
+    --composer-highlight-x: 50%;
+  }
 }
 
-:global(.harmony-app[data-immersive-light]) .wrapper:focus-within {
-  --composer-highlight-x: 50%;
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  :global(.harmony-app[data-immersive-light]) .wrapper {
+    border-color: currentColor;
+    background: var(--dsw-specific-input-major);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+  }
 }
 
 .attachments {

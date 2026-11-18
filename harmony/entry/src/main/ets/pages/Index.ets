@@ -64,7 +64,7 @@ struct Index {
     const context = ui.getHostContext() as common.UIAbilityContext;
     const dark = context.config.colorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
     this.windowUi.dark = dark;
-    this.bridge = new DeviceBridge(context, (message) => this.sendWebMessage(message));
+    this.bridge = new DeviceBridge(context, ui, (message) => this.sendWebMessage(message));
     ShareInbox.subscribe(this.flushShares);
     window.getLastWindow(context).then((mainWindow) => {
       if (this.disposed) {
@@ -222,7 +222,11 @@ struct Index {
       port.onMessageEvent((message) => bridge.handle(message, port, (value) => this.applyWindowUi(value)));
       this.controller.postMessage(PORT_MESSAGE, [ports[1]], APP_ORIGIN);
       this.sendWindowLayout();
-      this.sendWebMessage(bridge.features());
+      bridge.features().then((features) => {
+        if (this.devicePort === port) {
+          this.sendWebMessage(features);
+        }
+      });
       this.sendFontScale();
       this.flushShares();
       this.openPendingSession();

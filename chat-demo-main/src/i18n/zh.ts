@@ -120,7 +120,8 @@ export const zh = {
   harmonyAppName: 'Deepseek GO',
   historyNavigation: '对话历史',
   immersiveLightTitle: '沉浸光感',
-  immersiveLightDescription: '为聊天输入区启用半透明材质和高光。',
+  immersiveLightDescription:
+    '为聊天输入区启用半透明和高光，支持的设备也会在识字菜单中使用系统材质。',
   harmonyWelcome: '今天想聊什么？',
   replyNotifyTitle: '回答完成通知',
   replyNotifyDescription: '切到后台后继续生成回答，完成时发送通知，点通知回到对话。',

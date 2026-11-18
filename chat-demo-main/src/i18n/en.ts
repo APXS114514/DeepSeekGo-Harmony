@@ -122,7 +122,8 @@ export const en = {
   harmonyAppName: 'Deepseek GO',
   historyNavigation: 'Chat history',
   immersiveLightTitle: 'Immersive lighting',
-  immersiveLightDescription: 'Add translucency and highlights to the message composer.',
+  immersiveLightDescription:
+    'Add translucency and highlights to the composer and use system materials in the text recognition menu on supported devices.',
   harmonyWelcome: 'What’s on your mind?',
   replyNotifyTitle: 'Reply notifications',
   replyNotifyDescription:

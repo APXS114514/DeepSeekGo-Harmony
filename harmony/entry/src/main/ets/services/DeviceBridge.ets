@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit';
+import { UIContext } from '@kit.ArkUI';
 import { webview } from '@kit.ArkWeb';
 import { util } from '@kit.ArkTS';
 import { asset } from '@kit.AssetStoreKit';
@@ -26,9 +27,18 @@ interface DeviceFeatures {
   type: string;
   voice: boolean;
   scan: boolean;
+  immersiveScanMenu: boolean;
   save: boolean;
   deviceType: string;
 }
+
+interface ScanSourceLabels {
+  title: string;
+  camera: string;
+  album: string;
+}
+
+type ScanSourcePicker = (title: string, camera: string, album: string) => Promise<string | null>;
 
 /** 二进制消息：4 字节小端头长度 + JSON 头 + 文件内容。 */
 const MAX_FRAME_HEADER = 4096;
@@ -41,24 +51,49 @@ export class DeviceBridge {
   private readonly scanner: TextScanner;
   private readonly saver: FileSaver;
   private readonly background: BackgroundReply;
+  private readonly ui: UIContext;
+  private scanMenuOpen: boolean = false;
 
-  constructor(context: common.UIAbilityContext, emit: (message: string) => void) {
+  constructor(context: common.UIAbilityContext, ui: UIContext, emit: (message: string) => void) {
     this.context = context;
+    this.ui = ui;
     this.voice = new VoiceInput(context, emit);
     this.scanner = new TextScanner(context);
     this.saver = new FileSaver(context);
     this.background = new BackgroundReply(context);
   }
 
-  features(): string {
+  async features(): Promise<string> {
+    const scan = TextScanner.supported();
     const features: DeviceFeatures = {
       type: 'device-features',
       voice: VoiceInput.supported(),
-      scan: TextScanner.supported(),
+      scan: scan,
+      immersiveScanMenu: scan && (await this.loadScanSourcePicker()) !== null,
       save: true,
       deviceType: deviceInfo.deviceType
     };
     return JSON.stringify(features);
+  }
+
+  private async loadScanSourcePicker(): Promise<ScanSourcePicker | null> {
+    // Older runtimes never load the API 26 material module.
+    try {
+      if (deviceInfo.sdkApiVersion >= 26) {
+        if (deviceInfo.apiAvailable('26.0.0')) {
+          return await import('./ScanSourceMenu').then((menu): ScanSourcePicker | null => {
+            if (menu.supportsImmersiveScanMenu()) {
+              return (title: string, camera: string, album: string): Promise<string | null> =>
+                menu.chooseScanSource(this.ui, title, camera, album);
+            }
+            return null;
+          });
+        }
+      }
+    } catch {
+      hilog.warn(0x0000, 'PocketChat', 'Cannot query immersive scan menu support');
+    }
+    return null;
   }
 
   /** 页面隐藏或端口重连时中断进行中的收音。 */
@@ -130,6 +165,9 @@ export class DeviceBridge {
             this.reply(port, { id: request.id, status: result.status, value: result.text });
           });
           return;
+        case 'scan-source':
+          this.chooseScanSource(request).then((result) => this.reply(port, result));
+          return;
         default:
           return;
       }
@@ -137,6 +175,43 @@ export class DeviceBridge {
     } catch {
       hilog.warn(0x0000, 'PocketChat', 'Unable to handle a local page message');
     }
+  }
+
+  private async chooseScanSource(request: DeviceRequest): Promise<DeviceReply> {
+    const reply: DeviceReply = { id: request.id, status: DeviceStatus.FAILED, value: '' };
+    if (this.scanMenuOpen) {
+      reply.status = DeviceStatus.CANCELLED;
+      return reply;
+    }
+    if (!TextScanner.supported()) {
+      reply.status = DeviceStatus.UNSUPPORTED;
+      return reply;
+    }
+    this.scanMenuOpen = true;
+    return this.loadScanSourcePicker().then((pickSource) => {
+      if (!pickSource) {
+        reply.status = DeviceStatus.UNSUPPORTED;
+        return reply;
+      }
+      const labels = JSON.parse(request.value ?? 'null') as ScanSourceLabels;
+      if (typeof labels?.title !== 'string' || typeof labels.camera !== 'string' ||
+        typeof labels.album !== 'string' || labels.title.length > 120 ||
+        labels.camera.length > 120 || labels.album.length > 120) {
+        return reply;
+      }
+      return pickSource(labels.title, labels.camera, labels.album).then((source) => {
+        if (source !== null) {
+          reply.status = source ? DeviceStatus.OK : DeviceStatus.CANCELLED;
+          reply.value = source;
+        }
+        return reply;
+      });
+    }).catch((error: BusinessError) => {
+      hilog.warn(0x0000, 'PocketChat', 'Cannot open immersive scan menu: %{public}d', error.code);
+      return reply;
+    }).finally(() => {
+      this.scanMenuOpen = false;
+    });
   }
 
   private handleReplyDone(value?: string): void {
