@@ -1,4 +1,5 @@
 import { UIContext, window } from '@kit.ArkUI';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 
 export interface WindowInsets {
   top: number;
@@ -6,6 +7,9 @@ export interface WindowInsets {
   bottom: number;
   left: number;
 }
+
+/** 左右避让区完全落在顶部或底部这个比例以内时，视为角落里的挖孔或状态栏片段。 */
+const CORNER_RATIO = 0.25;
 
 export const EMPTY_INSETS: WindowInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 
@@ -28,6 +32,9 @@ export function readWindowInsets(mainWindow: window.Window, ui: UIContext): Wind
   includeAvoidArea(insets, system, frame);
   includeAvoidArea(insets, navigation, frame);
   includeAvoidArea(insets, cutout, frame);
+  hilog.info(0x0000, 'PocketChat', 'Window %{public}dx%{public}d avoid system=%{public}s nav=%{public}s ' +
+    'cutout=%{public}s -> %{public}s', frame.width, frame.height, describeArea(system),
+    describeArea(navigation), describeArea(cutout), JSON.stringify(insets));
   return {
     top: ui.px2vp(insets.top),
     right: ui.px2vp(insets.right),
@@ -36,16 +43,51 @@ export function readWindowInsets(mainWindow: window.Window, ui: UIContext): Wind
   };
 }
 
+function describeArea(area: window.AvoidArea): string {
+  const rect = (value: window.Rect): string =>
+    value.width > 0 && value.height > 0 ? `${value.left},${value.top},${value.width},${value.height}` : '-';
+  return `[t ${rect(area.topRect)} r ${rect(area.rightRect)} b ${rect(area.bottomRect)} l ${rect(area.leftRect)}]`;
+}
+
+/**
+ * 只占顶部或底部一角的左右避让区（例如横屏时位于右上角的摄像头挖孔）改为上下避让，
+ * 避免整列内容为一个角落让出整条左右边距而偏离屏幕中心。
+ */
+function cornerBand(rect: window.Rect, frame: window.Rect): string {
+  if (rect.width <= 0 || rect.height <= 0) {
+    return '';
+  }
+  if (rect.top + rect.height <= frame.height * CORNER_RATIO) {
+    return 'top';
+  }
+  return rect.top >= frame.height * (1 - CORNER_RATIO) ? 'bottom' : '';
+}
+
 function includeAvoidArea(insets: WindowInsets, area: window.AvoidArea, frame: window.Rect): void {
   const top = area.topRect;
   const right = area.rightRect;
   const bottom = area.bottomRect;
   const left = area.leftRect;
   // A cutout already covered by an existing avoidance band needs no extra padding.
-  const extraTop = needsInset(top, insets, frame) ? top.top + top.height : 0;
-  const extraRight = needsInset(right, insets, frame) ? frame.width - right.left : 0;
-  const extraBottom = needsInset(bottom, insets, frame) ? frame.height - bottom.top : 0;
-  const extraLeft = needsInset(left, insets, frame) ? left.left + left.width : 0;
+  let extraTop = needsInset(top, insets, frame) ? top.top + top.height : 0;
+  let extraBottom = needsInset(bottom, insets, frame) ? frame.height - bottom.top : 0;
+  let extraRight = 0;
+  let extraLeft = 0;
+  for (const side of [right, left]) {
+    if (!needsInset(side, insets, frame)) {
+      continue;
+    }
+    const band = cornerBand(side, frame);
+    if (band === 'top') {
+      extraTop = Math.max(extraTop, side.top + side.height);
+    } else if (band === 'bottom') {
+      extraBottom = Math.max(extraBottom, frame.height - side.top);
+    } else if (side === right) {
+      extraRight = frame.width - right.left;
+    } else {
+      extraLeft = left.left + left.width;
+    }
+  }
   insets.top = Math.min(frame.height, Math.max(insets.top, extraTop));
   insets.right = Math.min(frame.width, Math.max(insets.right, extraRight));
   insets.bottom = Math.min(frame.height, Math.max(insets.bottom, extraBottom));

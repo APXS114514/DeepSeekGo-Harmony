@@ -2,7 +2,7 @@
 
 ## 工作区
 
-- 当前源码为 1.2.0，版本代码为 `1000008`。1.1.0 新增系统语音输入、本机识字、接收系统分享和经系统文件管理器导出，见下方「鸿蒙独有功能」；1.2.0 新增自定义指令和跨对话记忆，见「个性化与记忆」。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 当前源码为 1.2.1，版本代码为 `1000009`，修复宽屏居中和侧栏上下断开，见「1.2.1 宽屏修复」。1.1.0 新增系统语音输入、本机识字、接收系统分享和经系统文件管理器导出，见下方「鸿蒙独有功能」；1.2.0 新增自定义指令和跨对话记忆，见「个性化与记忆」。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
 - 最近一次交付是 `HAPS/Deepseek-GO-1.0.6-unsigned.hap`，版本代码为 `1000006`。只有用户明确要求时才打包当前源码版本。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
 
@@ -55,6 +55,11 @@
 - **界面**：[`PersonalizationSettings.tsx`](chat-demo-main/src/components/settings/PersonalizationSettings.tsx)，设置新增 `personal` 分组。指令改动后需点「保存」。记忆列表最新的在上面，编辑框按 Esc 取消且不会关闭设置。清空需二次确认。
 - **对旧回归的影响**：自动记忆默认开启，每轮回答后多一次 `/anthropic/v1/messages` 请求。按请求次数断言的旧脚本（motion、edit、brand-sider）需要先在 localStorage 里关掉自动记忆，见下方验证记录。
 
+## 1.2.1 宽屏修复
+
+- **未居中**：用户在 1.0.6 平板横屏截图中，欢迎页和输入框左边距 240、右边距 357 设备像素，状态栏图标也在右侧约 110 像素处截止。浏览器用右侧 58vp 的 inset 复现出同样的比例，推断是位于右上角的摄像头挖孔被 `TYPE_CUTOUT.rightRect` 上报，原 `includeAvoidArea` 把它当成整条右边距。[`WindowInsets.ets`](harmony/entry/src/main/ets/window/WindowInsets.ets) 现在把完全落在窗口顶部或底部 25% 以内的左右避让区改算为上下避让；跨过中段的侧边刘海仍按左右处理。每次计算会在 hilog 输出 `Window WxH avoid system=… nav=… cutout=… -> {insets}`，真机排查时用 `hdc hilog | grep PocketChat` 查看原始矩形。
+- **侧栏上下断开**：常驻侧栏原本在 `.frame` 的上下安全区 padding 以内，状态栏和手势区露出主背景色。[`Sider.module.css`](chat-demo-main/src/components/sider/Sider.module.css) 在鸿蒙下给 `.docked` 加负的上下外边距，`.sider` 用同样的 padding 避开系统栏，底色和分隔线贯穿全高。窄屏抽屉原本就是全高，未改动。
+
 ## 1.0.x 的界面改动
 
 - **顶栏**。上一版的蓝圈来自原生按钮使用系统材质时采用的默认填充色。1.0.5 的 `ChatHeader.ets` 使用透明底的 ArkUI 文本样式按钮。
@@ -71,6 +76,7 @@
 - 检查原生代码时用 HarmonyOS 26.0.0 SDK 自带的 `codelinter`，例如在 `harmony/` 下运行 `codelinter -p default -e error entry/src/main/ets/pages/Index.ets`。1.0.6 的键盘配置已通过该检查。真机待验证项包括系统键盘与页面动效同步、横屏和分屏下的可用高度、启动器图标、折叠屏展开态侧栏及深浅主题下的顶栏反馈。
 - 回归会话和设置时，从应用入口使用测试 Key、模拟 ArkWeb 消息通道和 API 回包。检查切换会话或折叠展开后草稿仍在，编辑重发后能切回原版本，以及 Key 校验成功但设备保存失败时能正确提示并重试。真机验收记录设备、系统版本和实际安装的包版本。
 - 收到生成 HAP Release 的请求后，从 `harmony/AppScope/app.json5` 读取当前版本。先构建 ArkWeb 资源，再在 `harmony/` 下用 HarmonyOS 26.0.0 SDK 执行 `hvigorw assembleHap --mode module -p product=default -p module=entry@default -p buildMode=release --no-daemon`。核对构建日志的未签名状态及包内 `module.json` 的版本、包名和最低 API。比对图标、Logo 和打包的网页资源，最后复制到 `HAPS/` 并记录 SHA-256。
+- 1.2.1 已通过 `pnpm lint`、`pnpm build:harmony`、`WindowInsets.ets` 的 codelinter 和 ArkTS 编译。浏览器探针确认侧栏覆盖整个窗口高度，内容位置不变；1.1、1.2 功能回归以及关闭自动记忆后的 motion、edit、brand-sider 回归都通过。挖孔改算上下避让的逻辑只能在真机验证：需要确认平板横屏时左右对称，挖孔不遮挡内容，以及顶部 inset 是否因此变大。
 - 1.2.0 已通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony` 和 ArkTS 编译，原生代码未改动。浏览器回归脚本是 DSH 工作区的 `Game-Miscellaneous/_verify-deepseek-go-1.2/personalization.mjs`，在本仓库根目录用 Node 运行。它覆盖指令保存与注入、手动添加与去重、自动提炼的新增、更新和删除、敏感信息过滤、无效返回和短消息不触发、编辑与 Esc 取消、整理、撤销和整理失败、删除、开关关闭后不注入也不提炼、刷新后保留、清空确认。1.1.0 的 harmony-features 回归仍通过；motion、edit、brand-sider 在关闭自动记忆后通过。真机待验证 ArkWeb 的 localStorage 在覆盖安装后是否保留，以及长指令和长记忆列表在小屏设置页的滚动。暂未打包 1.2.0 HAP。
 - 1.1.0 已通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony`、`codelinter` 和 ArkTS 编译，包内 `module.json` 含 `MICROPHONE` 权限和分享技能。浏览器回归脚本在 DSH 工作区的 `Game-Miscellaneous/_verify-deepseek-go-1.1/harmony-features.mjs`，在本仓库根目录用 Node 运行。它用模拟端口覆盖冷启动和运行中分享、语音实时文字与自动结束、手动结束与取消、权限拒绝和识别失败、拍照与图库识字及取消、导出保存与失败，以及设备不支持时隐藏入口。1.0.6 的 motion、edit、brand-sider 回归仍通过。
 - 1.1.0 尚未真机验证：系统分享面板是否列出 Deepseek GO 及各类文件能否读取、离线语音模型在目标设备上是否可用和首次授权流程、相机 Picker 返回的 URI 可读性和识字效果、文件管理器保存，以及 2in1 上相机和语音的可用性。暂未打包 1.1.0 HAP。

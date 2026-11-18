@@ -37,6 +37,17 @@
   --docked-sider-width: clamp(176px, 26vw, 224px);
 }
 
+/* 鸿蒙全屏布局：常驻侧栏的底色和分隔线延伸到状态栏和底部手势区，内容仍避开系统栏 */
+:global(.harmony-app) .docked {
+  margin-top: calc(-1 * var(--frame-safe-top, 0px));
+  margin-bottom: calc(-1 * var(--frame-safe-bottom, 0px));
+
+  .sider {
+    padding-top: calc(6px + var(--frame-safe-top, 0px));
+    padding-bottom: var(--frame-safe-bottom, 0px);
+  }
+}
+
 .top {
   display: flex;
   align-items: center;
