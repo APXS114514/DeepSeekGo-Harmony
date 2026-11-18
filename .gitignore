@@ -1,6 +1,42 @@
+# 只提交源码、配置、文档和图标。下面的内容可以在本机重新生成，或者对这个项目没有用处。
+
+# 系统与编辑器
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# 依赖、缓存与日志
+node_modules/
 .pnpm-store/
-HAPS/*.hap
+.cache/
+*.log
+tmp/
+
+# 构建与交付产物：HAP 由用户签名后分发，不进仓库
+HAPS/
+*.hap
+*.app
+*.hsp
+*.har
+
+# 签名材料、密钥与本机配置
 *.cer
 *.p12
 *.p7b
+*.csr
+*.jks
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+local.properties
+
+# 上游 Chat Demo 遗留、本项目用不上的文件
+# - 网页版 GitHub Pages 部署流水线（不在仓库根目录，GitHub 不会执行）
+chat-demo-main/.github/
+# - 过期的 CSS Modules 类型声明，类型检查实际使用 src/env.d.ts 的通配声明
+chat-demo-main/src/**/*.module.css.d.ts

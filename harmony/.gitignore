@@ -1,13 +1,24 @@
+# Hvigor、ohpm 与 DevEco Studio 生成的内容
 .hvigor/
 .idea/
 .preview/
-local.properties
+.appanalyzer/
+.clangd/
+.cxx/
 oh_modules/
 build/
-entry/.preview/
-entry/build/
-entry/oh_modules/
+local.properties
+**/.preview/
+**/build/
+**/oh_modules/
+**/.cxx/
+
+# 由 chat-demo-main 的 pnpm build:harmony 生成，打包前重新构建
 entry/src/main/resources/rawfile/chat/
+
+# 签名材料
 *.cer
 *.p12
 *.p7b
+*.csr
+*.jks

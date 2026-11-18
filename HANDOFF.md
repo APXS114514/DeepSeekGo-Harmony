@@ -4,7 +4,7 @@
 
 - 当前源码为 1.2.1，版本代码为 `1000009`，修复宽屏居中和侧栏上下断开，见「1.2.1 宽屏修复」。1.1.0 新增系统语音输入、本机识字、接收系统分享和经系统文件管理器导出，见下方「鸿蒙独有功能」；1.2.0 新增自定义指令和跨对话记忆，见「个性化与记忆」。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
 - 最近一次交付是 `HAPS/Deepseek-GO-1.2.1-unsigned.hap`，版本代码为 `1000009`。只有用户明确要求时才打包当前源码版本。
-- 远端仓库是 `origin`（GitHub `APXS114514/DeepSeekGo-Harmony`，分支 `main`）。推送身份和 SSH 配置见 [`AGENTS.md`](AGENTS.md#版本与提交)。
+- 远端仓库是 `origin`（GitHub `APXS114514/DeepSeekGo-Harmony`，分支 `main`）。推送身份和 SSH 配置见 [`AGENTS.md`](AGENTS.md#版本与提交)。仓库只收源码、配置、文档和图标。依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`，都由根目录和 `harmony/` 的 `.gitignore` 排除。这些文件在本机仍然保留，新克隆的仓库不需要它们也能正常构建。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
 
 版本、提交和发布规则见 [`AGENTS.md`](AGENTS.md#版本与提交)，每版的用户可见变化见 [`CHANGELOG.md`](CHANGELOG.md)。
