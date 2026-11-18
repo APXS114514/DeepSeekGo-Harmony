@@ -1,5 +1,9 @@
+import { create } from 'zustand'
+
 const PORT_MESSAGE = 'pocket-chat-device-port'
 const PORT_TIMEOUT = 4000
+/** 系统授权弹窗、相机和文件选择器要等用户操作，回复超时放宽。 */
+const PICKER_TIMEOUT = 30 * 60 * 1000
 let connectedPort: MessagePort | undefined
 let requestId = 0
 let windowUiMessage: string | undefined
@@ -16,6 +20,50 @@ type WindowUi = {
 }
 
 let windowAction: ((action: WindowAction) => void) | undefined
+
+/** 与原生 DeviceStatus 一致；其余正数为系统错误码，-1 为通用失败。 */
+export const DeviceStatus = {
+  ok: 0,
+  cancelled: 1,
+  denied: 2,
+  unsupported: 3,
+  tooLarge: 4,
+  failed: -1,
+} as const
+
+/** 原生连接后上报的设备能力，未连接时全部关闭。 */
+export const useDeviceFeatures = create(() => ({ voice: false, scan: false, save: false }))
+
+export type DeviceVoiceEvent =
+  | { event: 'result'; text: string; final: boolean; last: boolean }
+  | { event: 'end' | 'cancel' }
+  | { event: 'error'; code: number }
+
+let voiceListener: ((event: DeviceVoiceEvent) => void) | undefined
+
+export type SharedItem = { kind: 'text'; text: string } | { kind: 'file'; name: string; data: string }
+export type SharedContent = { items: SharedItem[]; skipped: number }
+
+const pendingShares: SharedContent[] = []
+let shareListener: ((content: SharedContent) => void) | undefined
+
+const readShare = (message: { items?: unknown; skipped?: unknown }): SharedContent => {
+  const items: SharedItem[] = []
+  for (const item of Array.isArray(message.items) ? message.items : []) {
+    if (item?.kind === 'text' && typeof item.text === 'string' && item.text) {
+      items.push({ kind: 'text', text: item.text })
+    } else if (
+      item?.kind === 'file' &&
+      typeof item.name === 'string' &&
+      typeof item.data === 'string' &&
+      item.data
+    ) {
+      items.push({ kind: 'file', name: item.name, data: item.data })
+    }
+  }
+  const skipped = Number.isSafeInteger(message.skipped) ? (message.skipped as number) : 0
+  return { items, skipped }
+}
 const edges = ['top', 'right', 'bottom', 'left'] as const
 let horizontalInsets = 0
 export const getHorizontalInsets = () => horizontalInsets
@@ -26,6 +74,34 @@ const onWindowMessage = (event: MessageEvent<string>) => {
     if (message?.type === 'window-action') {
       if (message.action === 'sidebar' || message.action === 'new-chat') {
         windowAction?.(message.action)
+      }
+    } else if (message?.type === 'device-features') {
+      useDeviceFeatures.setState({
+        voice: message.voice === true,
+        scan: message.scan === true,
+        save: message.save === true,
+      })
+    } else if (message?.type === 'voice') {
+      if (message.event === 'result' && typeof message.text === 'string') {
+        voiceListener?.({
+          event: 'result',
+          text: message.text,
+          final: message.final === true,
+          last: message.last === true,
+        })
+      } else if (message.event === 'end' || message.event === 'cancel') {
+        voiceListener?.({ event: message.event })
+      } else if (message.event === 'error') {
+        voiceListener?.({ event: 'error', code: Number(message.code) || DeviceStatus.failed })
+      }
+    } else if (message?.type === 'share') {
+      const content = readShare(message)
+      if (content.items.length > 0 || content.skipped > 0) {
+        if (shareListener) {
+          shareListener(content)
+        } else {
+          pendingShares.push(content)
+        }
       }
     } else if (message?.type === 'window-layout') {
       const body = document.body
@@ -101,7 +177,35 @@ const waitForPort = () =>
 
 type DeviceReply = { id: number; status: number; value: string }
 
-const requestDevice = async (operation: 'read' | 'save', value?: string): Promise<DeviceReply> => {
+type DeviceOperation = 'read' | 'save' | 'voice' | 'scan'
+
+const requestDevice = (
+  operation: DeviceOperation,
+  value?: string,
+  timeout = PORT_TIMEOUT
+): Promise<DeviceReply> =>
+  sendRequest((id) => JSON.stringify({ id, operation, value }), timeout)
+
+/** 二进制请求：4 字节小端头长度 + JSON 头 + 内容，避免大文件转 Base64。 */
+const requestDeviceFrame = (
+  operation: 'save-file',
+  value: string,
+  data: ArrayBuffer,
+  timeout: number
+): Promise<DeviceReply> =>
+  sendRequest((id) => {
+    const header = new TextEncoder().encode(JSON.stringify({ id, operation, value }))
+    const frame = new Uint8Array(4 + header.byteLength + data.byteLength)
+    new DataView(frame.buffer).setUint32(0, header.byteLength, true)
+    frame.set(header, 4)
+    frame.set(new Uint8Array(data), 4 + header.byteLength)
+    return frame.buffer
+  }, timeout)
+
+const sendRequest = async (
+  build: (id: number) => string | ArrayBuffer,
+  timeout: number
+): Promise<DeviceReply> => {
   const port = await waitForPort()
   const id = ++requestId
   return new Promise((resolve, reject) => {
@@ -123,10 +227,10 @@ const requestDevice = async (operation: 'read' | 'save', value?: string): Promis
     const timer = window.setTimeout(() => {
       cleanup()
       reject(new Error('WEB_REPLY'))
-    }, PORT_TIMEOUT)
+    }, timeout)
     port.addEventListener('message', onMessage)
     try {
-      port.postMessage(JSON.stringify({ id, operation, value }))
+      port.postMessage(build(id))
     } catch {
       cleanup()
       reject(new Error('WEB_PORT'))
@@ -150,6 +254,69 @@ export const saveDeviceApiKey = async (value: string | null): Promise<string | n
     return reply.status === 0 ? null : String(reply.status)
   } catch (error) {
     return error instanceof Error && error.message === 'WEB_REPLY' ? 'WEB_REPLY' : 'WEB_PORT'
+  }
+}
+
+const postDevice = (operation: DeviceOperation, value: string) => {
+  void waitForPort()
+    .then((port) => port.postMessage(JSON.stringify({ id: 0, operation, value })))
+    .catch(() => {})
+}
+
+/** 开始系统离线语音识别，返回 DeviceStatus；结果经 bindDeviceVoice 的监听器送达。 */
+export const startDeviceVoice = async (): Promise<number> => {
+  try {
+    return (await requestDevice('voice', 'start', PICKER_TIMEOUT)).status
+  } catch {
+    return DeviceStatus.failed
+  }
+}
+
+/** 停止收音，等待最后的识别结果。 */
+export const stopDeviceVoice = () => postDevice('voice', 'stop')
+
+export const cancelDeviceVoice = () => postDevice('voice', 'cancel')
+
+export const bindDeviceVoice = (listener: (event: DeviceVoiceEvent) => void) => {
+  voiceListener = listener
+  return () => {
+    if (voiceListener === listener) {
+      voiceListener = undefined
+    }
+  }
+}
+
+/** 用系统相机或图库取图，在本机识别文字。 */
+export const scanDeviceText = async (
+  source: 'camera' | 'album'
+): Promise<{ status: number; text: string }> => {
+  try {
+    const reply = await requestDevice('scan', source, PICKER_TIMEOUT)
+    return { status: reply.status, text: reply.value }
+  } catch {
+    return { status: DeviceStatus.failed, text: '' }
+  }
+}
+
+/** 由用户在系统文件管理器里选择位置并保存，返回 DeviceStatus。 */
+export const saveDeviceFile = async (name: string, data: ArrayBuffer): Promise<number> => {
+  try {
+    return (await requestDeviceFrame('save-file', name, data, PICKER_TIMEOUT)).status
+  } catch {
+    return DeviceStatus.failed
+  }
+}
+
+/** 接收其他应用分享来的内容；绑定前收到的内容会补发。 */
+export const bindSharedContent = (listener: (content: SharedContent) => void) => {
+  shareListener = listener
+  for (const content of pendingShares.splice(0)) {
+    listener(content)
+  }
+  return () => {
+    if (shareListener === listener) {
+      shareListener = undefined
+    }
   }
 }
 

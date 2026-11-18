@@ -230,6 +230,26 @@
   visibility: hidden;
 }
 
+/* 鸿蒙版语音识别中的实时文字，覆盖在输入框位置，保持最新内容可见 */
+.transcript {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  padding: var(--input-padding-top) 12px 0 16px;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  pointer-events: none;
+}
+
+.transcriptHint {
+  color: var(--dsw-alias-label-caption);
+}
+
 @media not all and (min-width: 440px) {
   .textarea,
   .mirror {

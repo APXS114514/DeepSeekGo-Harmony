@@ -4,6 +4,7 @@ import { webview } from '@kit.ArkWeb';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
 import { DeviceBridge } from '../services/DeviceBridge';
+import { ShareInbox } from '../services/ShareInbox';
 import { ChatHeader } from '../window/ChatHeader';
 import { EMPTY_INSETS, readWindowInsets, systemBarProperties, WindowInsets } from '../window/WindowInsets';
 
@@ -40,6 +41,7 @@ interface WebWindowUi {
 struct Index {
   private readonly controller: webview.WebviewController = new webview.WebviewController();
   private devicePort: webview.WebMessagePort | null = null;
+  private bridge: DeviceBridge | null = null;
   private mainWindow: window.Window | null = null;
   private disposed: boolean = false;
   private hasWindowUi: boolean = false;
@@ -55,6 +57,8 @@ struct Index {
     const context = ui.getHostContext() as common.UIAbilityContext;
     const dark = context.config.colorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
     this.windowUi.dark = dark;
+    this.bridge = new DeviceBridge(context, (message) => this.sendWebMessage(message));
+    ShareInbox.subscribe(this.flushShares);
     window.getLastWindow(context).then((mainWindow) => {
       if (this.disposed) {
         return;
@@ -86,6 +90,20 @@ struct Index {
       hilog.warn(0x0000, 'PocketChat', 'Unable to read window insets: %{public}d', (error as BusinessError).code);
     }
   };
+
+  /** 把系统分享收到的内容交给网页；页面未连接时留在队列里。 */
+  private flushShares = (): void => {
+    if (!this.devicePort) {
+      return;
+    }
+    for (const payload of ShareInbox.take()) {
+      this.sendWebMessage(JSON.stringify(payload));
+    }
+  };
+
+  onPageHide(): void {
+    this.bridge?.interrupt();
+  }
 
   private onWindowStatusChange = (): void => {
     this.updateInsets();
@@ -156,8 +174,10 @@ struct Index {
       return;
     }
     this.closeDevicePort();
-    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    const bridge = new DeviceBridge(context);
+    const bridge = this.bridge;
+    if (!bridge) {
+      return;
+    }
     try {
       const ports = this.controller.createWebMessagePorts();
       const port = ports[0];
@@ -165,6 +185,8 @@ struct Index {
       port.onMessageEvent((message) => bridge.handle(message, port, (value) => this.applyWindowUi(value)));
       this.controller.postMessage(PORT_MESSAGE, [ports[1]], APP_ORIGIN);
       this.sendWindowLayout();
+      this.sendWebMessage(bridge.features());
+      this.flushShares();
     } catch (error) {
       this.closeDevicePort();
       hilog.error(0x0000, 'PocketChat', 'Cannot connect local page: %{public}d',
@@ -173,6 +195,7 @@ struct Index {
   }
 
   private closeDevicePort(): void {
+    this.bridge?.interrupt();
     if (this.devicePort) {
       try {
         this.devicePort.close();
@@ -187,6 +210,9 @@ struct Index {
   aboutToDisappear(): void {
     this.disposed = true;
     this.closeDevicePort();
+    ShareInbox.unsubscribe(this.flushShares);
+    this.bridge?.dispose();
+    this.bridge = null;
     try {
       this.mainWindow?.off('avoidAreaChange', this.updateInsets);
       this.mainWindow?.off('windowSizeChange', this.updateInsets);

@@ -18,6 +18,7 @@ import {
 import { useIsMobile } from '../../app/viewport.js'
 import { useSurfacePresence } from '../../app/useSurfacePresence.js'
 import { useChatStore } from '../../services/chat/store.js'
+import { DeviceStatus, saveDeviceFile } from '../../services/harmony.js'
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
 import {
   isChineseBrowser,
@@ -128,7 +129,7 @@ const SettingsContent = ({
             <>
               <ApiKeyField editor={apiKeyEditor} />
               <ImportHistory historyImport={historyImport} disabled={historyBusy} />
-              {__HARMONY_APP__ ? null : <ExportHistory disabled={historyBusy} />}
+              <ExportHistory disabled={historyBusy} />
               <SettingCell
                 label={t('deleteAllSessions')}
                 status={null}
@@ -560,7 +561,7 @@ const ImportHistory = ({
   )
 }
 
-/** 将全部会话及图片导出为 ZIP 文件并下载 */
+/** 将全部会话及图片导出为 ZIP 文件并下载；鸿蒙版由系统文件管理器选择保存位置 */
 const ExportHistory = ({ disabled }: { disabled: boolean }) => {
   const t = useTranslate()
   const empty = useChatStore((state) => state.sessions.length === 0)
@@ -572,6 +573,15 @@ const ExportHistory = ({ disabled }: { disabled: boolean }) => {
     setStatus(null)
     try {
       const { name, blob } = await exportHistory()
+      if (__HARMONY_APP__) {
+        const result = await saveDeviceFile(name, await blob.arrayBuffer())
+        if (result === DeviceStatus.ok) {
+          showToast({ key: 'harmonySaveDone' })
+        } else if (result !== DeviceStatus.cancelled) {
+          setStatus({ key: 'harmonySaveFailed', error: true })
+        }
+        return
+      }
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -599,7 +609,7 @@ const ExportHistory = ({ disabled }: { disabled: boolean }) => {
           onClick={() => void onExport()}
         >
           <IconDownloadOutline16 />
-          {t('exportAllDownload')}
+          {t(__HARMONY_APP__ ? 'harmonySaveFile' : 'exportAllDownload')}
         </Button>
       }
     />

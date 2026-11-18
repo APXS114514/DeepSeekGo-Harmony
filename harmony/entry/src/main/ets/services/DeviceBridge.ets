@@ -4,6 +4,10 @@ import { util } from '@kit.ArkTS';
 import { asset } from '@kit.AssetStoreKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { DeviceStatus } from './DeviceStatus';
+import { FileSaver } from './FileSaver';
+import { TextScanner } from './TextScanner';
+import { VoiceInput } from './VoiceInput';
 
 interface DeviceRequest {
   id: number;
@@ -17,15 +21,55 @@ interface DeviceReply {
   value: string;
 }
 
+interface DeviceFeatures {
+  type: string;
+  voice: boolean;
+  scan: boolean;
+  save: boolean;
+}
+
+/** 二进制消息：4 字节小端头长度 + JSON 头 + 文件内容。 */
+const MAX_FRAME_HEADER = 4096;
+const MAX_SAVE_BYTES = 512 * 1024 * 1024;
+
 export class DeviceBridge {
   private readonly alias: Uint8Array = new util.TextEncoder().encodeInto('pocket-chat-deepseek-key');
   private readonly context: common.UIAbilityContext;
+  private readonly voice: VoiceInput;
+  private readonly scanner: TextScanner;
+  private readonly saver: FileSaver;
 
-  constructor(context: common.UIAbilityContext) {
+  constructor(context: common.UIAbilityContext, emit: (message: string) => void) {
     this.context = context;
+    this.voice = new VoiceInput(context, emit);
+    this.scanner = new TextScanner(context);
+    this.saver = new FileSaver(context);
+  }
+
+  features(): string {
+    const features: DeviceFeatures = {
+      type: 'device-features',
+      voice: VoiceInput.supported(),
+      scan: TextScanner.supported(),
+      save: true
+    };
+    return JSON.stringify(features);
+  }
+
+  /** 页面隐藏或端口重连时中断进行中的收音。 */
+  interrupt(): void {
+    this.voice.interrupt();
+  }
+
+  dispose(): void {
+    this.voice.dispose();
   }
 
   handle(message: webview.WebMessage, port: webview.WebMessagePort, onWindowUi: (value: string) => void): void {
+    if (message instanceof ArrayBuffer) {
+      this.handleFrame(message, port);
+      return;
+    }
     if (typeof message !== 'string' || message.length > 8192) {
       return;
     }
@@ -50,12 +94,67 @@ export class DeviceBridge {
             onWindowUi(request.value);
           }
           return;
+        case 'voice':
+          this.handleVoice(request, port);
+          return;
+        case 'scan':
+          this.scanner.scan(request.value ?? '').then((result) => {
+            this.reply(port, { id: request.id, status: result.status, value: result.text });
+          });
+          return;
         default:
           return;
       }
-      port.postMessageEvent(JSON.stringify(reply));
+      this.reply(port, reply);
     } catch {
       hilog.warn(0x0000, 'PocketChat', 'Unable to handle a local page message');
+    }
+  }
+
+  private handleVoice(request: DeviceRequest, port: webview.WebMessagePort): void {
+    if (request.value === 'start') {
+      this.voice.start().then((status) => this.reply(port, { id: request.id, status: status, value: '' }));
+    } else if (request.value === 'stop') {
+      this.voice.stop();
+    } else if (request.value === 'cancel') {
+      this.voice.cancel();
+    }
+  }
+
+  private handleFrame(frame: ArrayBuffer, port: webview.WebMessagePort): void {
+    if (frame.byteLength < 4 || frame.byteLength > MAX_SAVE_BYTES + MAX_FRAME_HEADER) {
+      return;
+    }
+    const headerLength = new DataView(frame).getUint32(0, true);
+    if (headerLength === 0 || headerLength > MAX_FRAME_HEADER || 4 + headerLength > frame.byteLength) {
+      return;
+    }
+    let request: DeviceRequest;
+    try {
+      const header = util.TextDecoder.create('utf-8').decodeToString(new Uint8Array(frame, 4, headerLength));
+      request = JSON.parse(header) as DeviceRequest;
+    } catch {
+      return;
+    }
+    if (!Number.isSafeInteger(request?.id) || request.operation !== 'save-file' ||
+      typeof request.value !== 'string') {
+      return;
+    }
+    const data = frame.slice(4 + headerLength);
+    if (data.byteLength > MAX_SAVE_BYTES) {
+      this.reply(port, { id: request.id, status: DeviceStatus.TOO_LARGE, value: '' });
+      return;
+    }
+    this.saver.save(request.value, data).then((status) => {
+      this.reply(port, { id: request.id, status: status, value: '' });
+    });
+  }
+
+  private reply(port: webview.WebMessagePort, reply: DeviceReply): void {
+    try {
+      port.postMessageEvent(JSON.stringify(reply));
+    } catch (error) {
+      hilog.warn(0x0000, 'PocketChat', 'Unable to reply to local page: %{public}d', (error as BusinessError).code);
     }
   }
 

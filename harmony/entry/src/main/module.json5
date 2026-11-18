@@ -18,10 +18,27 @@
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
         "skills": [
-          { "entities": ["entity.system.home"], "actions": ["ohos.want.action.home"] }
+          { "entities": ["entity.system.home"], "actions": ["ohos.want.action.home"] },
+          {
+            "actions": ["ohos.want.action.sendData"],
+            "uris": [
+              { "scheme": "file", "utd": "general.text", "maxFileSupported": 1 },
+              { "scheme": "file", "utd": "general.hyperlink", "maxFileSupported": 1 },
+              { "scheme": "file", "utd": "general.image", "maxFileSupported": 9 },
+              { "scheme": "file", "utd": "com.adobe.pdf", "maxFileSupported": 9 },
+              { "scheme": "file", "utd": "general.composite-object", "maxFileSupported": 9 }
+            ]
+          }
         ]
       }
     ],
-    "requestPermissions": [{ "name": "ohos.permission.INTERNET" }]
+    "requestPermissions": [
+      { "name": "ohos.permission.INTERNET" },
+      {
+        "name": "ohos.permission.MICROPHONE",
+        "reason": "$string:microphone_reason",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" }
+      }
+    ]
   }
 }

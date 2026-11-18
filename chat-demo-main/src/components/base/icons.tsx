@@ -523,3 +523,46 @@ export const IconToastError16 = () => (
     />
   </svg>
 )
+
+/** 取景框内的文字行，用于鸿蒙版图片识字 */
+export const IconScanTextOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M1.5 5V3.5C1.5 2.39543 2.39543 1.5 3.5 1.5H5M11 1.5H12.5C13.6046 1.5 14.5 2.39543 14.5 3.5V5M14.5 11V12.5C14.5 13.6046 13.6046 14.5 12.5 14.5H11M5 14.5H3.5C2.39543 14.5 1.5 13.6046 1.5 12.5V11"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+    />
+    <path
+      d="M4.75 5.5H11.25M4.75 8H11.25M4.75 10.5H8.75"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+    />
+  </svg>
+)
+
+export const IconCameraOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M5.6 2.5H10.4L11.4 4.2H13C13.8284 4.2 14.5 4.87157 14.5 5.7V12C14.5 12.8284 13.8284 13.5 13 13.5H3C2.17157 13.5 1.5 12.8284 1.5 12V5.7C1.5 4.87157 2.17157 4.2 3 4.2H4.6L5.6 2.5Z"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinejoin="round"
+    />
+    <circle cx={8} cy={8.6} r={2.4} stroke="currentColor" strokeWidth={1.4} />
+  </svg>
+)
+
+export const IconPhotoOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x={1.7} y={2.2} width={12.6} height={11.6} rx={2} stroke="currentColor" strokeWidth={1.4} />
+    <circle cx={5.6} cy={6} r={1.2} fill="currentColor" />
+    <path
+      d="M2 11.6L5.6 8.6L8.4 10.8L10.6 8.8L14 11.8"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinejoin="round"
+    />
+  </svg>
+)

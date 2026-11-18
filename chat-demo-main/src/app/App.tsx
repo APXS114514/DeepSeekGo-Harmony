@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslate } from '../i18n/index.js'
 import { loadDeviceApiKey, useSettings } from '../services/settings.js'
-import { bindWindowActions, sendWindowUi } from '../services/harmony.js'
+import { bindSharedContent, bindWindowActions, sendWindowUi } from '../services/harmony.js'
+import { receiveSharedContent } from './receiveShare.js'
 import { useTheme } from './theme.js'
 import { useMobileViewport, usePreventPageScroll, useResponsiveLayout } from './viewport.js'
 import { useSurfacePresence } from './useSurfacePresence.js'
@@ -162,10 +163,22 @@ export const App = () => {
     void initChat()
     // 首次打开先在设置里输入 API Key
     if (__HARMONY_APP__) {
-      void loadDeviceApiKey().then(() => ensureApiKey())
-    } else {
-      ensureApiKey()
+      let active = true
+      let unbindShare: (() => void) | undefined
+      // 先读出系统里保存的 Key，再处理冷启动时收到的分享，避免误开设置页。
+      void loadDeviceApiKey().then(() => {
+        if (active) {
+          ensureApiKey()
+          unbindShare = bindSharedContent(receiveSharedContent)
+        }
+      })
+      return () => {
+        active = false
+        unbindShare?.()
+      }
     }
+    ensureApiKey()
+    return undefined
   }, [])
 
   return (

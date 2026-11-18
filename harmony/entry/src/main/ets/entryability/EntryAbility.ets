@@ -1,10 +1,19 @@
-import { ConfigurationConstant, UIAbility } from '@kit.AbilityKit';
+import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { ShareInbox } from '../services/ShareInbox';
 import { systemBarProperties } from '../window/WindowInsets';
 
 export default class EntryAbility extends UIAbility {
+  onCreate(want: Want, _launchParam: AbilityConstant.LaunchParam): void {
+    ShareInbox.receive(want);
+  }
+
+  onNewWant(want: Want, _launchParam: AbilityConstant.LaunchParam): void {
+    ShareInbox.receive(want);
+  }
+
   async onWindowStageCreate(windowStage: window.WindowStage): Promise<void> {
     try {
       const mainWindow = windowStage.getMainWindowSync();

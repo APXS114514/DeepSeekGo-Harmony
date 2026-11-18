@@ -2,8 +2,8 @@
 
 ## 工作区
 
-- 当前源码为 1.0.6，版本代码为 `1000006`，包含 1.0.5 发布后的启动器图标、键盘避让和过渡动画修复。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
-- 最近一次交付是 `HAPS/Deepseek-GO-1.0.5-unsigned.hap`，版本代码为 `1000005`。只有用户明确要求时才打包当前源码版本。
+- 当前源码为 1.1.0，版本代码为 `1000007`，在 1.0.6 基础上新增系统语音输入、本机识字、接收系统分享和经系统文件管理器导出，见下方「鸿蒙独有功能」。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 最近一次交付是 `HAPS/Deepseek-GO-1.0.6-unsigned.hap`，版本代码为 `1000006`。只有用户明确要求时才打包当前源码版本。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
 
 版本、提交和发布规则见 [`AGENTS.md`](AGENTS.md#版本与提交)，每版的用户可见变化见 [`CHANGELOG.md`](CHANGELOG.md)。
@@ -30,7 +30,21 @@
 - **原生组件级配置**可通过 `systemMaterial` 等属性调整支持的组件。应用级未禁用时，组件配置优先，个别组件可通过 `uiMaterial.Material.empty` 关闭。排查时，在支持的系统上用 `uiMaterial.getMaterialInfo()` 读取应用级配置状态，用 `uiMaterial.isImmersiveMaterialSupported()` 检查设备能力，再用真机验证呈现。 [组件适配指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
 - **设置 → 通用设置 → 沉浸光感**是当前应用的网页输入区偏好，默认开启，保存在本地的 `chat-demo:immersive-light`。切换时由 [`App.tsx`](chat-demo-main/src/app/App.tsx) 更新 `data-immersive-light`，由 [`ChatInput.module.css`](chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。原生 `module.metadata` 在构建时写入 HAP。
 
-## 当前改动
+## 鸿蒙独有功能（1.1.0）
+
+原生层集中在 `harmony/entry/src/main/ets/services/`，经原有的 ArkWeb 消息端口与网页通信，网页侧入口是 [`services/harmony.ts`](chat-demo-main/src/services/harmony.ts)。状态码统一见 `DeviceStatus.ets`：0 成功、1 用户取消、2 权限被拒、3 设备不支持、4 文件过大、-1 通用失败，其余正数为系统错误码原样透传。
+
+| 功能 | 原生 | 网页 | 说明 |
+| --- | --- | --- | --- |
+| 能力上报 | `DeviceBridge.features()` | `useDeviceFeatures` | 端口连上后发送 `device-features`。语音和识字按 `canIUse` 的系统能力决定是否显示按钮。 |
+| 语音输入 | `VoiceInput.ets`（Core Speech Kit `speechRecognizer`，离线、`zh-CN`、短语音模式） | `useDeviceVoiceInput.ts` | 引擎自己收音，`vadEnd` 3 秒静音自动结束，单次最长 60 秒。`MICROPHONE` 权限首次弹窗；用户曾拒绝时改用 `requestPermissionOnSetting`。页面隐藏或端口重连时中断并通知网页回到空闲。识别结果按「已确认段 + 实时段」合并，兼容整句累计和逐段两种返回方式。 |
+| 识别图片文字 | `TextScanner.ets`（`cameraPicker` / `PhotoViewPicker` + Core Vision Kit `textRecognition`） | `ScanTextButton.tsx` | 系统 Picker 不需要相机和相册权限。解码时长边缩到 4096 以内并开启方向检测。结果插入光标处，不需要 API Key。 |
+| 接收分享 | `module.json5` 的 `ohos.want.action.sendData` 技能 + `ShareInbox.ets`（Share Kit `systemShare.getSharedData`） | `app/receiveShare.ts` | `onCreate` 和 `onNewWant` 都会接收。冷启动时先排队，端口连上后发送；网页读出 Key 后才处理，避免误开设置页。文字和链接写入新对话草稿，文件以 Base64 传入后按附件上传。单文件 20 MB、整批 40 MB、最多 9 项，超出部分计数提示。 |
+| 导出记录 | `FileSaver.ets`（`DocumentViewPicker.save`） | 设置页 `ExportHistory` | 网页把 ZIP 以二进制帧发给原生：4 字节小端头长度 + JSON 头 + 内容，上限 512 MB，避免 Base64 膨胀。 |
+
+麦克风权限的用途说明在 `entry/src/main/resources/base/element/string.json`。分享目标声明了 `general.text`、`general.hyperlink`、`general.image`、`com.adobe.pdf` 和 `general.composite-object`（Office 文档）。
+
+## 1.0.x 的界面改动
 
 - **顶栏**。上一版的蓝圈来自原生按钮使用系统材质时采用的默认填充色。1.0.5 的 `ChatHeader.ets` 使用透明底的 ArkUI 文本样式按钮。
 - **Logo 与启动器图标**。鸿蒙欢迎页引用根目录的 `LOGO.png`。Rspack 将 PNG 输出到 `static/media/`，`Index.ets` 按 `image/png` 提供资源。已将根目录最新的 `Icon.png` 原样同步至 `harmony/AppScope/resources/base/media/app_icon.png`。两个源文件的大小写以实际文件名为准。
@@ -46,4 +60,6 @@
 - 检查原生代码时用 HarmonyOS 26.0.0 SDK 自带的 `codelinter`，例如在 `harmony/` 下运行 `codelinter -p default -e error entry/src/main/ets/pages/Index.ets`。1.0.6 的键盘配置已通过该检查。真机待验证项包括系统键盘与页面动效同步、横屏和分屏下的可用高度、启动器图标、折叠屏展开态侧栏及深浅主题下的顶栏反馈。
 - 回归会话和设置时，从应用入口使用测试 Key、模拟 ArkWeb 消息通道和 API 回包。检查切换会话或折叠展开后草稿仍在，编辑重发后能切回原版本，以及 Key 校验成功但设备保存失败时能正确提示并重试。真机验收记录设备、系统版本和实际安装的包版本。
 - 收到生成 HAP Release 的请求后，从 `harmony/AppScope/app.json5` 读取当前版本。先构建 ArkWeb 资源，再在 `harmony/` 下用 HarmonyOS 26.0.0 SDK 执行 `hvigorw assembleHap --mode module -p product=default -p module=entry@default -p buildMode=release --no-daemon`。核对构建日志的未签名状态及包内 `module.json` 的版本、包名和最低 API。比对图标、Logo 和打包的网页资源，最后复制到 `HAPS/` 并记录 SHA-256。
-- 已交付的 1.0.5 HAP 通过上述包内检查，SHA-256 为 `7b003bdb5835bfe89503603ccee2fee12fd644fc0da8587c0ff0ab93ae5528cf`。
+- 1.1.0 已通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony`、`codelinter` 和 ArkTS 编译，包内 `module.json` 含 `MICROPHONE` 权限和分享技能。浏览器回归脚本在 DSH 工作区的 `Game-Miscellaneous/_verify-deepseek-go-1.1/harmony-features.mjs`，在本仓库根目录用 Node 运行。它用模拟端口覆盖冷启动和运行中分享、语音实时文字与自动结束、手动结束与取消、权限拒绝和识别失败、拍照与图库识字及取消、导出保存与失败，以及设备不支持时隐藏入口。1.0.6 的 motion、edit、brand-sider 回归仍通过。
+- 1.1.0 尚未真机验证：系统分享面板是否列出 Deepseek GO 及各类文件能否读取、离线语音模型在目标设备上是否可用和首次授权流程、相机 Picker 返回的 URI 可读性和识字效果、文件管理器保存，以及 2in1 上相机和语音的可用性。暂未打包 1.1.0 HAP。
+- 1.0.6 Release 已通过前端检查、ArkTS 编译和上述包内检查，SHA-256 为 `209246dd381e8b2a6e9f1dd9a0054a2b03817fdfcb1365786eb61f4f205aa9be`。该包尚未在真机签名安装。
