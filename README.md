@@ -12,7 +12,9 @@
   <a href="#从源码构建">从源码构建</a>
 </p>
 
-Deepseek GO 基于 DeepSeek 官方 MIT 开源的 [Chat Demo](https://github.com/deepseek-ai/chat-demo)，用 ArkTS 和 ArkWeb 重新包装成原生鸿蒙应用。它保留了网页版的流式对话、深度思考、联网搜索和 Markdown 渲染，并加入语音输入、本机识字、系统分享、跨对话记忆等鸿蒙版独有的能力。
+Deepseek GO 是一款基于 DeepSeek 官方 Chat Demo 开发的第三方 HarmonyOS 客户端，适配手机、折叠屏、平板和 2in1，支持系统语音输入、图片文字识别和系统分享。
+
+它用 ArkTS 和 ArkWeb 把 MIT 开源的 [Chat Demo](https://github.com/deepseek-ai/chat-demo) 包装成原生鸿蒙应用，保留了网页版的流式对话、深度思考、联网搜索和 Markdown 渲染，并加入无痕对话、后台完成通知、跨对话记忆等鸿蒙版独有的能力。
 
 应用直接连接 `https://api.deepseek.com`，不经过任何第三方服务器。你需要自备 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 的 API Key。
 
@@ -115,16 +117,11 @@ pnpm build:harmony
 | `harmony/` | ArkTS、ArkUI、ArkWeb 外壳，包括窗口与系统栏、Asset Store、语音、识字、分享和文件保存 |
 | `chat-demo-main/` | 内置的聊天前端（React + Rspack），在上游 Chat Demo 的基础上修改 |
 | `docs/screenshots/` | README 截图 |
-| `.gitignore` | 根目录的忽略规则：系统与编辑器文件、依赖和缓存、`HAPS/` 与各类安装包、签名材料与密钥、`.env` 和 `local.properties`，以及用不上的上游遗留文件 |
-| `harmony/.gitignore` | Hvigor、ohpm、DevEco Studio 生成的目录，构建产物 `rawfile/chat/` 和签名材料 |
-| `chat-demo-main/.gitignore` | 上游 Chat Demo 自带的规则：`node_modules/`、`dist/`、日志和 `.env` |
-
-仓库只收源码、配置、文档和图标。安装包请到 [Releases](https://github.com/APXS114514/DeepSeekGo-Harmony/releases) 下载，内置聊天界面需要按上面的命令在本机生成。
 
 架构、验证和打包命令见 [HANDOFF.md](HANDOFF.md)，开发与提交规则见 [AGENTS.md](AGENTS.md)，每个版本的变化见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 许可证
 
-本项目以 [MIT 许可证](LICENSE) 发布，版权归 APXS 所有，包括作者自绘的 `LOGO.png` 和 `Icon.png`。`chat-demo-main/` 基于 DeepSeek 官方的 [Chat Demo](https://github.com/deepseek-ai/chat-demo)，这部分沿用其 [MIT 许可证](chat-demo-main/LICENSE)，版权归 DeepSeek 所有。分发或修改时请同时保留两份许可证声明。
+本项目以 [MIT 许可证](LICENSE) 发布，版权归 APXS 所有，包括作者自绘的 `LOGO.png` 和 `Icon.png`。应用图标上的角色是作者的原创角色。`chat-demo-main/` 基于 DeepSeek 官方的 [Chat Demo](https://github.com/deepseek-ai/chat-demo)，这部分沿用其 [MIT 许可证](chat-demo-main/LICENSE)，版权归 DeepSeek 所有。分发或修改时请同时保留两份许可证声明。
 
 本项目为个人开发，与深度求索公司没有关联。「DeepSeek」名称及商标归其所有者所有。

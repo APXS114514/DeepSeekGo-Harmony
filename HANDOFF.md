@@ -3,7 +3,7 @@
 ## 工作区
 
 - 当前源码为 1.3.0，版本代码为 `1000010`，新增无痕对话、后台生成与完成通知，并做了返回手势、系统字体、2in1 键鼠等适配，见「1.3.0 无痕对话与鸿蒙适配」。1.2.1 修复宽屏居中和侧栏上下断开，见「1.2.1 宽屏修复」。1.1.0 新增系统语音输入、本机识字、接收系统分享和经系统文件管理器导出，见下方「鸿蒙独有功能」；1.2.0 新增自定义指令和跨对话记忆，见「个性化与记忆」。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
-- 最近一次交付是 `HAPS/Deepseek-GO-1.2.1-unsigned.hap`，版本代码为 `1000009`。只有用户明确要求时才打包当前源码版本。
+- 最近一次交付是 `HAPS/Deepseek-GO-1.3.0-unsigned.hap`，版本代码为 `1000010`，已发布到 GitHub Releases 的 `v1.3.0`。只有用户明确要求时才打包当前源码版本。
 - 远端仓库是 `origin`（GitHub `APXS114514/DeepSeekGo-Harmony`，分支 `main`）。推送身份和 SSH 配置见 [`AGENTS.md`](AGENTS.md#版本与提交)。仓库只收源码、配置、文档和图标。依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`，都由根目录和 `harmony/` 的 `.gitignore` 排除。这些文件在本机仍然保留，新克隆的仓库不需要它们也能正常构建。README 截图在 `docs/screenshots/`，用 DSH 工作区 `Game-Miscellaneous/_deepseek-go-readme-shots/readme-shots.mjs` 生成：加载 `pnpm build:harmony` 的产物，模拟接口和设备消息通道，参数是输出目录。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
 
@@ -90,7 +90,8 @@
 - 回归会话和设置时，从应用入口使用测试 Key、模拟 ArkWeb 消息通道和 API 回包。检查切换会话或折叠展开后草稿仍在，编辑重发后能切回原版本，以及 Key 校验成功但设备保存失败时能正确提示并重试。真机验收记录设备、系统版本和实际安装的包版本。
 - 收到生成 HAP Release 的请求后，从 `harmony/AppScope/app.json5` 读取当前版本。先构建 ArkWeb 资源，再在 `harmony/` 下用 HarmonyOS 26.0.0 SDK 执行 `hvigorw assembleHap --mode module -p product=default -p module=entry@default -p buildMode=release --no-daemon`。核对构建日志的未签名状态及包内 `module.json` 的版本、包名和最低 API。比对图标、Logo 和打包的网页资源，最后复制到 `HAPS/` 并记录 SHA-256。
 - 1.3.0 已通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony`、改动文件的 `oxfmt`、改动的 ArkTS 文件通过 codelinter（无错误）和 ArkTS Release 编译；包内含 `configuration` 配置。回归脚本 `Game-Miscellaneous/_verify-deepseek-go-1.3/batch-1.3.mjs` 覆盖顶栏对齐、返回手势分层、字体缩放、键盘偏移时的安全区、无痕对话的创建与丢弃以及不发记忆、生成状态与完成通知内容、通知开关和授权拒绝、点击通知打开会话、2in1 快捷键提示与右键菜单。1.1、1.2 功能回归仍通过，motion、edit、brand-sider 用 `*.v13.mjs`（关闭自动记忆、键盘安全区改为 31px）通过。
-- 1.3.0 尚未真机验证：侧滑返回在各层的实际表现、ArkWeb `darkMode(Auto)` 是否让「跟随系统」生效、系统字体缩放和原生 fp 标题的一致性、平板键盘弹起时左上角是否仍与状态栏重叠、短时任务能否让 ArkWeb 在后台继续接收流式回复、通知授权弹窗与点击回到对话、2in1 快捷键是否与系统冲突。暂未打包 1.3.0 HAP。
+- 1.3.0 尚未真机验证：侧滑返回在各层的实际表现、ArkWeb `darkMode(Auto)` 是否让「跟随系统」生效、系统字体缩放和原生 fp 标题的一致性、平板键盘弹起时左上角是否仍与状态栏重叠、短时任务能否让 ArkWeb 在后台继续接收流式回复、通知授权弹窗与点击回到对话、2in1 快捷键是否与系统冲突。
+- 1.3.0 Release HAP 已清空并重新生成网页资源，通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony` 和干净的 ArkTS Release 编译，构建日志确认未签名。包内 `module.json` 显示 `com.pocketchat.deepseek`、`1.3.0`/`1000010`、最低 API 12、目标 API 26、SDK `26.0.0.105`、Release 非调试，并包含 `MICROPHONE` 权限、`sendData` 分享技能和 `$profile:configuration`。Logo 和网页资源与源码逐字节一致，启动器图标与 1.2.1 包中的相同。SHA-256 为 `b95abb662744ed5f2c1bd39759b11b93b5b13309d7979dd689a907c54fe2bcdb`，尚未在真机签名安装。
 - 1.2.1 Release HAP 已重新构建网页资源，并通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony` 和 ArkTS Release 编译；构建日志确认未签名。包内 `module.json` 显示 `com.pocketchat.deepseek`、`1.2.1`/`1000009`、最低 API 12、目标 API 26、SDK `26.0.0.105`、Release 非调试，并包含 `MICROPHONE` 权限和 `sendData` 分享技能。Logo 和网页资源与源码逐字节一致。启动器图标被工具链从 1254px 缩为 512px，与已交付的 1.0.6 包中的图标逐字节相同。SHA-256 为 `33c29276c99819017ee620d9f5b99185e7ec6691635c3342f81b05e68be5c982`，尚未在真机签名安装。
 - 1.2.1 已通过 `pnpm lint`、`pnpm build:harmony`、`WindowInsets.ets` 的 codelinter 和 ArkTS 编译。浏览器探针确认侧栏覆盖整个窗口高度，内容位置不变；1.1、1.2 功能回归以及关闭自动记忆后的 motion、edit、brand-sider 回归都通过。挖孔改算上下避让的逻辑只能在真机验证：需要确认平板横屏时左右对称，挖孔不遮挡内容，以及顶部 inset 是否因此变大。
 - 1.2.0 已通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony` 和 ArkTS 编译，原生代码未改动。浏览器回归脚本是 DSH 工作区的 `Game-Miscellaneous/_verify-deepseek-go-1.2/personalization.mjs`，在本仓库根目录用 Node 运行。它覆盖指令保存与注入、手动添加与去重、自动提炼的新增、更新和删除、敏感信息过滤、无效返回和短消息不触发、编辑与 Esc 取消、整理、撤销和整理失败、删除、开关关闭后不注入也不提炼、刷新后保留、清空确认。1.1.0 的 harmony-features 回归仍通过；motion、edit、brand-sider 在关闭自动记忆后通过。真机待验证 ArkWeb 的 localStorage 在覆盖安装后是否保留，以及长指令和长记忆列表在小屏设置页的滚动。暂未打包 1.2.0 HAP。
