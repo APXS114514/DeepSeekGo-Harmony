@@ -3,7 +3,7 @@
 ## 工作区
 
 - 当前源码为 1.5.0，版本代码为 `1000018`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
-- 1.5.0 未签名 Release 测试包为 `HAPS/Deepseek-GO-1.5.0-unsigned.hap`，构建自提交 `da3e022`，版本代码 `1000018`。包内确认最低 API 12、155 个网页资源、欢迎页 Logo 和启动器图标。SHA-256 为 `bce48ca72fc5abf45741ccc9e6d04f2915428b4f06e3db3a911c05e2b388da02`。布局修订包归档为 `HAPS/Deepseek-GO-1.5.0-82b7a26-unsigned.hap`，SHA-256 为 `5cd46a8404b34a8dd028235d4c886a3400fe21b3d09eb08125dc4de6d2e4d380`。初版测试包保存在 `HAPS/Deepseek-GO-1.5.0-849467f-unsigned.hap`，SHA-256 为 `4723af157bb0cad269d97cd4ce5e0a993390fcb54559aa1787046e7917d110c5`。
+- 1.5.0 未签名 Release 测试包为 `HAPS/Deepseek-GO-1.5.0-unsigned.hap`，构建自历史会话键盘修复提交 `6f7b82e`，版本代码 `1000018`。包内确认最低 API 12、155 个网页资源、欢迎页 Logo、启动器图标和图像授权声明。SHA-256 为 `9bd35be013fc782621fc5155d383fdc4e4c30ace2c249495bdc999de4ab2a5d0`。上一包归档为 `HAPS/Deepseek-GO-1.5.0-da3e022-unsigned.hap`，SHA-256 为 `bce48ca72fc5abf45741ccc9e6d04f2915428b4f06e3db3a911c05e2b388da02`。
 - 1.4.2 本地测试包是 `HAPS/Deepseek-GO-1.4.2-unsigned.hap`，版本代码为 `1000017`，对应提交 `cb3286d`。SHA-256 为 `1f1f80763a6ff192d75f1011301b408aeb391534eb0316ca7cd2496f365cf844`。上一轮测试包归档在 `HAPS/Deepseek-GO-1.4.2-ed689a4-unsigned.hap`，SHA-256 为 `6360fbf238728e2e9d5b4b4bd4b67e9c60f026f94cc24a55f91aa51c489ac774`。
 - 最近一次发布是 GitHub Releases 的 `v1.4.2`，标签指向提交 `f3908b0`。该版本已通过用户测试，远端 HAP 与上列本地测试包的 SHA-256 一致。只有用户明确要求时才打包当前源码版本。
 - 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。贡献方式见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。仓库只收源码、配置、文档和图片资源。根目录只留 README、AGENTS、许可证和图像授权声明，其他文档在 `docs/`。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`，使用鸿蒙版网页构建产物、模拟接口和设备消息通道生成。维护者的截图生成命令见本机 `AGENTS.local.md`。
