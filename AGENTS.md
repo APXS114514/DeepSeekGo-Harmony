@@ -28,4 +28,4 @@
 - 发布到 GitHub Releases 须有用户明确要求。用用户身份打附注标签 `v<版本>`，指向已推送的提交，并且该提交的源码版本与 HAP 一致。说明用中文，按 `docs/CHANGELOG.md` 写本版和上次发布以来的变化，注明安装包未签名及安装方式，附上 HAP 和 SHA-256。发布后用 `gh release view` 核对标签、附件和说明。
 - `docs/CHANGELOG.md` 按版本记录用户看得到的变化，每条一句话，通常每版 3–6 条。小补丁按实际变化记录。实现细节、测试结果和已知限制写在 `docs/HANDOFF.md` 或提交说明。
 - 自有代码和相关文档按 MIT 许可证发布。根目录 `LICENSE` 归 APXS，`chat-demo-main/LICENSE` 是上游 DeepSeek Chat Demo 的许可证，两份都要保留，不要合并或改写上游版权行。原创角色图像按 CC BY-NC-ND 4.0 授权，范围见 [`ARTWORK-NOTICE.txt`](ARTWORK-NOTICE.txt)。鸿蒙构建随附此声明。
-- 根目录只放 `README.md`、`AGENTS.md`、`LICENSE` 和 `ARTWORK-NOTICE.txt`，其余文档放在 `docs/`。开发规则集中在 `AGENTS.md`，架构、验证与打包命令放在 `docs/HANDOFF.md`。`README.md` 保持简短，只写简介、截图、功能摘要、安装入口和许可证；完整功能写在 `docs/FEATURES.md`，安装与构建写在 `docs/INSTALL.md`，未来规划写在 `docs/ROADMAP.md`。英文说明是 `docs/README.en.md`，与中文内容保持同步。其他文档链接到对应位置。
+- 根目录只放 `README.md`、`AGENTS.md`、`LICENSE` 和 `ARTWORK-NOTICE.txt`，其余文档放在 `docs/`。开发规则集中在 `AGENTS.md`，架构、验证与打包命令放在 `docs/HANDOFF.md`。`README.md` 保持简短，只写简介、截图、功能摘要、安装入口和许可证；完整功能写在 `docs/FEATURES.md`，安装与构建写在 `docs/INSTALL.md`，未来规划写在 `docs/ROADMAP.md`。这三份和 README 各有英文版（`docs/*.en.md`、`docs/README.en.md`），修改时与中文同步。其他文档链接到对应位置。

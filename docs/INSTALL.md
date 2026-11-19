@@ -1,5 +1,7 @@
 # 安装与构建
 
+[English](INSTALL.en.md)
+
 ## 下载与安装
 
 系统要求：HarmonyOS 5.0（API 12）及以上。
@@ -34,6 +36,6 @@ pnpm build:harmony
 | `harmony/` | ArkTS、ArkUI、ArkWeb 外壳，包括窗口与系统栏、Asset Store、语音、识字、分享和文件保存 |
 | `chat-demo-main/` | 内置的聊天前端（React + Rspack），在上游 Chat Demo 的基础上修改 |
 | `assets/images/` | 欢迎页 Logo、启动器图标源文件和 README 截图 |
-| `docs/` | 功能说明、安装与构建、未来规划、更新日志、贡献指南、交接文档和英文 README |
+| `docs/` | 功能说明、安装与构建、未来规划、更新日志、贡献指南、交接文档和英文版 |
 
 架构、验证和打包命令见 [HANDOFF.md](HANDOFF.md)，开发与提交规则见 [AGENTS.md](../AGENTS.md)，每个版本的变化见 [CHANGELOG.md](CHANGELOG.md)。

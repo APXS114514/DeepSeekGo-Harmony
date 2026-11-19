@@ -1,5 +1,7 @@
 # 功能说明
 
+[English](FEATURES.en.md)
+
 介绍 Deepseek GO 当前版本的全部功能。各版本的变化见 [更新日志](CHANGELOG.md)。
 
 ## 对话

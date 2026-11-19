@@ -155,7 +155,7 @@
   - 1.3.2 原生识字菜单在深浅色相反、键盘弹起、分屏和悬浮窗中的表现，以及 API 12 真机的启动和网页菜单。
   - 1.4.x：ArkWeb 双指缩放、输入栏收起展开和滚动帧率、按住说话的单指上滑取消手感，余额请求与上下文超限恢复。
   - 覆盖安装后 localStorage 中的会话、记忆和设置是否保留。
-- **后续规划**：[`ROADMAP.md`](ROADMAP.md) 列出用户可见的顺序。以下均不依赖 AppGallery Connect，用户自签的未签名包可用：
+- **后续规划**：[`ROADMAP.md`](ROADMAP.md) 和英文版 [`ROADMAP.en.md`](ROADMAP.en.md) 列出用户可见的顺序。以下均不依赖 AppGallery Connect，用户自签的未签名包可用：
   - 搜索历史对话只改网页。现有「搜索面板」显示联网搜索来源，与此无关。
   - 本机朗读用 Core Speech Kit 的 `textToSpeech`，按设备能力检查，不支持时只保留 API 音色。
   - 分享出去用 Share Kit 系统分享面板。Markdown 和长图先写入沙箱再分享文件。
