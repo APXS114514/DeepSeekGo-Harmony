@@ -1,5 +1,6 @@
 import type { TranslationMessage } from '../../i18n/index.js'
 import type { ApiErrorKind } from '../api/client.js'
+import type { MemorySnapshot } from '../personalization.js'
 import type { GenerationOptions } from '../settings.js'
 import type {
   ChatModel,
@@ -125,6 +126,8 @@ export type Session = {
   rootMessageId?: string | null
   /** 无痕对话：只在内存中，不写入本地数据库、不进列表和导出，也不读写记忆。 */
   ephemeral?: true
+  /** 首次请求时的记忆，之后的轮次沿用，保持系统提示词前缀稳定。旧会话在下次请求时补记。 */
+  memorySnapshot?: MemorySnapshot
 }
 
 /** 会话列表元数据；消息只在打开会话时加载。 */

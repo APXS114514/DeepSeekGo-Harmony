@@ -214,7 +214,7 @@ export const zh = {
   memoryTitle: '记忆',
   memoryEnabled: '参考记忆',
   memoryEnabledDescription:
-    '回复时参考下面保存的记忆，在不同对话之间记住你。关闭后保留记忆但不使用。',
+    '回复时参考下面保存的记忆，在不同对话之间记住你。新记住或修改的内容从下一个对话起使用。关闭后保留记忆但不使用。',
   memoryAuto: '自动记住新信息',
   memoryAutoDescription:
     '对话时自动记录你的偏好与关键信息（会消耗少量 Token）。你也可以直接说「记住……」或「忘掉……」。',

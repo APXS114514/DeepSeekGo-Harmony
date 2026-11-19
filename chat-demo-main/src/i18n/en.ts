@@ -227,7 +227,7 @@ export const en = {
   memoryTitle: 'Memory',
   memoryEnabled: 'Reference memories',
   memoryEnabledDescription:
-    'Use the memories below so DeepSeek remembers you across chats. Turning this off keeps them without using them.',
+    'Use the memories below so DeepSeek remembers you across chats. New or edited memories apply from your next chat. Turning this off keeps them without using them.',
   memoryAuto: 'Remember new details automatically',
   memoryAutoDescription:
     'Automatically saves key details from your chats (uses a few extra tokens). You can also say “remember…” or “forget…”.',

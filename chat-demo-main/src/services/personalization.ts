@@ -293,8 +293,21 @@ export const replaceMemories = (texts: string[]) => {
   saveMemory()
 }
 
-/** 每轮请求的系统提示词：基础身份、用户指令、人设卡和记忆。 */
-export const buildSystemPrompt = (base: string, { memory = true } = {}): string => {
+/** 会话首次请求时记下的记忆条目。 */
+export type MemorySnapshot = Pick<Memory, 'id' | 'text'>[]
+
+export const snapshotMemories = (): MemorySnapshot =>
+  usePersonalization.getState().memories.map(({ id, text }) => ({ id, text }))
+
+/**
+ * 每轮请求的系统提示词：基础身份、用户指令、人设卡和记忆。
+ * 传入快照时按快照文字注入，已删除的条目不再使用；会话中途新增或改写的记忆留到下一个对话，
+ * 让同一会话的系统提示词保持不变，后续轮次可以命中服务端前缀缓存。
+ */
+export const buildSystemPrompt = (
+  base: string,
+  { memory = true }: { memory?: boolean | MemorySnapshot } = {}
+): string => {
   const {
     aboutUser,
     responseStyle,
@@ -318,9 +331,16 @@ export const buildSystemPrompt = (base: string, { memory = true } = {}): string 
   if (persona) {
     parts.push(`${translate('personalPromptPersona')}\n${persona.name}\n${persona.prompt}`)
   }
-  if (memory && memoryEnabled && memories.length > 0) {
+  let used: MemorySnapshot = []
+  if (memory === true) {
+    used = memories
+  } else if (memory) {
+    const ids = new Set(memories.map(({ id }) => id))
+    used = memory.filter(({ id }) => ids.has(id))
+  }
+  if (memoryEnabled && used.length > 0) {
     parts.push(
-      `${translate('personalPromptMemory')}\n${memories.map((memory) => `- ${memory.text}`).join('\n')}`
+      `${translate('personalPromptMemory')}\n${used.map((memory) => `- ${memory.text}`).join('\n')}`
     )
   }
   return parts.join('\n\n')

@@ -155,7 +155,7 @@
 纯前端功能，网页版和鸿蒙版共用，不涉及原生层。
 
 - **存储**：[`services/personalization.ts`](../chat-demo-main/src/services/personalization.ts) 是 zustand 状态，写入 localStorage 的 `chat-demo:custom-instructions`（`aboutUser`、`responseStyle`、`enabled`）和 `chat-demo:memory`（`enabled`、`auto`、`items`）。指令每项上限 1500 字，记忆每条 200 字、最多 100 条，读入时会清洗无效条目。不进入 IndexedDB，「删除所有对话」和历史导入导出都不影响它们。
-- **注入**：`streamReply` 每次请求时调用 `buildSystemPrompt(SYSTEM_PROMPT)`，在基础身份后追加「用户提供的背景信息」「用户希望的回复方式」「关于用户的记忆」三段，标题随界面语言。续写和重新生成也使用发送当时的最新内容。
+- **注入**：`streamReply` 每次请求时调用 `buildSystemPrompt(CHAT_SYSTEM_PROMPT)`，在基础身份后追加「用户提供的背景信息」「用户希望的回复方式」、人设卡和「关于用户的记忆」，标题随界面语言。指令和人设卡使用发送当时的最新内容。记忆在会话首次请求时存为 `Session.memorySnapshot`（id 与文字），之后的轮次、续写和重新生成都按快照文字注入，只去掉已从记忆列表删除的条目；会话中途新增或改写的记忆从下一个对话起使用。这样自动提炼不会在每轮改动系统提示词开头，避免同一会话的历史整段失去 DeepSeek 前缀缓存。1.5.3 之前的旧会话在下次请求时补记快照，历史导出不含快照。输入框的上下文估算使用同一份快照。`personalization` 回归检查同一会话第二轮的系统提示词与首轮相同、删除的记忆在下一轮停用、新对话带上改写后的记忆；类型、Lint、鸿蒙网页构建和 10 项回归通过，未在真机验证。
 - **自动提炼**：[`services/memory.ts`](../chat-demo-main/src/services/memory.ts) 在回复状态为 `done` 且未在导入历史时，把已有记忆（带序号）、本轮用户消息（前 4000 字）和回答节选（前 1500 字）发给 `deepseek-flash`，不开思考和工具，要求返回 `{"add","update","remove"}` JSON，序号对应请求时的快照。每轮最多新增 3 条，少于 4 个字的消息不触发。疑似密钥、密码、证件号或银行卡号的条目在本地过滤，这条规则偏保守，可能误挡含「密码」等字样的正常信息。失败或返回无效内容时静默放弃，有变化时提示「已更新记忆」。
 - **整理**：同一模型返回 `{"memories":[…]}` 后整体替换，按文本保留原条目的 id 和来源。设置页保留整理前的列表，可撤销，离开设置页后撤销入口消失。提炼和整理共用一个 Promise 队列，不会并发改写列表。
 - **界面**：[`PersonalizationSettings.tsx`](../chat-demo-main/src/components/settings/PersonalizationSettings.tsx)，设置新增 `personal` 分组。指令改动后需点「保存」。记忆列表最新的在上面，编辑框按 Esc 取消且不会关闭设置。清空需二次确认。

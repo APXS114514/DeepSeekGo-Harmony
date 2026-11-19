@@ -247,10 +247,11 @@ try {
     ]
   )
 
-  // 新记忆进入下一轮的系统提示词；疑似密钥不被记住
+  // 同一会话沿用首轮记忆，系统提示词不变以便命中前缀缓存；疑似密钥不被记住
   nextExtraction = '{"add":["用户的 API key 是 sk-abcdefghijklmnopqrst"],"update":[],"remove":[]}'
   before = await send('帮我记一下 sk-abcdefghijklmnopqrst', '第 2 条回复。')
-  assert(chats[1].system.includes('- 用户叫小林，是一名护士'))
+  assert.equal(chats[1].system, system1)
+  assert(!chats[1].system.includes('用户叫小林'))
   await waitExtraction(before + 1)
   await page.waitForTimeout(300)
   assert.equal((await stored('chat-demo:memory')).items.length, 2)
@@ -270,13 +271,21 @@ try {
   // 模型返回无效内容：不提示、不报错、不改动
   nextExtraction = '抱歉，我无法处理'
   before = await send('今天天气怎么样', '第 4 条回复。')
+  // 已删除的记忆立即停用，会话中途改写的记忆仍留到下一个对话
+  assert(!chats[3].system.includes('## 关于用户的记忆'))
+  assert(chats[3].system.includes('## 用户提供的背景信息'))
   await waitExtraction(before + 1)
   assert.deepEqual(
     (await stored('chat-demo:memory')).items.map((item) => item.text),
     ['用户叫小林，是一名 ICU 护士']
   )
-  // 太短的消息不触发提炼
+  // 太短的消息不触发提炼；新对话使用最新的记忆
+  await page.evaluate(() => window.mockWindowAction('new-chat'))
+  await page.getByText('今天想聊什么？', { exact: true }).waitFor()
   before = await send('嗯', '第 5 条回复。')
+  assert(chats[4].system.includes('## 关于用户的记忆\n'))
+  assert(chats[4].system.includes('- 用户叫小林，是一名 ICU 护士'))
+  assert(!chats[4].system.includes('用户喜欢简洁的回答'))
   await page.waitForTimeout(500)
   assert.equal(extractions.length, before)
 

@@ -42,7 +42,7 @@ import {
 } from './reply.js'
 import { requestSuggestedQuestions } from './suggestedQuestions.js'
 import { rememberFromTurn } from '../memory.js'
-import { buildSystemPrompt } from '../personalization.js'
+import { buildSystemPrompt, snapshotMemories } from '../personalization.js'
 import {
   toSessionSummary,
   type AssistantMessage,
@@ -1215,9 +1215,14 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
   streamFlushes.set(sessionId, flush)
 
   try {
-    const system = buildSystemPrompt(CHAT_SYSTEM_PROMPT, {
-      memory: !getSession(sessionId)?.ephemeral,
-    })
+    const session = getSession(sessionId)
+    const memory = session?.ephemeral ? false : (session?.memorySnapshot ?? snapshotMemories())
+    if (memory && !session?.memorySnapshot) {
+      updateSession(sessionId, (current) =>
+        current.memorySnapshot ? current : { ...current, memorySnapshot: memory }
+      )
+    }
+    const system = buildSystemPrompt(CHAT_SYSTEM_PROMPT, { memory })
     /** 阅读链接按本轮设置开启；长输入回退时可在本次发送中关闭 */
     let readLinks = generation.readLinks
     /** 本轮提问是否含链接；含链接时不能为长输入关闭阅读链接 */

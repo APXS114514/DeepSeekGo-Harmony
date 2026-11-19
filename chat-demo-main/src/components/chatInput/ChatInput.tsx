@@ -83,7 +83,9 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
     [session]
   )
   const system = usePersonalization(() =>
-    buildSystemPrompt(CHAT_SYSTEM_PROMPT, { memory: !session?.ephemeral })
+    buildSystemPrompt(CHAT_SYSTEM_PROMPT, {
+      memory: session?.ephemeral ? false : (session?.memorySnapshot ?? true),
+    })
   )
   const thinking = useSettings((state) => state.thinking)
   const search = useSettings((state) => state.search)
