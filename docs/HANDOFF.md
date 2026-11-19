@@ -5,25 +5,25 @@
 - 当前源码为 1.4.2，版本代码为 `1000017`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
 - 最近一次本地测试包是 `HAPS/Deepseek-GO-1.4.2-unsigned.hap`，版本代码为 `1000017`，对应提交 `cb3286d`。SHA-256 为 `1f1f80763a6ff192d75f1011301b408aeb391534eb0316ca7cd2496f365cf844`。上一轮测试包归档在 `HAPS/Deepseek-GO-1.4.2-ed689a4-unsigned.hap`，SHA-256 为 `6360fbf238728e2e9d5b4b4bd4b67e9c60f026f94cc24a55f91aa51c489ac774`。
 - 最近一次发布是 GitHub Releases 的 `v1.4.2`，标签指向提交 `f3908b0`。该版本已通过用户测试，远端 HAP 与上列本地测试包的 SHA-256 一致。只有用户明确要求时才打包当前源码版本。
-- 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。贡献方式见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。仓库只收源码、配置、文档和图片资源。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`，使用鸿蒙版网页构建产物、模拟接口和设备消息通道生成。维护者的截图生成命令见本机 `AGENTS.local.md`。
+- 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。贡献方式见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。仓库只收源码、配置、文档和图片资源。根目录只留 README、AGENTS、许可证和图像授权声明，其他文档在 `docs/`。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`，使用鸿蒙版网页构建产物、模拟接口和设备消息通道生成。维护者的截图生成命令见本机 `AGENTS.local.md`。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
 
-版本、提交和发布规则见 [`AGENTS.md`](AGENTS.md#版本与提交)，每版的用户可见变化见 [`CHANGELOG.md`](CHANGELOG.md)。
+版本、提交和发布规则见 [`AGENTS.md`](../AGENTS.md#版本与提交)，每版的用户可见变化见 [`CHANGELOG.md`](CHANGELOG.md)。
 
 ## SDK 与编译工具
 
 | 项目 | 当前配置与用途 |
 | --- | --- |
 | 编译 SDK | HarmonyOS 26.0.0。1.0.5 HAP 的 `compileSdkVersion` 实测为 `26.0.0.105`。使用带对应 SDK 的 DevEco Studio 或命令行工具，由 Hvigor 调用 ArkTS 编译器，再打包 HAP。 |
-| 目标与最低版本 | [`harmony/build-profile.json5`](harmony/build-profile.json5) 配置 `targetSdkVersion: "26.0.0"`、`compatibleSdkVersion: "5.0.0(12)"` 和 `runtimeOS: "HarmonyOS"`。目标版本声明应用所适配的 API 版本，也满足应用级光感的启用条件。最低版本是 HarmonyOS 5.0（API 12）。调用高版本 API 时按系统版本及设备能力检查，并保留普通界面。 |
+| 目标与最低版本 | [`harmony/build-profile.json5`](../harmony/build-profile.json5) 配置 `targetSdkVersion: "26.0.0"`、`compatibleSdkVersion: "5.0.0(12)"` 和 `runtimeOS: "HarmonyOS"`。目标版本声明应用所适配的 API 版本，也满足应用级光感的启用条件。最低版本是 HarmonyOS 5.0（API 12）。调用高版本 API 时按系统版本及设备能力检查，并保留普通界面。 |
 | ArkTS 与 ArkUI | `harmony/entry/src/main/ets/` 是原生代码。ArkUI 承载窗口、系统栏和窄屏原生顶栏。 |
 | ArkWeb 与前端 | 聊天页、侧栏、设置和输入框由 ArkWeb 渲染。Node.js 下的 pnpm/Rspack 构建 `chat-demo-main/`，`pnpm build:harmony` 将网页资源输出到 `harmony/entry/src/main/resources/rawfile/chat/`，供 HAP 内置。 |
 
-后续鸿蒙构建会将原创角色图像的 CC BY-NC-ND 4.0 授权声明 [`ARTWORK-NOTICE.txt`](ARTWORK-NOTICE.txt) 复制到 `chat/ARTWORK-NOTICE.txt`，随欢迎页图像和启动器图标一起进入 HAP。上游 MIT 许可证以 `chat/LICENSE` 随包分发。
+后续鸿蒙构建会将原创角色图像的 CC BY-NC-ND 4.0 授权声明 [`ARTWORK-NOTICE.txt`](../ARTWORK-NOTICE.txt) 复制到 `chat/ARTWORK-NOTICE.txt`，随欢迎页图像和启动器图标一起进入 HAP。上游 MIT 许可证以 `chat/LICENSE` 随包分发。
 
 ## 沉浸光感开关
 
-- **原生应用级配置**位于 [`harmony/entry/src/main/module.json5`](harmony/entry/src/main/module.json5) 的 `module.metadata`，键为 `ohos.arkui.UIMaterial.state`，当前值为 `enable`。已在 1.0.5 HAP 内的 `module.json` 中核实。这是 Entry 模块的静态配置，要求目标 SDK 至少为 26.0.0，作用范围是支持系统材质的原生 ArkUI 组件和场景。ArkWeb 中的 HTML 元素由网页样式控制。 [华为官方指南](https://developer.huawei.com/consumer/cn/doc/HarmonyOS-Guides/arkts-immersive-light-sense-enable)
+- **原生应用级配置**位于 [`harmony/entry/src/main/module.json5`](../harmony/entry/src/main/module.json5) 的 `module.metadata`，键为 `ohos.arkui.UIMaterial.state`，当前值为 `enable`。已在 1.0.5 HAP 内的 `module.json` 中核实。这是 Entry 模块的静态配置，要求目标 SDK 至少为 26.0.0，作用范围是支持系统材质的原生 ArkUI 组件和场景。ArkWeb 中的 HTML 元素由网页样式控制。 [华为官方指南](https://developer.huawei.com/consumer/cn/doc/HarmonyOS-Guides/arkts-immersive-light-sense-enable)
 
   | 值 | 效果 |
   | --- | --- |
@@ -32,7 +32,7 @@
   | `disable` | 在应用级禁用系统材质，组件级开启也不生效。 |
 
 - **原生组件级配置**可通过 `systemMaterial` 等属性调整支持的组件。应用级未禁用时，组件配置优先，个别组件可通过 `uiMaterial.Material.empty` 关闭。排查时，在支持的系统上用 `uiMaterial.getMaterialInfo()` 读取应用级配置状态，用 `uiMaterial.isImmersiveMaterialSupported()` 检查设备能力，再用真机验证呈现。 [组件适配指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
-- **设置 → 通用设置 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
+- **设置 → 通用设置 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](../chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](../chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
 
 ## 1.4.2 聊天缩放与按住说话
 
@@ -81,7 +81,7 @@
 
 ## 鸿蒙独有功能（1.1.0）
 
-原生层集中在 `harmony/entry/src/main/ets/services/`，经原有的 ArkWeb 消息端口与网页通信，网页侧入口是 [`services/harmony.ts`](chat-demo-main/src/services/harmony.ts)。状态码统一见 `DeviceStatus.ets`：0 成功、1 用户取消、2 权限被拒、3 设备不支持、4 文件过大、-1 通用失败，其余正数为系统错误码原样透传。
+原生层集中在 `harmony/entry/src/main/ets/services/`，经原有的 ArkWeb 消息端口与网页通信，网页侧入口是 [`services/harmony.ts`](../chat-demo-main/src/services/harmony.ts)。状态码统一见 `DeviceStatus.ets`：0 成功、1 用户取消、2 权限被拒、3 设备不支持、4 文件过大、-1 通用失败，其余正数为系统错误码原样透传。
 
 | 功能 | 原生 | 网页 | 说明 |
 | --- | --- | --- | --- |
@@ -97,29 +97,29 @@
 
 纯前端功能，网页版和鸿蒙版共用，不涉及原生层。
 
-- **存储**：[`services/personalization.ts`](chat-demo-main/src/services/personalization.ts) 是 zustand 状态，写入 localStorage 的 `chat-demo:custom-instructions`（`aboutUser`、`responseStyle`、`enabled`）和 `chat-demo:memory`（`enabled`、`auto`、`items`）。指令每项上限 1500 字，记忆每条 200 字、最多 100 条，读入时会清洗无效条目。不进入 IndexedDB，「删除所有对话」和历史导入导出都不影响它们。
+- **存储**：[`services/personalization.ts`](../chat-demo-main/src/services/personalization.ts) 是 zustand 状态，写入 localStorage 的 `chat-demo:custom-instructions`（`aboutUser`、`responseStyle`、`enabled`）和 `chat-demo:memory`（`enabled`、`auto`、`items`）。指令每项上限 1500 字，记忆每条 200 字、最多 100 条，读入时会清洗无效条目。不进入 IndexedDB，「删除所有对话」和历史导入导出都不影响它们。
 - **注入**：`streamReply` 每次请求时调用 `buildSystemPrompt(SYSTEM_PROMPT)`，在基础身份后追加「用户提供的背景信息」「用户希望的回复方式」「关于用户的记忆」三段，标题随界面语言。续写和重新生成也使用发送当时的最新内容。
-- **自动提炼**：[`services/memory.ts`](chat-demo-main/src/services/memory.ts) 在回复状态为 `done` 且未在导入历史时，把已有记忆（带序号）、本轮用户消息（前 4000 字）和回答节选（前 1500 字）发给 `deepseek-flash`，不开思考和工具，要求返回 `{"add","update","remove"}` JSON，序号对应请求时的快照。每轮最多新增 3 条，少于 4 个字的消息不触发。疑似密钥、密码、证件号或银行卡号的条目在本地过滤，这条规则偏保守，可能误挡含「密码」等字样的正常信息。失败或返回无效内容时静默放弃，有变化时提示「已更新记忆」。
+- **自动提炼**：[`services/memory.ts`](../chat-demo-main/src/services/memory.ts) 在回复状态为 `done` 且未在导入历史时，把已有记忆（带序号）、本轮用户消息（前 4000 字）和回答节选（前 1500 字）发给 `deepseek-flash`，不开思考和工具，要求返回 `{"add","update","remove"}` JSON，序号对应请求时的快照。每轮最多新增 3 条，少于 4 个字的消息不触发。疑似密钥、密码、证件号或银行卡号的条目在本地过滤，这条规则偏保守，可能误挡含「密码」等字样的正常信息。失败或返回无效内容时静默放弃，有变化时提示「已更新记忆」。
 - **整理**：同一模型返回 `{"memories":[…]}` 后整体替换，按文本保留原条目的 id 和来源。设置页保留整理前的列表，可撤销，离开设置页后撤销入口消失。提炼和整理共用一个 Promise 队列，不会并发改写列表。
-- **界面**：[`PersonalizationSettings.tsx`](chat-demo-main/src/components/settings/PersonalizationSettings.tsx)，设置新增 `personal` 分组。指令改动后需点「保存」。记忆列表最新的在上面，编辑框按 Esc 取消且不会关闭设置。清空需二次确认。
+- **界面**：[`PersonalizationSettings.tsx`](../chat-demo-main/src/components/settings/PersonalizationSettings.tsx)，设置新增 `personal` 分组。指令改动后需点「保存」。记忆列表最新的在上面，编辑框按 Esc 取消且不会关闭设置。清空需二次确认。
 - **对旧回归的影响**：自动记忆默认开启，每轮回答后多一次 `/anthropic/v1/messages` 请求。按请求次数断言的旧脚本（motion、edit、brand-sider）需要先在 localStorage 里关掉自动记忆，见下方验证记录。
 
 ## 1.2.1 宽屏修复
 
-- **未居中**：用户在 1.0.6 平板横屏截图中，欢迎页和输入框左边距 240、右边距 357 设备像素，状态栏图标也在右侧约 110 像素处截止。浏览器用右侧 58vp 的 inset 复现出同样的比例，推断是位于右上角的摄像头挖孔被 `TYPE_CUTOUT.rightRect` 上报，原 `includeAvoidArea` 把它当成整条右边距。[`WindowInsets.ets`](harmony/entry/src/main/ets/window/WindowInsets.ets) 现在把完全落在窗口顶部或底部 25% 以内的左右避让区改算为上下避让；跨过中段的侧边刘海仍按左右处理。每次计算会在 hilog 输出 `Window WxH avoid system=… nav=… cutout=… -> {insets}`，真机排查时用 `hdc hilog | grep PocketChat` 查看原始矩形。
-- **侧栏上下断开**：常驻侧栏原本在 `.frame` 的上下安全区 padding 以内，状态栏和手势区露出主背景色。[`Sider.module.css`](chat-demo-main/src/components/sider/Sider.module.css) 在鸿蒙下给 `.docked` 加负的上下外边距，`.sider` 用同样的 padding 避开系统栏，底色和分隔线贯穿全高。窄屏抽屉原本就是全高，未改动。
+- **未居中**：用户在 1.0.6 平板横屏截图中，欢迎页和输入框左边距 240、右边距 357 设备像素，状态栏图标也在右侧约 110 像素处截止。浏览器用右侧 58vp 的 inset 复现出同样的比例，推断是位于右上角的摄像头挖孔被 `TYPE_CUTOUT.rightRect` 上报，原 `includeAvoidArea` 把它当成整条右边距。[`WindowInsets.ets`](../harmony/entry/src/main/ets/window/WindowInsets.ets) 现在把完全落在窗口顶部或底部 25% 以内的左右避让区改算为上下避让；跨过中段的侧边刘海仍按左右处理。每次计算会在 hilog 输出 `Window WxH avoid system=… nav=… cutout=… -> {insets}`，真机排查时用 `hdc hilog | grep PocketChat` 查看原始矩形。
+- **侧栏上下断开**：常驻侧栏原本在 `.frame` 的上下安全区 padding 以内，状态栏和手势区露出主背景色。[`Sider.module.css`](../chat-demo-main/src/components/sider/Sider.module.css) 在鸿蒙下给 `.docked` 加负的上下外边距，`.sider` 用同样的 padding 避开系统栏，底色和分隔线贯穿全高。窄屏抽屉原本就是全高，未改动。
 
 ## 1.3.0 无痕对话与鸿蒙适配
 
 - **顶栏切换不跳动**：窄屏顶栏平时由原生 `ChatHeader.ets` 绘制，打开抽屉或弹层时切换为网页的 `MobileHeader`。鸿蒙版网页顶栏现在与原生逐项一致：44 按钮、间距 8、标题 15px Medium、三条等长横线和方框铅笔图标（`IconMenuLines22`、`IconSquarePencil22`）。原生图标固定为 `22vp`，标题用 fp，网页标题按 `--app-font-scale` 同步缩放。
 - **跟随系统深色**：ArkWeb 默认 `WebDarkMode.Off`，网页的 `prefers-color-scheme` 永远是浅色。`Index.ets` 改为 `.darkMode(WebDarkMode.Auto).forceDarkAccess(false)`，配色仍由网页自己的深色主题负责。另外新增 `resources/dark/element/color.json`，启动页背景在深色下使用 `#161C19`。
 - **键盘弹起时顶部重叠**：`.frame` 和弹层跟随视觉视口定位，在屏幕上的上沿始终位于状态栏下方，所以顶部安全区不再扣减 `visualViewport.offsetTop`（`App.module.css` 的 `--frame-safe-top` 和 `Modal.module.css`）。旧回归脚本里「31 − 12 = 19px」的断言已改为 31px。
-- **返回手势**：[`services/backStack.ts`](chat-demo-main/src/services/backStack.ts) 维护「返回即关闭」的层，Modal、Menu、Select、搜索面板、窄屏抽屉、消息编辑、会话重命名、记忆编辑和语音收音都会登记。网页通过 window-ui 的 `canGoBack` 告诉原生；`Index.ets` 的 `onBackPress` 在有可关闭的层时发送 `window-action: back`，由网页关闭最上面一层；没有可关闭的层时交给系统处理。
+- **返回手势**：[`services/backStack.ts`](../chat-demo-main/src/services/backStack.ts) 维护「返回即关闭」的层，Modal、Menu、Select、搜索面板、窄屏抽屉、消息编辑、会话重命名、记忆编辑和语音收音都会登记。网页通过 window-ui 的 `canGoBack` 告诉原生；`Index.ets` 的 `onBackPress` 在有可关闭的层时发送 `window-action: back`，由网页关闭最上面一层；没有可关闭的层时交给系统处理。
 - **系统字体大小**：`AppScope/resources/base/profile/configuration.json` 声明 `fontSizeScale: followSystem` 和 `fontSizeMaxScale: 1.75`。`EntryAbility` 把 `config.fontSizeScale` 写入 AppStorage（`window/FontScale.ets`），`Index` 监听后发送 `font-scale`，取值限制在 0.8–1.75。网页在 `harmony.css` 中按 `--app-font-scale` 缩放 Markdown 字体变量、用户气泡、编辑框和输入框；按钮和间距不变。
-- **2in1 键鼠**：[`app/shortcuts.ts`](chat-demo-main/src/app/shortcuts.ts) 提供 `Ctrl+N`（新对话）、`Ctrl+B`（窄屏开关抽屉，宽屏收起或展开侧栏）、`Ctrl+,`（设置）。原生能力上报新增 `deviceType`，只有 2in1 在按钮提示里附带快捷键。鼠标右键会话条目会打开同一个菜单（`Menu` 新增 `controlRef`），触屏长按不受影响。
+- **2in1 键鼠**：[`app/shortcuts.ts`](../chat-demo-main/src/app/shortcuts.ts) 提供 `Ctrl+N`（新对话）、`Ctrl+B`（窄屏开关抽屉，宽屏收起或展开侧栏）、`Ctrl+,`（设置）。原生能力上报新增 `deviceType`，只有 2in1 在按钮提示里附带快捷键。鼠标右键会话条目会打开同一个菜单（`Menu` 新增 `controlRef`），触屏长按不受影响。
 - **分屏与悬浮窗**：在浏览器中按 320×568、360×420、400×800、700×500、480×320 检查欢迎页和对话页，没有控件越界或横向滚动。脚本是 `Game-Miscellaneous/_verify-deepseek-go-1.3/windows.mjs`。
 - **无痕对话**：会话带 `ephemeral: true`，只存在于 `sessionCache`，不进入 `sessions` 列表和导出，`persist` 直接跳过。附件原件通过 `db.keepFilesInMemory` 放在内存里，`loadFile` 优先读取内存。系统提示词保留自定义指令，但不附带记忆，也不触发记忆提炼。`newChat`、`selectSession` 离开时会调用 `discardEphemeral` 停止生成、移出缓存、释放附件和草稿；打开已保存的对话即退出无痕模式。入口在欢迎页问候语下方，会话页顶部有说明条，原生顶栏标题显示「无痕对话」。
-- **后台生成与完成通知**：网页通过 window-ui 的 `generating` 告诉原生是否有回答在生成。[`BackgroundReply.ets`](harmony/entry/src/main/ets/services/BackgroundReply.ets) 在 `onPageHide` 时若仍在生成，就申请短时任务 `requestSuspendDelay`；生成结束、回到前台或到期回调时取消。每条回答完成后网页发送 `reply-done`（会话 id、标题、去掉 Markdown 的摘要；无痕对话只发「回答已生成完成」），原生只在后台时发布通知，WantAgent 带 `pocketChatSessionId`。点击通知后 `EntryAbility.onNewWant` 写入 AppStorage，网页收到 `open-session` 后等会话列表加载再打开。回到前台时清除通知。首次开始生成时请求一次通知授权；设置 → 通用设置 → 回答完成通知（默认开启）在打开时会再次请求，被拒绝时给出提示。
+- **后台生成与完成通知**：网页通过 window-ui 的 `generating` 告诉原生是否有回答在生成。[`BackgroundReply.ets`](../harmony/entry/src/main/ets/services/BackgroundReply.ets) 在 `onPageHide` 时若仍在生成，就申请短时任务 `requestSuspendDelay`；生成结束、回到前台或到期回调时取消。每条回答完成后网页发送 `reply-done`（会话 id、标题、去掉 Markdown 的摘要；无痕对话只发「回答已生成完成」），原生只在后台时发布通知，WantAgent 带 `pocketChatSessionId`。点击通知后 `EntryAbility.onNewWant` 写入 AppStorage，网页收到 `open-session` 后等会话列表加载再打开。回到前台时清除通知。首次开始生成时请求一次通知授权；设置 → 通用设置 → 回答完成通知（默认开启）在打开时会再次请求，被拒绝时给出提示。
 
 ## 1.3.1 配色与设置
 
@@ -132,15 +132,15 @@
 ## 1.0.x 的界面改动
 
 - **顶栏**。上一版的蓝圈来自原生按钮使用系统材质时采用的默认填充色。1.0.5 的 `ChatHeader.ets` 使用透明底的 ArkUI 文本样式按钮。
-- **Logo 与启动器图标**。鸿蒙欢迎页引用 [`assets/images/logo.png`](assets/images/logo.png)。Rspack 将 PNG 输出到 `static/media/`，`Index.ets` 按 `image/png` 提供资源。启动器图标源文件是 [`assets/images/app-icon.png`](assets/images/app-icon.png)，鸿蒙资源副本放在 `harmony/AppScope/resources/base/media/app_icon.png`。
-- **键盘与欢迎页**。`Index.ets` 为 ArkWeb 设置 `WebKeyboardAvoidMode.RESIZE_VISUAL`。网页的 [`viewport.ts`](chat-demo-main/src/app/viewport.ts) 读取 `visualViewport`，收到逐帧高度时跟随系统，遇到大幅跳变时平滑补间。失焦后继续用实际可视高度，直到键盘收起。欢迎页用 `object-fit: contain` 随可用空间等比显示完整 Logo。 [华为 ArkWeb 键盘避让文档](https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-basic-components-web-attributes/)
+- **Logo 与启动器图标**。鸿蒙欢迎页引用 [`assets/images/logo.png`](../assets/images/logo.png)。Rspack 将 PNG 输出到 `static/media/`，`Index.ets` 按 `image/png` 提供资源。启动器图标源文件是 [`assets/images/app-icon.png`](../assets/images/app-icon.png)，鸿蒙资源副本放在 `harmony/AppScope/resources/base/media/app_icon.png`。
+- **键盘与欢迎页**。`Index.ets` 为 ArkWeb 设置 `WebKeyboardAvoidMode.RESIZE_VISUAL`。网页的 [`viewport.ts`](../chat-demo-main/src/app/viewport.ts) 读取 `visualViewport`，收到逐帧高度时跟随系统，遇到大幅跳变时平滑补间。失焦后继续用实际可视高度，直到键盘收起。欢迎页用 `object-fit: contain` 随可用空间等比显示完整 Logo。 [华为 ArkWeb 键盘避让文档](https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-basic-components-web-attributes/)
 - **侧栏动效**。窄屏使用滑动抽屉。中等和宽窗口使用 `DockedSider`，侧栏滑动的同时，聊天区随侧栏占用宽度变化。收起状态沿用现有设置，并响应系统的减少动态效果偏好。
 - **其他过渡**。设置和搜索面板进出有过渡，退出期间保留原生顶栏的遮挡状态。欢迎页进入会话、编辑消息、恢复主输入栏和手动展开思考正文时轻量淡入。正文开始时，自动思考预览平滑收起。新增过渡遵循减少动态效果偏好。
 - **消息编辑**。编辑历史消息时暂时隐藏主输入栏，编辑重发生成新版本，原消息和主输入栏草稿仍可找回。
 
 ## 验证与后续
 
-- **浏览器回归**：脚本在 [`chat-demo-main/tests/harmony/`](chat-demo-main/tests/harmony/)，在 `chat-demo-main/` 运行 `pnpm test:harmony`。它先执行 `pnpm build:harmony`，再由 `run.mjs` 依次运行全部 `*.test.mjs` 并汇总结果；`node tests/harmony/run.mjs personalization` 只运行文件名包含该片段的脚本，设置 `SHOTS_DIR` 可保存脚本截图。脚本加载鸿蒙网页资源，用模拟的 DeepSeek 接口（含 `/user/balance`）和 ArkWeb 消息通道，不需要真实 Key。依赖开发依赖 `playwright-core@1.62.1`（不下载浏览器），默认用 `channel: 'chrome'` 启动本机 Google Chrome，可用 `CHROME_PATH` 改为其他 Chromium 内核浏览器。仓库路径由 `support.mjs` 根据脚本位置推算，不依赖本机目录。
+- **浏览器回归**：脚本在 [`chat-demo-main/tests/harmony/`](../chat-demo-main/tests/harmony/)，在 `chat-demo-main/` 运行 `pnpm test:harmony`。它先执行 `pnpm build:harmony`，再由 `run.mjs` 依次运行全部 `*.test.mjs` 并汇总结果；`node tests/harmony/run.mjs personalization` 只运行文件名包含该片段的脚本，设置 `SHOTS_DIR` 可保存脚本截图。脚本加载鸿蒙网页资源，用模拟的 DeepSeek 接口（含 `/user/balance`）和 ArkWeb 消息通道，不需要真实 Key。依赖开发依赖 `playwright-core@1.62.1`（不下载浏览器），默认用 `channel: 'chrome'` 启动本机 Google Chrome，可用 `CHROME_PATH` 改为其他 Chromium 内核浏览器。仓库路径由 `support.mjs` 根据脚本位置推算，不依赖本机目录。
   - `device-features`：分享冷启动与运行中接收、按住说话（实时文字、引擎先结束时等松手提交、松手后等最终结果、上滑取消、系统中断、权限拒绝、识别出错、没识别到内容、切回键盘）、拍照与图库识字、导出保存，以及设备不支持时隐藏入口。
   - `personalization`：自定义指令、记忆的自动提炼、整理、撤销、编辑和清空。
   - `adaptation`：顶栏对齐、返回手势分层、字体缩放、键盘偏移时的安全区、无痕对话、后台完成通知、2in1 快捷键与右键菜单、按住说话时返回只取消收音。
@@ -155,7 +155,7 @@
   - 1.3.2 原生识字菜单在深浅色相反、键盘弹起、分屏和悬浮窗中的表现，以及 API 12 真机的启动和网页菜单。
   - 1.4.x：ArkWeb 双指缩放、输入栏收起展开和滚动帧率、按住说话的单指上滑取消手感，余额请求与上下文超限恢复。
   - 覆盖安装后 localStorage 中的会话、记忆和设置是否保留。
-- **后续规划**：README 的「未来规划」列出用户可见的顺序。以下均不依赖 AppGallery Connect，用户自签的未签名包可用：
+- **后续规划**：[`ROADMAP.md`](ROADMAP.md) 列出用户可见的顺序。以下均不依赖 AppGallery Connect，用户自签的未签名包可用：
   - 搜索历史对话只改网页。现有「搜索面板」显示联网搜索来源，与此无关。
   - 本机朗读用 Core Speech Kit 的 `textToSpeech`，按设备能力检查，不支持时只保留 API 音色。
   - 分享出去用 Share Kit 系统分享面板。Markdown 和长图先写入沙箱再分享文件。

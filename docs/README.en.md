@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/images/logo.png" alt="Deepseek GO" width="128">
+  <img src="../assets/images/logo.png" alt="Deepseek GO" width="128">
 </p>
 
 <h1 align="center">Deepseek GO</h1>
@@ -11,7 +11,7 @@
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="#build-from-source">Build from source</a> ·
   <a href="CONTRIBUTING.md">Contribute</a> ·
-  <a href="README.md">简体中文</a>
+  <a href="../README.md">简体中文</a>
 </p>
 
 Deepseek GO is a third-party HarmonyOS client based on DeepSeek’s official Chat Demo. It supports system voice input, image text recognition, and system sharing.
@@ -26,13 +26,13 @@ The project’s code is open source under the MIT License. APXS owns the copyrig
 
 | Welcome screen | DeepThink and code | Voice input |
 | :---: | :---: | :---: |
-| <img src="assets/images/screenshots/phone-welcome.png" width="240" alt="Welcome screen"> | <img src="assets/images/screenshots/phone-chat.png" width="240" alt="DeepThink and a code reply"> | <img src="assets/images/screenshots/phone-voice.png" width="240" alt="Live voice transcription"> |
+| <img src="../assets/images/screenshots/phone-welcome.png" width="240" alt="Welcome screen"> | <img src="../assets/images/screenshots/phone-chat.png" width="240" alt="DeepThink and a code reply"> | <img src="../assets/images/screenshots/phone-voice.png" width="240" alt="Live voice transcription"> |
 | **Image text recognition** | **Custom instructions** | **Memory across chats** |
-| <img src="assets/images/screenshots/phone-scan.png" width="240" alt="Recognize text from a photo or the gallery"> | <img src="assets/images/screenshots/phone-personalization.png" width="240" alt="Custom instruction settings"> | <img src="assets/images/screenshots/phone-memory.png" width="240" alt="Memory management"> |
+| <img src="../assets/images/screenshots/phone-scan.png" width="240" alt="Recognize text from a photo or the gallery"> | <img src="../assets/images/screenshots/phone-personalization.png" width="240" alt="Custom instruction settings"> | <img src="../assets/images/screenshots/phone-memory.png" width="240" alt="Memory management"> |
 
 **Tablet and dark mode.** On wider windows, chat history stays in the left sidebar. You can collapse it at any time.
 
-<img src="assets/images/screenshots/tablet-dark.png" alt="Wide tablet layout in dark mode" width="100%">
+<img src="../assets/images/screenshots/tablet-dark.png" alt="Wide tablet layout in dark mode" width="100%">
 
 The screenshots show only the bundled app interface.
 
@@ -132,13 +132,14 @@ The bundled chat interface is generated in `harmony/entry/src/main/resources/raw
 | `harmony/` | ArkTS, ArkUI, and ArkWeb shell for windows, system bars, Asset Store, voice input, text recognition, sharing, and file saving |
 | `chat-demo-main/` | Bundled React and Rspack frontend adapted from the upstream Chat Demo |
 | `assets/images/` | Welcome screen logo, launcher icon source, and README screenshots |
+| `docs/` | Documentation: features, install and build, roadmap, changelog, contributing guide, handoff notes, and this English README |
 
-See [HANDOFF.md](HANDOFF.md) for architecture, verification, and packaging commands, [AGENTS.md](AGENTS.md) for development and commit rules, and [CHANGELOG.md](CHANGELOG.md) for changes by version.
+See [HANDOFF.md](HANDOFF.md) for architecture, verification, and packaging commands, [AGENTS.md](../AGENTS.md) for development and commit rules, and [CHANGELOG.md](CHANGELOG.md) for changes by version.
 
 ## License
 
-The project’s original code and documentation are copyright APXS and distributed under the [MIT License](LICENSE). The bundled frontend is based on [DeepSeek Chat Demo](https://github.com/deepseek-ai/chat-demo), whose upstream code retains its own [MIT License](chat-demo-main/LICENSE). Keep both license notices when redistributing the code.
+The project’s original code and documentation are copyright APXS and distributed under the [MIT License](../LICENSE). The bundled frontend is based on [DeepSeek Chat Demo](https://github.com/deepseek-ai/chat-demo), whose upstream code retains its own [MIT License](../chat-demo-main/LICENSE). Keep both license notices when redistributing the code.
 
-APXS created `assets/images/logo.png`, `assets/images/app-icon.png`, and the character artwork reproduced in the app and screenshots. They are licensed under **CC BY-NC-ND 4.0**. You may share the unmodified artwork for noncommercial purposes with attribution. See the [artwork notice](ARTWORK-NOTICE.txt).
+APXS created `assets/images/logo.png`, `assets/images/app-icon.png`, and the character artwork reproduced in the app and screenshots. They are licensed under **CC BY-NC-ND 4.0**. You may share the unmodified artwork for noncommercial purposes with attribution. See the [artwork notice](../ARTWORK-NOTICE.txt).
 
 Deepseek GO is an independent project. The DeepSeek name and trademarks belong to their respective owners.
