@@ -1,10 +1,13 @@
 import { useTranslate } from '../../i18n/index.js'
 import clsx from 'clsx'
 import { memo } from 'react'
-import { IconRefreshOutline16, IconWarningOutline16 } from '../base/icons.js'
+import { IconRefreshOutline16, IconShareOutline16, IconWarningOutline16 } from '../base/icons.js'
 import { describeReply } from '../../services/chat/describe.js'
 import { canContinueReply } from '../../services/chat/reply.js'
 import { continueReply, regenerateReply } from '../../services/chat/store.js'
+import { useDeviceFeatures } from '../../services/harmony.js'
+import { shareAnswer } from '../../services/chat/share.js'
+import { openShare } from '../share/ShareDialog.js'
 import { stopReadAloud } from '../../services/speech/readAloud.js'
 import type { AssistantMessage as AssistantMessageType } from '../../services/chat/types.js'
 import { openSettings } from '../settings/settingsDialogState.js'
@@ -44,6 +47,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   onSelectVersion: SelectMessageVersion
 }) {
   const t = useTranslate()
+  const sharing = useDeviceFeatures((state) => state.share)
   const view = useReplyView(message, streaming)
   const panelEntry = useSearchPanel((state) => state.entry)
   const notice = streaming ? null : describeReply(message)
@@ -57,7 +61,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   const waiting = streaming && view.steps.length === 0 && !view.answer && !message.thinking
   const summaryEntry = `${message.id}-summary`
   return (
-    <div className={styles.message}>
+    <div className={styles.message} data-history-message={message.id} tabIndex={-1}>
       {refused ? null : (
         <ReplyArea
           message={message}
@@ -125,8 +129,10 @@ export const AssistantMessage = memo(function AssistantMessage({
         </div>
       ) : null}
       {!streaming && !refused && view.searchResults.length > 0 ? (
-        <div
+        <button
+          type="button"
           className={clsx(styles.summary, panelEntry === summaryEntry && styles.summaryActive)}
+          aria-expanded={panelEntry === summaryEntry}
           onClick={() => toggleSearchPanel(summaryEntry, view.searchResults)}
         >
           <SiteThumbnails sources={view.searchResults} />
@@ -136,13 +142,21 @@ export const AssistantMessage = memo(function AssistantMessage({
               { count: view.searchResults.length }
             )}
           </span>
-        </div>
+        </button>
       ) : null}
       {streaming ? null : (
         <div className={styles.bottom}>
           <BranchSwitcher versions={versions} disabled={busy} onSelect={onSelectVersion} />
           <div className={clsx(styles.actions, isLast && styles.alwaysShow)}>
             {copyText ? <CopyButton text={copyText} /> : null}
+            {__HARMONY_APP__ && sharing && responseText && !refused ? (
+              <IconButton
+                icon={<IconShareOutline16 />}
+                tooltip={t('shareAnswer')}
+                tooltipPlacement="bottom"
+                onClick={() => openShare(shareAnswer(t('shareAnswer'), responseText))}
+              />
+            ) : null}
             {responseText && !refused ? (
               <ReadAloudButton messageId={message.id} text={responseText} />
             ) : null}

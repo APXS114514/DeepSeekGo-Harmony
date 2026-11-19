@@ -1,6 +1,42 @@
 import type { zh } from './zh.js'
 
 export const en = {
+  settingsVoiceInput: 'Voice input',
+  settingsVoiceLocal: 'On-device recognition',
+  settingsVoiceApi: 'DeepSeek API',
+  settingsVoiceLocalDescription: 'Transcribes Mandarin on this device as you speak, even offline.',
+  settingsVoiceLocalUnavailable:
+    'On-device recognition is unavailable. You can select the DeepSeek API.',
+  settingsVoiceApiDescription:
+    'After you release to confirm, audio is uploaded and billed by duration. Requires internet access.',
+  settingsVoiceApiKeyRequired: 'Enter your DeepSeek API key in Data Management first.',
+  settingsTtsVoiceLocal: 'Offline read aloud',
+  ttsLocalUnavailable:
+    'Offline read aloud is unavailable. You can choose an API voice in Settings.',
+  ttsLocalFailed: 'Offline read aloud failed. Try again.',
+  historySearch: 'Search chat history',
+  historySearchPlaceholder: 'Search chat titles or messages',
+  historySearching: 'Searching chat history…',
+  historySearchCount: 'Showing {count} results',
+  historySearchEmpty: 'No matching chats',
+  historySearchFailed: 'Some chats could not be searched. Try again.',
+  sharePreview: 'Share preview',
+  sharePreviewBody: 'Content to share',
+  shareFormat: 'Format',
+  shareAction: 'Open system share',
+  shareText: 'Plain text',
+  shareImage: 'Long image',
+  shareAnswer: 'Share answer',
+  shareChat: 'Share chat',
+  shareRoleUser: 'You',
+  shareRoleAssistant: 'DeepSeek',
+  shareFailed: 'Could not open sharing. Try again.',
+  shareEmpty: 'There is nothing to share in this chat yet.',
+  shareTooLarge:
+    'This content exceeds the sharing limit for this format. Shorten it or change the format.',
+  shareImageTooLong: 'The content is too long for one image. Try sharing as Markdown.',
+  voiceAccessibleFinish: 'Finish recording',
+  voiceAccessibleCancel: 'Cancel voice input',
   welcomeMessageChat250808: 'How can I help you?',
   contentCaveat: 'AI-generated, for reference only',
   expandSiderbarButton: 'Open sidebar',

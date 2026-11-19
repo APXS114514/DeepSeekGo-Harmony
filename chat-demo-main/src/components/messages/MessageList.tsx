@@ -15,6 +15,7 @@ import {
   getVisibleMessages,
   type MessageVersions,
 } from '../../services/chat/branches.js'
+import { useHistoryLocation } from '../../services/chat/historySearch.js'
 import { selectMessageVersion } from '../../services/chat/store.js'
 import type { Session } from '../../services/chat/types.js'
 import { useSettings } from '../../services/settings.js'
@@ -150,6 +151,25 @@ export const MessageList = ({
     stickyRef.current = true
     scrollToBottom()
   }, [session.id, lastMessageId, scrollToBottom])
+
+  const historyTarget = useHistoryLocation((state) => state.target)
+  useLayoutEffect(() => {
+    if (historyTarget?.sessionId !== session.id) {
+      return
+    }
+    useHistoryLocation.setState({ target: null })
+    const scroll = scrollRef.current
+    const message = contentRef.current?.querySelector<HTMLElement>(
+      `[data-history-message="${CSS.escape(historyTarget.messageId)}"]`
+    )
+    if (scroll && message) {
+      stickyRef.current = false
+      scroll.scrollTop +=
+        message.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 8
+      scrollTopRef.current = scroll.scrollTop
+      message.focus({ preventScroll: true })
+    }
+  }, [historyTarget, session.id])
 
   useEffect(closeSearchPanel, [session.id, lastMessageId])
 

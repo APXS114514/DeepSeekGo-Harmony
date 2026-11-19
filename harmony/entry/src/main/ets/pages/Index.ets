@@ -4,6 +4,7 @@ import { webview } from '@kit.ArkWeb';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
 import { DeviceBridge } from '../services/DeviceBridge';
+import { requestMicrophone } from '../services/Microphone';
 import { OPEN_SESSION_KEY } from '../services/BackgroundReply';
 import { ShareInbox } from '../services/ShareInbox';
 import { clampFontScale, FONT_SCALE_KEY } from '../window/FontScale';
@@ -347,6 +348,38 @@ struct Index {
     return response;
   }
 
+  private authorizeWebMicrophone(request: PermissionRequest): void {
+    const origin = request.getOrigin();
+    const resources = request.getAccessibleResource();
+    const port = this.devicePort;
+    if (!port || (origin !== APP_ORIGIN && origin !== APP_ORIGIN + '/') ||
+      resources.length !== 1 || resources[0] !== ProtectedResourceType.AUDIO_CAPTURE ||
+      !canIUse('SystemCapability.Multimedia.Audio.Capturer')) {
+      request.deny();
+      return;
+    }
+    const ui = this.getUIContext();
+    const context = ui.getHostContext() as common.UIAbilityContext;
+    ui.showAlertDialog({
+      title: $r('app.string.web_microphone_title'),
+      message: $r('app.string.web_microphone_description'),
+      cancel: () => request.deny(),
+      primaryButton: { value: $r('app.string.web_microphone_cancel'), action: () => request.deny() },
+      secondaryButton: {
+        value: $r('app.string.web_microphone_allow'),
+        action: () => {
+          requestMicrophone(context).then((granted) => {
+            if (granted && this.devicePort === port) {
+              request.grant([ProtectedResourceType.AUDIO_CAPTURE]);
+            } else {
+              request.deny();
+            }
+          }).catch(() => request.deny());
+        }
+      }
+    });
+  }
+
   build() {
     Stack({ alignContent: Alignment.Top }) {
       Web({ src: APP_PAGE, controller: this.controller })
@@ -362,6 +395,11 @@ struct Index {
         .fileAccess(false)
         .geolocationAccess(false)
         .multiWindowAccess(false)
+        .onPermissionRequest((event) => {
+          if (event) {
+            this.authorizeWebMicrophone(event.request);
+          }
+        })
         .onScaleChange((event) => {
           const zoomed = event.newScale > 1.01;
           if (this.pageZoomed !== zoomed) {

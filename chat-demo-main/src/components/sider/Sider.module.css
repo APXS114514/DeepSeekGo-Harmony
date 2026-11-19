@@ -343,3 +343,34 @@
     line-height: 22px;
   }
 }
+
+.historySearch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 10px 6px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--dsw-specific-sidebar-nav-item-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--dsw-alias-brand-primary);
+    outline-offset: -2px;
+  }
+}
+
+@media (forced-colors: active) {
+  .settings:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}

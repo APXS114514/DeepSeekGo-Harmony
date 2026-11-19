@@ -26,7 +26,10 @@ const media = {
 const nativePath =
   /^\/static\/(?:js|css|media)\/(?:async\/)?[a-zA-Z0-9._-]+\.(?:js|css|woff2?|ttf|png)$/
 
-const browser = await chromium.launch({ ...launchOptions, args: ['--no-sandbox'] })
+const browser = await chromium.launch({
+  ...launchOptions,
+  args: ['--no-sandbox', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
+})
 
 const newContext = async (features, initialShare) => {
   const context = await browser.newContext({
@@ -41,6 +44,16 @@ const newContext = async (features, initialShare) => {
       window.voiceStartStatus = 0
       window.scanReply = { status: 0, value: '' }
       window.saveStatus = 0
+      window.shareStatus = 0
+      window.speechStatus = 0
+      window.allowTestMic = true
+      if (features.apiVoice) {
+        const getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
+        navigator.mediaDevices.getUserMedia = async (constraints) => {
+          if (!window.allowTestMic) throw new DOMException('Denied', 'NotAllowedError')
+          return getUserMedia(constraints)
+        }
+      }
       window.addEventListener(
         'load',
         () => {
@@ -60,8 +73,19 @@ const newContext = async (features, initialShare) => {
                 ...header,
                 size: body.byteLength,
                 magic: String.fromCharCode(body[0], body[1]),
+                text:
+                  header.operation === 'speak-text' ||
+                  (header.operation === 'share-content' && header.value !== 'image')
+                    ? new TextDecoder().decode(body)
+                    : undefined,
               })
-              post({ id: header.id, status: window.saveStatus, value: '' })
+              const status =
+                header.operation === 'speak-text'
+                  ? window.speechStatus
+                  : header.operation === 'share-content'
+                    ? window.shareStatus
+                    : window.saveStatus
+              post({ id: header.id, status, value: '' })
               return
             }
             const { id, operation, value } = JSON.parse(event.data)
@@ -100,6 +124,9 @@ const newContext = async (features, initialShare) => {
       headers: { 'Content-Security-Policy': csp, 'X-Content-Type-Options': 'nosniff' },
     })
   })
+  const asrRequests = []
+  let asrFails = false
+  let remoteReadAloudCalls = 0
   await context.route('https://api.deepseek.com/**', async (route) => {
     const request = route.request()
     const path = new URL(request.url()).pathname
@@ -141,6 +168,18 @@ const newContext = async (features, initialShare) => {
         },
       })
     }
+    if (path === '/v1/tools/asr') {
+      asrRequests.push(request.postDataBuffer())
+      return route.fulfill(
+        asrFails
+          ? { headers, status: 503, json: { error: { message: 'Mock ASR unavailable' } } }
+          : { headers, json: { text: 'Recognized in the cloud' } }
+      )
+    }
+    if (path === '/v1/tools/tts') {
+      remoteReadAloudCalls++
+      return route.fulfill({ headers, status: 400, body: 'Unexpected remote speech' })
+    }
     assert.equal(path, '/anthropic/v1/messages')
     const frames = [
       { type: 'message_start', message: { id: 'mock', content: [] } },
@@ -166,7 +205,16 @@ const newContext = async (features, initialShare) => {
     if (message.type() === 'error' && message.text().includes('Content Security Policy'))
       errors.push(message.text())
   })
-  return { context, page, errors }
+  return {
+    context,
+    page,
+    errors,
+    asrRequests,
+    setAsrFailure: (value) => {
+      asrFails = value
+    },
+    getRemoteReadAloudCalls: () => remoteReadAloudCalls,
+  }
 }
 
 const log = (page) => page.evaluate(() => window.deviceLog)
@@ -418,6 +466,207 @@ try {
   await settings.getByText('保存失败，请重新选择位置').waitFor()
   assert.deepEqual(errors, [])
   await context.close()
+
+  // 1.5.0 搜索、分享与双语音路径从真实界面入口验证。
+  const experience = await newContext({ voice: true, apiVoice: true, readAloud: true, share: true })
+  const featurePage = experience.page
+  await featurePage.goto(origin + '/index.html')
+  const openSider = () => featurePage.evaluate(() => window.mockWindowAction('sidebar'))
+  const openSettings = async () => {
+    await openSider()
+    await featurePage.getByRole('button', { name: '设置', exact: true }).click()
+    return featurePage.getByRole('dialog', { name: '设置', exact: true })
+  }
+  const general = await openSettings()
+  const inputChoice = general.getByRole('button', { name: '语音输入', exact: true })
+  assert.match(await inputChoice.innerText(), /本地识别/)
+  await inputChoice.focus()
+  await featurePage.keyboard.press('Enter')
+  await featurePage.getByRole('option', { name: '本地识别' }).waitFor()
+  await featurePage.keyboard.press('ArrowDown')
+  await featurePage.keyboard.press('Enter')
+  assert.match(await inputChoice.innerText(), /DeepSeek API/)
+  assert.equal(await inputChoice.evaluate((element) => document.activeElement === element), true)
+  const ttsChoice = general.getByRole('button', { name: '朗读音色', exact: true })
+  await ttsChoice.click()
+  await featurePage.getByRole('option', { name: '本机离线朗读' }).click()
+  await featurePage.reload()
+  await featurePage.getByText('今天想聊什么？', { exact: true }).waitFor()
+  const featureInput = featurePage.locator('textarea')
+  await featurePage.getByRole('button', { name: '切换到按住说话' }).click()
+  const recordControl = featurePage.getByRole('button', { name: '按住说话', exact: true })
+  const bounds = await recordControl.boundingBox()
+  const pressApi = async () => {
+    await featurePage.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+    await featurePage.mouse.down()
+    await featurePage.getByRole('button', { name: '松开结束', exact: true }).waitFor()
+  }
+  await featurePage.evaluate(() => {
+    window.allowTestMic = false
+  })
+  await featurePage.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+  await featurePage.mouse.down()
+  await toast(featurePage, '无法使用麦克风，请在系统设置中允许 Deepseek GO 访问麦克风')
+  await featurePage.mouse.up()
+  assert.equal(experience.asrRequests.length, 0)
+  await featurePage.evaluate(() => {
+    window.allowTestMic = true
+  })
+  await pressApi()
+  await featurePage.waitForTimeout(360)
+  await featurePage.mouse.move(bounds.x + bounds.width / 2, bounds.y - 90, { steps: 4 })
+  await featurePage.getByRole('button', { name: '松开取消', exact: true }).waitFor()
+  await featurePage.mouse.up()
+  assert.equal(experience.asrRequests.length, 0)
+  assert.equal(await featureInput.inputValue(), '')
+  experience.setAsrFailure(true)
+  await pressApi()
+  await featurePage.waitForTimeout(600)
+  assert.equal(experience.asrRequests.length, 0)
+  await featurePage.mouse.up()
+  await toast(featurePage, '语音识别失败，请稍后再试')
+  assert.equal(await featureInput.inputValue(), '')
+  experience.setAsrFailure(false)
+  // 键盘开始、结束和取消，使用同一个录音入口。
+  await recordControl.focus()
+  await featurePage.keyboard.press('Space')
+  await featurePage.getByRole('button', { name: '结束录音' }).waitFor()
+  await featurePage.keyboard.press('Escape')
+  await recordControl.waitFor()
+  assert.equal(experience.asrRequests.length, 1)
+  await featurePage.keyboard.press('Enter')
+  await featurePage.getByRole('button', { name: '结束录音' }).waitFor()
+  await featurePage.waitForTimeout(600)
+  await featurePage.keyboard.press('Enter')
+  await featurePage.waitForFunction(
+    () => document.querySelector('textarea')?.value === 'Recognized in the cloud'
+  )
+  assert.equal(experience.asrRequests.length, 2)
+  assert(experience.asrRequests[1].includes(Buffer.from('RIFF')))
+  assert.equal(
+    (await log(featurePage)).some((entry) => entry.operation === 'voice'),
+    false
+  )
+
+  await featureInput.fill('这是用于搜索的独特消息 1+1')
+  await featurePage.getByRole('button', { name: '发送', exact: true }).click()
+  await featurePage.getByText('收到。', { exact: true }).waitFor()
+  const play = featurePage.getByRole('button', { name: '朗读', exact: true })
+  await featurePage.evaluate(() => {
+    window.speechStatus = 3
+  })
+  await play.click()
+  await toast(featurePage, '此设备暂不支持本机朗读，可在设置中选择 API 音色。')
+  await featurePage.evaluate(() => {
+    window.speechStatus = 0
+  })
+  await play.click()
+  const stop = featurePage.getByRole('button', { name: '停止朗读', exact: true })
+  await stop.click()
+  await featurePage.waitForFunction(() =>
+    window.deviceLog.some((entry) => entry.operation === 'speak-stop')
+  )
+  const speech = (await log(featurePage)).filter((entry) => entry.operation === 'speak-text')
+  assert.equal(speech.length, 2)
+  assert.equal(speech[1].text, '收到。')
+  assert.equal(experience.getRemoteReadAloudCalls(), 0)
+  await play.click()
+  await stop.waitFor()
+  await featurePage.waitForFunction(
+    () => window.deviceLog.filter((entry) => entry.operation === 'speak-text').length === 3
+  )
+  await featurePage.evaluate(() => {
+    const token = window.deviceLog.filter((entry) => entry.operation === 'speak-text').at(-1).value
+    window.devicePost({ type: 'read-aloud', token, status: 0 })
+  })
+  await play.waitFor()
+
+  const preview = featurePage.getByRole('dialog', { name: '分享预览' })
+  const sendShare = preview.getByRole('button', { name: '打开系统分享' })
+  const answerShare = featurePage.getByRole('button', { name: '分享回答' })
+  await answerShare.click()
+  await preview.getByText('收到。', { exact: true }).waitFor()
+  await featurePage.evaluate(() => {
+    window.shareStatus = -1
+  })
+  await sendShare.click()
+  await preview.getByRole('alert').getByText('分享失败，请重试。').waitFor()
+  await featurePage.evaluate(() => {
+    window.shareStatus = 0
+  })
+  await sendShare.click()
+  await preview.waitFor({ state: 'hidden' })
+  await answerShare.click()
+  await preview.getByLabel('分享格式').selectOption('image')
+  await sendShare.click()
+  await preview.waitFor({ state: 'hidden' })
+  const shareFrames = (await log(featurePage)).filter(
+    (entry) => entry.operation === 'share-content'
+  )
+  assert.equal(shareFrames[0].text, '收到。')
+  assert.equal(shareFrames[2].value, 'image')
+  assert.equal(shareFrames[2].magic.charCodeAt(0), 137)
+  assert.equal(shareFrames[2].magic[1], 'P')
+
+  await openSider()
+  await featurePage
+    .getByRole('navigation')
+    .getByRole('button', { name: '更多', exact: true })
+    .click()
+  await featurePage.getByRole('menuitem', { name: '分享对话' }).click()
+  await preview.getByLabel('分享格式').selectOption('markdown')
+  await sendShare.click()
+  await preview.waitFor({ state: 'hidden' })
+  const markdown = (await log(featurePage))
+    .filter((entry) => entry.operation === 'share-content')
+    .at(-1)
+  assert.equal(markdown.value, 'markdown')
+  assert.match(markdown.text, /# 测试会话[\s\S]*独特消息 1\+1[\s\S]*收到。/)
+
+  await featurePage.reload()
+  await featurePage.getByText('今天想聊什么？', { exact: true }).waitFor()
+  await openSider()
+  const history = featurePage.getByRole('button', { name: '搜索历史对话', exact: true })
+  await featurePage.emulateMedia({ forcedColors: 'active' })
+  await history.focus()
+  await featurePage.keyboard.press('Enter')
+  const search = featurePage.getByRole('dialog', { name: '搜索历史对话' })
+  const searchField = search.getByRole('searchbox')
+  assert.equal(await searchField.evaluate((element) => document.activeElement === element), true)
+  await searchField.fill('没有这样的对话')
+  await search.getByRole('status').getByText('没有找到相关对话').waitFor()
+  await searchField.fill('测试会话')
+  await search.getByRole('button', { name: '测试会话', exact: true }).waitFor()
+  await searchField.fill('1+1')
+  const result = search.getByRole('button', { name: /独特消息 1\+1/ })
+  await result.focus()
+  // 最后一个控件 Tab 回到对话框内，Esc 还原到侧栏入口。
+  await featurePage.keyboard.press('Tab')
+  assert.equal(
+    await search
+      .getByRole('button', { name: '关闭', exact: true })
+      .evaluate((element) => document.activeElement === element),
+    true
+  )
+  assert.equal(
+    await search
+      .getByRole('button', { name: '关闭', exact: true })
+      .evaluate((element) => getComputedStyle(element).outlineStyle),
+    'solid'
+  )
+  await featurePage.keyboard.press('Escape')
+  await search.waitFor({ state: 'hidden' })
+  assert.equal(await history.evaluate((element) => document.activeElement === element), true)
+  await history.click()
+  await searchField.fill('1+1')
+  await result.click()
+  await featurePage.waitForFunction(
+    () =>
+      document.activeElement?.hasAttribute('data-history-message') &&
+      document.activeElement.textContent.includes('独特消息 1+1')
+  )
+  assert.deepEqual(experience.errors, [])
+  await experience.context.close()
 
   // ---------- 设备不支持时隐藏入口 ----------
   const fallback = await newContext({ voice: false, scan: false, save: true })

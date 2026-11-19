@@ -40,6 +40,9 @@ export const DeviceStatus = {
 /** 原生连接后上报的设备能力，未连接时全部关闭。 */
 export const useDeviceFeatures = create(() => ({
   voice: false,
+  apiVoice: false,
+  readAloud: false,
+  share: false,
   scan: false,
   immersiveScanMenu: false,
   save: false,
@@ -51,6 +54,8 @@ export type DeviceVoiceEvent =
   | { event: 'result'; text: string; final: boolean; last: boolean }
   | { event: 'end' | 'cancel' }
   | { event: 'error'; code: number }
+
+let readAloudListener: ((token: string, status: number) => void) | undefined
 
 let voiceListener: ((event: DeviceVoiceEvent) => void) | undefined
 
@@ -104,11 +109,18 @@ const onWindowMessage = (event: MessageEvent<string>) => {
     } else if (message?.type === 'device-features') {
       useDeviceFeatures.setState({
         voice: message.voice === true,
+        apiVoice: message.apiVoice === true,
+        readAloud: message.readAloud === true,
+        share: message.share === true,
         scan: message.scan === true,
         immersiveScanMenu: message.immersiveScanMenu === true,
         save: message.save === true,
         keyboard: message.deviceType === '2in1',
       })
+    } else if (message?.type === 'read-aloud') {
+      if (typeof message.token === 'string' && Number.isInteger(message.status)) {
+        readAloudListener?.(message.token, message.status)
+      }
     } else if (message?.type === 'voice') {
       if (message.event === 'result' && typeof message.text === 'string') {
         voiceListener?.({
@@ -209,6 +221,7 @@ type DeviceOperation =
   | 'read'
   | 'save'
   | 'voice'
+  | 'speak-stop'
   | 'scan'
   | 'scan-source'
   | 'reply-done'
@@ -222,12 +235,14 @@ const requestDevice = (
 
 /** 二进制请求：4 字节小端头长度 + JSON 头 + 内容，避免大文件转 Base64。 */
 const requestDeviceFrame = (
-  operation: 'save-file',
+  operation: 'save-file' | 'share-content' | 'speak-text',
   value: string,
   data: ArrayBuffer,
-  timeout: number
+  timeout: number,
+  signal?: AbortSignal
 ): Promise<DeviceReply> =>
   sendRequest((id) => {
+    signal?.throwIfAborted()
     const header = new TextEncoder().encode(JSON.stringify({ id, operation, value }))
     const frame = new Uint8Array(4 + header.byteLength + data.byteLength)
     new DataView(frame.buffer).setUint32(0, header.byteLength, true)
@@ -454,3 +469,40 @@ export const routeDeviceLinks = () => {
     }
   })
 }
+
+export const shareDeviceContent = async (
+  format: 'text' | 'markdown' | 'image',
+  data: ArrayBuffer
+): Promise<number> => {
+  if (data.byteLength > 12 * 1024 * 1024) {
+    return DeviceStatus.tooLarge
+  }
+  try {
+    return (await requestDeviceFrame('share-content', format, data, PICKER_TIMEOUT)).status
+  } catch {
+    return DeviceStatus.failed
+  }
+}
+
+export const bindDeviceReadAloud = (listener: (token: string, status: number) => void) => {
+  readAloudListener = listener
+  return () => {
+    if (readAloudListener === listener) {
+      readAloudListener = undefined
+    }
+  }
+}
+
+export const startDeviceReadAloud = async (
+  token: string,
+  text: string,
+  signal: AbortSignal
+): Promise<number> => {
+  const data = new TextEncoder().encode(text)
+  if (data.byteLength > 256 * 1024) {
+    return DeviceStatus.tooLarge
+  }
+  return (await requestDeviceFrame('speak-text', token, data.buffer, 10_000, signal)).status
+}
+
+export const stopDeviceReadAloud = (token: string) => postDevice('speak-stop', token)

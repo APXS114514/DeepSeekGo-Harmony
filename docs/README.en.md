@@ -39,8 +39,8 @@ The screenshots show only the bundled app interface.
 
 ## Highlights
 
-- **Chat**: streaming replies, DeepThink, web search with sources, Markdown, code, math, and Mermaid diagrams, plus image and document attachments.
-- **HarmonyOS features**: offline system voice input, text recognition from photos or the gallery, Share to Deepseek GO, chat export, and background replies with completion notifications.
+- **Chat**: streaming replies, DeepThink, web search, local history search, Markdown, code, math, Mermaid diagrams, and attachments.
+- **HarmonyOS features**: offline voice input and read-aloud, image text recognition, system sharing in both directions, chat export, and background reply notifications.
 - **Personalization and memory**: custom instructions and personas, plus memory across chats that you can view, edit, or clear at any time.
 - **Every device**: one package for phones, foldables, tablets, and 2-in-1 devices, with light and dark themes, system font scaling, back gestures, and immersive lighting.
 - **Privacy**: chats and memories stay on your device, your API key is kept in the system Asset Store, and the app only talks to `api.deepseek.com`.

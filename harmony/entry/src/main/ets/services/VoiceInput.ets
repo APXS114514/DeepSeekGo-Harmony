@@ -1,10 +1,10 @@
-import { abilityAccessCtrl, common, Permissions } from '@kit.AbilityKit';
+import { common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { speechRecognizer } from '@kit.CoreSpeechKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { DeviceStatus } from './DeviceStatus';
 
-const MICROPHONE: Permissions = 'ohos.permission.MICROPHONE';
+import { requestMicrophone } from './Microphone';
 
 interface VoiceEvent {
   type: string;
@@ -43,7 +43,7 @@ export class VoiceInput {
     this.cancel();
     const sessionId = 'voice-' + (++this.serial);
     this.session = sessionId;
-    const granted = await this.requestMicrophone();
+    const granted = await requestMicrophone(this.context);
     if (this.session !== sessionId) {
       return DeviceStatus.CANCELLED;
     }
@@ -195,21 +195,4 @@ export class VoiceInput {
     this.emit(JSON.stringify(message));
   }
 
-  private async requestMicrophone(): Promise<boolean> {
-    const manager = abilityAccessCtrl.createAtManager();
-    try {
-      const result = await manager.requestPermissionsFromUser(this.context, [MICROPHONE]);
-      if (result.authResults[0] === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED) {
-        return true;
-      }
-      // 用户此前拒绝过时，系统不再弹窗，改用二次授权弹窗引导开启。
-      if (result.dialogShownResults?.[0] === false) {
-        const statuses = await manager.requestPermissionOnSetting(this.context, [MICROPHONE]);
-        return statuses[0] === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED;
-      }
-    } catch (error) {
-      hilog.warn(0x0000, 'PocketChat', 'Cannot request microphone: %{public}d', (error as BusinessError).code);
-    }
-    return false;
-  }
 }

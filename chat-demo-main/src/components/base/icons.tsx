@@ -660,3 +660,15 @@ export const IconKeyboardOutline16 = () => (
     />
   </svg>
 )
+
+export const IconShareOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <path
+      d="M8 10V2m-3 3 3-3 3 3M5 7H3v7h10V7h-2"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+)

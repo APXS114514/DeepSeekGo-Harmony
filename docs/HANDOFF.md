@@ -2,7 +2,7 @@
 
 ## 工作区
 
-- 当前源码为 1.4.2，版本代码为 `1000017`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 当前源码为 1.5.0，版本代码为 `1000018`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
 - 最近一次本地测试包是 `HAPS/Deepseek-GO-1.4.2-unsigned.hap`，版本代码为 `1000017`，对应提交 `cb3286d`。SHA-256 为 `1f1f80763a6ff192d75f1011301b408aeb391534eb0316ca7cd2496f365cf844`。上一轮测试包归档在 `HAPS/Deepseek-GO-1.4.2-ed689a4-unsigned.hap`，SHA-256 为 `6360fbf238728e2e9d5b4b4bd4b67e9c60f026f94cc24a55f91aa51c489ac774`。
 - 最近一次发布是 GitHub Releases 的 `v1.4.2`，标签指向提交 `f3908b0`。该版本已通过用户测试，远端 HAP 与上列本地测试包的 SHA-256 一致。只有用户明确要求时才打包当前源码版本。
 - 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。贡献方式见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。仓库只收源码、配置、文档和图片资源。根目录只留 README、AGENTS、许可证和图像授权声明，其他文档在 `docs/`。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`，使用鸿蒙版网页构建产物、模拟接口和设备消息通道生成。维护者的截图生成命令见本机 `AGENTS.local.md`。
@@ -33,6 +33,16 @@
 
 - **原生组件级配置**可通过 `systemMaterial` 等属性调整支持的组件。应用级未禁用时，组件配置优先，个别组件可通过 `uiMaterial.Material.empty` 关闭。排查时，在支持的系统上用 `uiMaterial.getMaterialInfo()` 读取应用级配置状态，用 `uiMaterial.isImmersiveMaterialSupported()` 检查设备能力，再用真机验证呈现。 [组件适配指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
 - **设置 → 通用设置 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](../chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](../chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
+
+## 1.5.0 对话查找、分享与语音
+
+- 侧栏的历史搜索从 IndexedDB 逐条读取本机历史，优先展示标题命中，再分批返回当前分支的消息片段。搜索最多显示 50 条，关闭或改关键词会取消上一轮。定位消息时更新滚动位置并把焦点交给消息。无痕会话不在历史结果中。
+- 「语音输入」保存到 `chat-demo:voice-input-mode`，缺省和旧版升级都使用系统离线识别。DeepSeek API 模式复用网页录制的 16 kHz WAV，经现有 `/v1/tools/asr` 转写。ArkWeb 仅对内置 HTTPS 页面处理麦克风权限，并由用户确认。音频只在内存中暂存，松手确认后才上传，取消和切后台会释放录音并忽略迟到结果。
+- 本机朗读复用回答的播放与停止状态，由 `LocalSpeech.ets` 检查系统能力并分段调用 Core Speech Kit。原有 API 音色设置继续生效，本机朗读失败时可重试或手动改用 API 音色。
+- 单条回答和当前会话分支均可预览分享正文。文字由 Share Kit 直接分享，Markdown 和 PNG 长图通过受限的二进制帧交给 `ShareOut.ets`，写入沙箱缓存后用文件 URI 打开系统分享面板。长图用 Canvas 排版正文，达到高度上限时提示改用 Markdown。下次分享文件时清理超过 24 小时的缓存。
+- 为设置标签、选择器、弹窗和侧栏补齐键盘焦点处理。语音模式下用 Enter 或空格开始、结束录音，Esc 取消。原生顶栏保留本地化无障碍名称，网页图标按钮在强制色彩模式显示焦点轮廓。
+- 通过 `pnpm type`、`pnpm lint`、网页版与鸿蒙网页构建、`pnpm test:harmony` 的 8 个脚本、ArkTS CodeLinter 和 HarmonyOS 26.0.0 SDK Debug 构建。确认包名 `com.pocketchat.deepseek`、版本 `1.5.0` / `1000018` 和最低 API 12，包内 155 个网页资源与构建产物逐字节一致。新增浏览器回归使用虚拟麦克风和模拟消息通道，覆盖语音默认值及持久化、API 授权拒绝和重试、上滑取消、键盘操作、本机朗读和停止、三种分享格式与失败重试、标题和正文搜索、消息定位以及强制色彩焦点。
+- 已连接 HOP-AL10（HarmonyOS 7.0.0.111，API 26），设备当前安装 1.4.2。1.5.0 Debug 包等待与已安装版本相同的签名。待真机验证 ArkWeb 麦克风授权、离线朗读和系统音频打断、系统分享接收应用能否打开 Markdown 和长图，以及系统屏幕朗读在深浅主题和高对比度下的焦点与播报。API 12 仍需单独实测。
 
 ## 1.4.2 聊天缩放与按住说话
 
@@ -156,10 +166,6 @@
   - 1.4.x：ArkWeb 双指缩放、输入栏收起展开和滚动帧率、按住说话的单指上滑取消手感，余额请求与上下文超限恢复。
   - 覆盖安装后 localStorage 中的会话、记忆和设置是否保留。
 - **后续规划**：[`ROADMAP.md`](ROADMAP.md) 和英文版 [`ROADMAP.en.md`](ROADMAP.en.md) 列出用户可见的顺序。以下均不依赖 AppGallery Connect，用户自签的未签名包可用：
-  - 搜索历史对话只改网页。现有「搜索面板」显示联网搜索来源，与此无关。
-  - 本机朗读用 Core Speech Kit 的 `textToSpeech`，按设备能力检查，不支持时只保留 API 音色。
-  - 分享出去用 Share Kit 系统分享面板。Markdown 和长图先写入沙箱再分享文件。
-  - 无障碍主要改网页：图标按钮补 `aria-label`，弹层和菜单管理焦点顺序，原生顶栏补无障碍属性。沿用 1.3.2 的高对比度和减少透明度处理，在真机打开屏幕朗读验证。
   - 服务卡片用 FormExtensionAbility。卡片不能放输入框，快速提问只能打开新对话并聚焦输入或进入按住说话。最近对话需要网页经消息通道把标题交给原生保存。
   - 拖拽先用 ArkWeb 的网页拖放，拖入文件读不到时由原生接住，用 UDMF 读取后转给网页。
   - 折叠屏悬停由原生读取折叠状态和折痕区域，通知网页切换上下布局，需要支持悬停的折叠屏实测。

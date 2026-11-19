@@ -54,3 +54,10 @@
 .primary {
   color: var(--dsw-alias-label-primary);
 }
+
+@media (forced-colors: active) {
+  .button:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+}

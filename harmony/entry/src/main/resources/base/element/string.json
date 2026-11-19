@@ -1,5 +1,24 @@
 {
   "string": [
-    { "name": "microphone_reason", "value": "用于在本机把语音转成文字并填入输入框" }
+    {
+      "name": "microphone_reason",
+      "value": "用于录音并转写为输入框草稿"
+    },
+    {
+      "name": "web_microphone_title",
+      "value": "允许语音输入使用麦克风？"
+    },
+    {
+      "name": "web_microphone_description",
+      "value": "使用 DeepSeek API 转写时，松手确认后会上传录音。"
+    },
+    {
+      "name": "web_microphone_cancel",
+      "value": "取消"
+    },
+    {
+      "name": "web_microphone_allow",
+      "value": "允许"
+    }
   ]
 }

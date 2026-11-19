@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useLayoutEffect, useRef, useState, type ReactNode, type Ref } from 'react'
+import { useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 import {
   IconDarkOutline16,
   IconDataOutline16,
@@ -23,6 +23,7 @@ import {
   DeviceStatus,
   requestNotificationPermission,
   saveDeviceFile,
+  useDeviceFeatures,
 } from '../../services/harmony.js'
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
 import {
@@ -33,6 +34,7 @@ import {
   setLocation,
   setThemePreference,
   setTtsVoice,
+  setVoiceInputMode,
   takeReplyNotifyPrompt,
   useSettings,
   type Locale,
@@ -82,6 +84,7 @@ const SettingsContent = ({
   const t = useTranslate()
   const isMobile = useIsMobile()
   // 打开时按调用方指定的分组选中，之后在弹窗内切换
+  const tabsId = useId()
   const [section, setSection] = useState(() => useSettingsDialog.getState().section)
   useLayoutEffect(() => {
     if (!closing) {
@@ -110,13 +113,41 @@ const SettingsContent = ({
           }
         }}
       >
-        <div role="tablist" className={styles.navigation}>
+        <div
+          role="tablist"
+          aria-label={t('settings')}
+          aria-orientation={isMobile ? 'horizontal' : 'vertical'}
+          className={styles.navigation}
+          onKeyDown={(event) => {
+            const current = sections.findIndex((item) => item.value === section)
+            const previousKey = isMobile ? 'ArrowLeft' : 'ArrowUp'
+            const nextKey = isMobile ? 'ArrowRight' : 'ArrowDown'
+            const next =
+              event.key === 'Home'
+                ? 0
+                : event.key === 'End'
+                  ? sections.length - 1
+                  : event.key === previousKey
+                    ? (current + sections.length - 1) % sections.length
+                    : event.key === nextKey
+                      ? (current + 1) % sections.length
+                      : -1
+            if (next >= 0) {
+              event.preventDefault()
+              setSection(sections[next].value)
+              event.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]')[next]?.focus()
+            }
+          }}
+        >
           {sections.map((item) => (
             <button
               key={item.value}
               type="button"
               role="tab"
+              id={`${tabsId}-${item.value}`}
+              aria-controls={`${tabsId}-panel`}
               aria-selected={section === item.value}
+              tabIndex={section === item.value ? 0 : -1}
               className={clsx(styles.navItem, section === item.value && styles.navItemActive)}
               onClick={() => setSection(item.value)}
             >
@@ -125,7 +156,13 @@ const SettingsContent = ({
             </button>
           ))}
         </div>
-        <div key={section} role="tabpanel" className={styles.content}>
+        <div
+          key={section}
+          role="tabpanel"
+          id={`${tabsId}-panel`}
+          aria-labelledby={`${tabsId}-${section}`}
+          className={styles.content}
+        >
           {section === 'general' ? (
             <>
               <ThemeSetting />
@@ -138,6 +175,7 @@ const SettingsContent = ({
               ) : null}
               <HideComposerSetting />
               <LocaleSetting />
+              {__HARMONY_APP__ ? <VoiceInputSetting /> : null}
               <TtsVoiceSetting />
               <LocationSetting />
             </>
@@ -348,19 +386,52 @@ const LocaleSetting = () => {
   )
 }
 
-/** 朗读音色：stella（海星，女声）/ tide（暗潮，男声） */
+const VoiceInputSetting = () => {
+  const t = useTranslate()
+  const mode = useSettings((state) => state.voiceInputMode)
+  const local = useDeviceFeatures((state) => state.voice)
+  return (
+    <SettingCell
+      label={t('settingsVoiceInput')}
+      status={{
+        key:
+          mode === 'api'
+            ? 'settingsVoiceApiDescription'
+            : local
+              ? 'settingsVoiceLocalDescription'
+              : 'settingsVoiceLocalUnavailable',
+      }}
+      action={
+        <Select
+          ariaLabel={t('settingsVoiceInput')}
+          value={mode}
+          options={[
+            { value: 'local', label: t('settingsVoiceLocal') },
+            { value: 'api', label: t('settingsVoiceApi') },
+          ]}
+          onChange={setVoiceInputMode}
+        />
+      }
+    />
+  )
+}
+
 const TtsVoiceSetting = () => {
   const t = useTranslate()
   const ttsVoice = useSettings((state) => state.ttsVoice)
+  const localReadAloud = useDeviceFeatures((state) => state.readAloud)
   return (
     <SettingCell
       label={t('settingsTtsVoice')}
-      status={null}
+      status={ttsVoice === 'local' && !localReadAloud ? { key: 'ttsLocalUnavailable' } : null}
       action={
         <Select
           ariaLabel={t('settingsTtsVoice')}
           value={ttsVoice}
           options={[
+            ...(__HARMONY_APP__ && (localReadAloud || ttsVoice === 'local')
+              ? [{ value: 'local' as const, label: t('settingsTtsVoiceLocal') }]
+              : []),
             { value: 'stella', label: t('settingsTtsVoiceStella') },
             { value: 'tide', label: t('settingsTtsVoiceTide') },
           ]}

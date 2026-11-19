@@ -46,7 +46,7 @@ import { ACCEPT, useUploads } from '../../services/attachments.js'
 import { DraftAttachments } from './DraftAttachments.js'
 import { ContextNotice } from './ContextNotice.js'
 import { useVoiceInput } from './useVoiceInput.js'
-import { useDeviceVoiceInput } from './useDeviceVoiceInput.js'
+import { useHarmonyVoiceInput } from './useHarmonyVoiceInput.js'
 import { ScanTextButton } from './ScanTextButton.js'
 import { VoiceButton } from './VoiceButton.js'
 import { HoldToSpeak } from './HoldToSpeak.js'
@@ -55,7 +55,7 @@ import { useTranslate } from '../../i18n/index.js'
 import styles from './ChatInput.module.css'
 
 /** 鸿蒙版使用系统离线语音识别，网页版录音后调用转写接口。 */
-const useChatVoiceInput = __HARMONY_APP__ ? useDeviceVoiceInput : useVoiceInput
+const useChatVoiceInput = __HARMONY_APP__ ? useHarmonyVoiceInput : useVoiceInput
 const EMPTY_CONTEXT = getHistoryContext([])
 
 /** 输入框：自适应高度的文本框 + 文件 + 深度思考与智能搜索开关 + 语音输入 + 发送 / 停止 */
@@ -296,7 +296,10 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
           status={voice.status}
           transcript={voice.transcript}
           disabled={importingHistory}
-          start={() => void voice.start()}
+          start={() => {
+            stopReadAloud()
+            void voice.start()
+          }}
           finish={voice.finish}
           cancel={voice.cancel}
         />
@@ -388,7 +391,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
                 icon={holdVoice ? <IconKeyboardOutline16 /> : <IconMicOutline16 />}
                 tooltip={t(holdVoice ? 'holdVoiceKeyboard' : 'holdVoiceToggle')}
                 disabled={importingHistory}
-                onClick={() => {
+                onClick={(event) => {
                   if (holdVoice) {
                     voice.cancel()
                     setVoiceMode(false)
@@ -396,6 +399,14 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
                   } else {
                     textareaRef.current?.blur()
                     setVoiceMode(true)
+                    if (event.detail === 0) {
+                      const composer = event.currentTarget.closest(`.${styles.wrapper}`)
+                      requestAnimationFrame(() =>
+                        composer
+                          ?.querySelector<HTMLElement>(`.${styles.holdToSpeak}`)
+                          ?.focus({ preventScroll: true })
+                      )
+                    }
                   }
                 }}
               />

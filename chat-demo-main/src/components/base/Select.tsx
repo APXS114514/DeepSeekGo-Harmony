@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useState } from 'react'
+import { useId, useLayoutEffect, useState, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition, useDismiss } from './anchored.js'
 import { useBackLayer } from '../../services/backStack.js'
@@ -29,6 +29,7 @@ export const Select = <T extends string>({
   className?: string
   disabled?: boolean
 }) => {
+  const listId = useId()
   const [open, setOpen] = useState(false)
   const current = options.find((option) => option.value === value)
   // 菜单贴右侧展开，最多 320px 高，超出在菜单内滚动
@@ -37,8 +38,48 @@ export const Select = <T extends string>({
     HTMLDivElement
   >(open, { align: 'end', maxHeight: 320, minSpace: 160 })
   // Esc 只关菜单，不让外层弹窗一起关闭
-  useDismiss(open, [anchorRef, floatingRef], () => setOpen(false), { captureEscape: true })
-  useBackLayer(open, () => setOpen(false))
+  const close = (restore: boolean) => {
+    setOpen(false)
+    if (restore) {
+      anchorRef.current?.focus({ preventScroll: true })
+    }
+  }
+  useDismiss(open, [anchorRef, floatingRef], (reason) => close(reason === 'escape'), {
+    captureEscape: true,
+  })
+  useBackLayer(open, () => close(true))
+  useLayoutEffect(() => {
+    if (open) {
+      const list = floatingRef.current
+      const item =
+        list?.querySelector<HTMLButtonElement>('[aria-selected=true]') ??
+        list?.querySelector<HTMLButtonElement>('[role=option]')
+      item?.focus({ preventScroll: true })
+      item?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [floatingRef, open])
+  const navigate = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Tab') {
+      close(true)
+      return
+    }
+    const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role=option]')]
+    const current = items.indexOf(document.activeElement as HTMLButtonElement)
+    const next =
+      event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? items.length - 1
+          : event.key === 'ArrowDown'
+            ? (current + 1) % items.length
+            : event.key === 'ArrowUp'
+              ? (current + items.length - 1) % items.length
+              : -1
+    if (next >= 0) {
+      event.preventDefault()
+      items[next]?.focus()
+    }
+  }
 
   return (
     <>
@@ -49,6 +90,13 @@ export const Select = <T extends string>({
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault()
+            setOpen(true)
+          }
+        }}
         disabled={disabled}
         onClick={() => setOpen((value) => !value)}
       >
@@ -67,24 +115,28 @@ export const Select = <T extends string>({
               ref={floatingRef}
               className={styles.menu}
               style={position ?? undefined}
+              id={listId}
               role="listbox"
+              onKeyDown={navigate}
               aria-label={ariaLabel}
             >
               {options.map((option) => (
-                <div
+                <button
+                  type="button"
+                  tabIndex={-1}
                   key={option.value}
                   role="option"
                   lang={option.lang}
                   aria-selected={option.value === value}
                   className={styles.option}
                   onClick={() => {
-                    setOpen(false)
+                    close(true)
                     onChange(option.value)
                   }}
                 >
                   <span>{option.label}</span>
                   {option.value === value ? <IconCheckOutline16 /> : null}
-                </div>
+                </button>
               ))}
             </div>,
             document.body

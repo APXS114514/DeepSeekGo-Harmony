@@ -3,6 +3,14 @@ import type { TranslationMessage } from '../../i18n/index.js'
 import { ApiError } from '../api/client.js'
 import { classifyApiError } from '../api/errors.js'
 import { synthesize, TTS_SAMPLE_RATE } from '../api/speech.js'
+import {
+  bindDeviceReadAloud,
+  DeviceStatus,
+  startDeviceReadAloud,
+  stopDeviceReadAloud,
+  useDeviceFeatures,
+} from '../harmony.js'
+import { plainAnswer } from '../markdown/plainText.js'
 import { useSettings } from '../settings.js'
 
 /**
@@ -23,13 +31,16 @@ export const useReadAloud = create<ReadAloudState>(() => ({ messageId: null, sta
 /** 首帧前多缓冲一点，减少网络抖动造成的断续 */
 const START_DELAY = 0.1
 
-let current: { controller: AbortController; context: AudioContext } | null = null
+let current: { controller: AbortController; context?: AudioContext; unbind?: () => void } | null =
+  null
+let serial = 0
 
 const finish = (controller: AbortController) => {
   if (current?.controller !== controller) {
     return
   }
-  void current.context.close()
+  void current.context?.close().catch(() => {})
+  current.unbind?.()
   current = null
   useReadAloud.setState({ messageId: null, status: 'idle' })
 }
@@ -54,6 +65,12 @@ const toFloat32 = (bytes: Uint8Array) => {
 }
 
 export const describeReadAloudError = (error: unknown): TranslationMessage | string => {
+  if (error === 'local-unavailable') {
+    return { key: 'ttsLocalUnavailable' }
+  }
+  if (error === 'local-failed') {
+    return { key: 'ttsLocalFailed' }
+  }
   if (error instanceof ApiError && error.kind === 'protocol') {
     return error.message
   }
@@ -87,24 +104,32 @@ export const toggleReadAloud = (
   if (reading === messageId) {
     return
   }
+  const { apiKey, ttsVoice } = useSettings.getState()
+  if (__HARMONY_APP__ && ttsVoice === 'local') {
+    readLocally(messageId, text, onError)
+    return
+  }
   const controller = new AbortController()
   const context = new AudioContext({ sampleRate: TTS_SAMPLE_RATE })
   current = { controller, context }
   useReadAloud.setState({ messageId, status: 'loading' })
-  // 音色在开始朗读时读取，设置中切换后下一次朗读生效
-  const { apiKey, ttsVoice } = useSettings.getState()
 
   void (async () => {
     let nextTime = 0
     let lastSource: AudioBufferSourceNode | null = null
     let rest = new Uint8Array(0)
     try {
-      const stream = await synthesize(apiKey ?? '', text, ttsVoice, controller.signal)
+      const stream = await synthesize(
+        apiKey ?? '',
+        text,
+        ttsVoice === 'tide' ? 'tide' : 'stella',
+        controller.signal
+      )
       const reader = stream.getReader()
       controller.signal.addEventListener('abort', () => void reader.cancel().catch(() => {}))
       for (;;) {
         const { done, value } = await reader.read()
-        if (done) {
+        if (done || controller.signal.aborted) {
           break
         }
         const bytes = new Uint8Array(rest.length + value.length)
@@ -138,6 +163,49 @@ export const toggleReadAloud = (
       if (!controller.signal.aborted) {
         finish(controller)
         onError(error)
+      }
+    }
+  })()
+}
+
+const readLocally = (messageId: string, text: string, onError: (error: unknown) => void) => {
+  if (!useDeviceFeatures.getState().readAloud) {
+    onError('local-unavailable')
+    return
+  }
+  const controller = new AbortController()
+  const token = String(++serial)
+  const complete = (status: number) => {
+    if (current?.controller !== controller) {
+      return
+    }
+    finish(controller)
+    if (status !== DeviceStatus.ok && status !== DeviceStatus.cancelled) {
+      onError(status === DeviceStatus.unsupported ? 'local-unavailable' : 'local-failed')
+    }
+  }
+  const unbind = bindDeviceReadAloud((id, status) => {
+    if (id === token) {
+      complete(status)
+    }
+  })
+  controller.signal.addEventListener('abort', () => stopDeviceReadAloud(token), { once: true })
+  current = { controller, unbind }
+  useReadAloud.setState({ messageId, status: 'loading' })
+  void (async () => {
+    try {
+      const status = await startDeviceReadAloud(token, plainAnswer(text), controller.signal)
+      if (current?.controller === controller) {
+        if (status === DeviceStatus.ok) {
+          useReadAloud.setState({ status: 'playing' })
+        } else {
+          complete(status)
+        }
+      }
+    } catch {
+      if (current?.controller === controller) {
+        controller.abort()
+        complete(DeviceStatus.failed)
       }
     }
   })()

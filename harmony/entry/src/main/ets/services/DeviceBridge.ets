@@ -8,6 +8,8 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BackgroundReply, ReplyDone } from './BackgroundReply';
 import { DeviceStatus } from './DeviceStatus';
 import { FileSaver } from './FileSaver';
+import { LocalSpeech } from './LocalSpeech';
+import { ShareOut } from './ShareOut';
 import { TextScanner } from './TextScanner';
 import { VoiceInput } from './VoiceInput';
 
@@ -26,6 +28,9 @@ interface DeviceReply {
 interface DeviceFeatures {
   type: string;
   voice: boolean;
+  apiVoice: boolean;
+  readAloud: boolean;
+  share: boolean;
   scan: boolean;
   immersiveScanMenu: boolean;
   save: boolean;
@@ -50,6 +55,8 @@ export class DeviceBridge {
   private readonly voice: VoiceInput;
   private readonly scanner: TextScanner;
   private readonly saver: FileSaver;
+  private readonly speech: LocalSpeech;
+  private readonly shareOut: ShareOut;
   private readonly background: BackgroundReply;
   private readonly ui: UIContext;
   private scanMenuOpen: boolean = false;
@@ -60,6 +67,8 @@ export class DeviceBridge {
     this.voice = new VoiceInput(context, emit);
     this.scanner = new TextScanner(context);
     this.saver = new FileSaver(context);
+    this.speech = new LocalSpeech(emit);
+    this.shareOut = new ShareOut(context);
     this.background = BackgroundReply.forAbility(context);
   }
 
@@ -68,6 +77,9 @@ export class DeviceBridge {
     const features: DeviceFeatures = {
       type: 'device-features',
       voice: VoiceInput.supported(),
+      apiVoice: canIUse('SystemCapability.Multimedia.Audio.Capturer'),
+      readAloud: LocalSpeech.supported(),
+      share: ShareOut.supported(),
       scan: scan,
       immersiveScanMenu: scan && (await this.loadScanSourcePicker()) !== null,
       save: true,
@@ -99,6 +111,7 @@ export class DeviceBridge {
   /** 页面隐藏或端口重连时中断进行中的收音。 */
   interrupt(): void {
     this.voice.interrupt();
+    this.speech.stop();
   }
 
   setGenerating(generating: boolean): void {
@@ -107,6 +120,7 @@ export class DeviceBridge {
 
   dispose(): void {
     this.voice.dispose();
+    this.speech.dispose();
     this.background.setGenerating(false);
   }
 
@@ -141,6 +155,11 @@ export class DeviceBridge {
           return;
         case 'voice':
           this.handleVoice(request, port);
+          return;
+        case 'speak-stop':
+          if (typeof request.value === 'string') {
+            this.speech.stop(request.value);
+          }
           return;
         case 'reply-done':
           this.handleReplyDone(request.value);
@@ -240,18 +259,38 @@ export class DeviceBridge {
     } catch {
       return;
     }
-    if (!Number.isSafeInteger(request?.id) || request.operation !== 'save-file' ||
-      typeof request.value !== 'string') {
+    if (!Number.isSafeInteger(request?.id) || typeof request.value !== 'string') {
       return;
     }
-    const data = frame.slice(4 + headerLength);
-    if (data.byteLength > MAX_SAVE_BYTES) {
-      this.reply(port, { id: request.id, status: DeviceStatus.TOO_LARGE, value: '' });
-      return;
+    const length = frame.byteLength - 4 - headerLength;
+    const send = (status: number): void => this.reply(port, { id: request.id, status, value: '' });
+    const value = request.value;
+    switch (request.operation) {
+      case 'save-file':
+        if (length > MAX_SAVE_BYTES) {
+          send(DeviceStatus.TOO_LARGE);
+        } else {
+          this.saver.save(value, frame.slice(4 + headerLength)).then(send);
+        }
+        return;
+      case 'share-content':
+        if (length > 12 * 1024 * 1024) {
+          send(DeviceStatus.TOO_LARGE);
+        } else {
+          this.shareOut.share(value, frame.slice(4 + headerLength)).then(send);
+        }
+        return;
+      case 'speak-text':
+        if (length > 256 * 1024) {
+          send(DeviceStatus.TOO_LARGE);
+        } else {
+          const text = util.TextDecoder.create('utf-8').decodeToString(new Uint8Array(frame, 4 + headerLength));
+          this.speech.start(value, text).then(send);
+        }
+        return;
+      default:
+        return;
     }
-    this.saver.save(request.value, data).then((status) => {
-      this.reply(port, { id: request.id, status: status, value: '' });
-    });
   }
 
   private reply(port: webview.WebMessagePort, reply: DeviceReply): void {

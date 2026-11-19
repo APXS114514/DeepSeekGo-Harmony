@@ -8,19 +8,22 @@ All features in the current version of Deepseek GO. For changes by version, see 
 - **DeepThink.** Preview the latest few lines of reasoning. The preview collapses when the answer starts. Tap its heading to expand it.
 - **Web search.** Search the web with source citations. In wide windows, source cards appear alongside the chat on the right.
 - Render Markdown, highlighted code, equations, and Mermaid diagrams. Copy replies or read them aloud.
+- **Search chat history.** Search titles or messages in the current version of each chat from the sidebar. Open a chat or jump to the matching message.
 - Attach images, PDFs, Office documents, and code files.
 - **Incognito chat.** Turn it on from the new chat screen. Incognito chats skip history and memory and are discarded when you leave.
 
 ## HarmonyOS features
 
-- **Voice input.** System offline speech recognition shows text as you speak and adds it to the composer when you pause. Recognition runs on your device and uses no DeepSeek tokens.
+- **Voice input.** Hold to talk, release to add the transcript to your draft, or swipe up and release to cancel. In **Settings → General → Voice input**, choose on-device recognition (the default) or the multilingual DeepSeek API. With the API selected, releasing to confirm uploads the recording. Billing is based on audio duration.
+- **Read aloud offline.** On supported devices, choose the offline system voice or a DeepSeek API voice in **Settings → General → Read-aloud voice**.
+- **Share a reply or chat.** Open a preview from the reply toolbar or chat menu, then use the system share sheet to send a reply or the current chat branch as plain text, Markdown, or a long image.
 - **Recognize text in an image.** Take a photo or pick one from the gallery. The app recognizes text on your device and inserts it into the composer without uploading the image.
 - **Share to Deepseek GO.** Choose **Share → Deepseek GO** in another app. Text, links, images, and documents appear in a new chat for you to review before sending.
 - **Export chat history.** In **Settings → Data**, export all chats as a ZIP file and choose where to save it in the system file picker. Import an archive from the same page.
 - **Background generation and reply notifications.** Replies can keep generating in the background. Tap the completion notification to go straight to the chat. You can turn this off in **Settings → General → Reply notifications**.
 - **Secure API key storage.** HarmonyOS Asset Store keeps the key in the device’s secure storage, outside web storage.
 
-Voice input and image text recognition depend on the device’s system AI capabilities. The app hides the corresponding buttons on devices that lack support.
+On-device speech and image text recognition depend on system AI capabilities. Available controls reflect device capabilities and voice settings.
 
 ## Personalization and memory
 
@@ -43,7 +46,7 @@ Automatic memory sends one small extra request per reply and uses a few extra to
 - Replies, messages, and the composer follow the system font size up to 1.75×.
 - On 2-in-1 devices, use `Ctrl+N` for a new chat, `Ctrl+B` to toggle the sidebar, and `Ctrl+,` for Settings. Right-click a chat to rename or delete it.
 - **Immersive lighting.** The composer uses translucency and highlights. On supported devices, the image text recognition menu also uses system materials. Turn the effect off in **Settings → General**.
-- Animations follow the system’s Reduce Motion setting.
+- Animations follow the system’s Reduce Motion setting. The sidebar, history search, settings, and share preview support keyboard navigation. In voice mode, use Enter or Space to start and stop recording, and Escape to cancel.
 
 ## Privacy
 

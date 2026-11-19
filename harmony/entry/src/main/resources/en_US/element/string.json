@@ -1,0 +1,24 @@
+{
+  "string": [
+    {
+      "name": "microphone_reason",
+      "value": "Record speech and transcribe it into a chat draft"
+    },
+    {
+      "name": "web_microphone_title",
+      "value": "Allow microphone access?"
+    },
+    {
+      "name": "web_microphone_description",
+      "value": "When using the DeepSeek API, the recording is uploaded for transcription after you release to confirm."
+    },
+    {
+      "name": "web_microphone_cancel",
+      "value": "Cancel"
+    },
+    {
+      "name": "web_microphone_allow",
+      "value": "Allow"
+    }
+  ]
+}

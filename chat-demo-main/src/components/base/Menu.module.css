@@ -57,3 +57,10 @@
     background-color: var(--dsw-alias-interactive-bg-hover-danger);
   }
 }
+
+@media (forced-colors: active) {
+  .option:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}

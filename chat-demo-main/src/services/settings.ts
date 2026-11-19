@@ -3,6 +3,9 @@ import type { TtsVoice } from './api/speech.js'
 import { readDeviceApiKey, saveDeviceApiKey } from './harmony.js'
 import { normalizeLocation, type UserLocation } from './location.js'
 
+export type VoiceInputMode = 'local' | 'api'
+export type ReadAloudVoice = TtsVoice | 'local'
+
 export type Locale = 'zh-CN' | 'en-US'
 
 /** 主题偏好；默认跟随系统 */
@@ -18,7 +21,8 @@ type Settings = {
   immersiveLight: boolean
   hideComposerOnScroll: boolean
   location: UserLocation | null
-  ttsVoice: TtsVoice
+  ttsVoice: ReadAloudVoice
+  voiceInputMode: VoiceInputMode
   thinking: boolean
   search: boolean
   siderCollapsed: boolean
@@ -35,6 +39,7 @@ const KEYS = {
   immersiveLight: 'chat-demo:immersive-light',
   hideComposerOnScroll: 'chat-demo:hide-composer-on-scroll',
   ttsVoice: 'chat-demo:tts-voice',
+  voiceInputMode: 'chat-demo:voice-input-mode',
   thinking: 'chat-demo:thinking',
   search: 'chat-demo:search',
   siderCollapsed: 'chat-demo:sider-collapsed',
@@ -98,7 +103,10 @@ export const normalizeAccentColor = (value: string): string | null => {
 }
 
 /** 未保存过时使用服务端默认音色 stella（海星） */
-const initialTtsVoice = (): TtsVoice => (read(KEYS.ttsVoice) === 'tide' ? 'tide' : 'stella')
+const initialTtsVoice = (): ReadAloudVoice => {
+  const saved = read(KEYS.ttsVoice)
+  return saved === 'tide' || (__HARMONY_APP__ && saved === 'local') ? saved : 'stella'
+}
 
 export const useSettings = create<Settings>(() => ({
   apiKey: __HARMONY_APP__ ? null : read(KEYS.apiKey),
@@ -110,6 +118,7 @@ export const useSettings = create<Settings>(() => ({
   immersiveLight: read(KEYS.immersiveLight) !== 'false',
   hideComposerOnScroll: read(KEYS.hideComposerOnScroll) === 'true',
   ttsVoice: initialTtsVoice(),
+  voiceInputMode: read(KEYS.voiceInputMode) === 'api' ? 'api' : 'local',
   thinking: read(KEYS.thinking) === 'true',
   search: read(KEYS.search) === 'true',
   siderCollapsed: read(KEYS.siderCollapsed) === 'true',
@@ -151,7 +160,12 @@ export const setHideComposerOnScroll = (hideComposerOnScroll: boolean) => {
   useSettings.setState({ hideComposerOnScroll })
 }
 
-export const setTtsVoice = (ttsVoice: TtsVoice) => {
+export const setVoiceInputMode = (voiceInputMode: VoiceInputMode) => {
+  write(KEYS.voiceInputMode, voiceInputMode)
+  useSettings.setState({ voiceInputMode })
+}
+
+export const setTtsVoice = (ttsVoice: ReadAloudVoice) => {
   write(KEYS.ttsVoice, ttsVoice)
   useSettings.setState({ ttsVoice })
 }

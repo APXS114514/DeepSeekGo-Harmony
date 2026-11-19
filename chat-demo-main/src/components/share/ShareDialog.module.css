@@ -1,0 +1,46 @@
+.dialog {
+  width: min(540px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+}
+
+.main {
+  min-height: 0;
+  overflow: auto;
+}
+
+.format {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  color: var(--dsw-alias-label-primary);
+
+  select {
+    border: 1px solid var(--dsw-alias-label-secondary);
+    border-radius: 8px;
+    padding: 6px 8px;
+    color: inherit;
+    background: var(--dsw-alias-bg-layer-2);
+    font: inherit;
+  }
+}
+
+.preview {
+  box-sizing: border-box;
+  max-height: min(360px, 48vh);
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--dsw-alias-border-inverted);
+  border-radius: 10px;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+}
+
+@media (forced-colors: active) {
+  .preview {
+    border-color: CanvasText;
+  }
+}

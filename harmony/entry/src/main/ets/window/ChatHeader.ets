@@ -18,7 +18,7 @@ export struct ChatHeader {
   actionButton(symbol: Resource, label: string, action: () => void) {
     Button({ type: ButtonType.Circle, buttonStyle: ButtonStyleMode.TEXTUAL, stateEffect: true }) {
       // 图标固定 22vp，与网页顶栏一致；标题用 fp 跟随系统字体。
-      SymbolGlyph(symbol).fontSize('22vp').fontColor([this.foreground()]);
+      SymbolGlyph(symbol).fontSize('22vp').fontColor([this.foreground()]).accessibilityLevel('no');
     }
     .width(44)
     .height(44)
@@ -31,6 +31,7 @@ export struct ChatHeader {
     Row({ space: 8 }) {
       this.actionButton($r('sys.symbol.line_3_horizontal'), this.menuLabel, this.onMenu)
       Text(this.title)
+        .accessibilityGroup(true)
         .layoutWeight(1)
         .fontSize(15)
         .fontWeight(FontWeight.Medium)

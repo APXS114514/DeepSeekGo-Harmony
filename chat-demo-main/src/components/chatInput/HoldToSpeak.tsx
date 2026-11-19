@@ -25,7 +25,7 @@ export const HoldToSpeak = ({
   cancel: () => void
 }) => {
   const t = useTranslate()
-  const held = useRef<PointerHold | { key: string } | null>(null)
+  const held = useRef<PointerHold | null>(null)
   const [pointerPhase, setPointerPhase] = useState<'holding' | 'cancelling' | null>(null)
   const listening = status === 'recording'
   const cancelArmed = listening && pointerPhase === 'cancelling'
@@ -39,7 +39,7 @@ export const HoldToSpeak = ({
           ? 'harmonyVoiceFinishing'
           : 'holdVoiceSpeak'
   )
-  const release = (key: number | string, aborted: boolean) => {
+  const release = (key: number, aborted: boolean) => {
     if (held.current?.key === key) {
       held.current = null
       setPointerPhase(null)
@@ -55,7 +55,17 @@ export const HoldToSpeak = ({
       type="button"
       disabled={disabled}
       className={styles.holdToSpeak}
-      aria-label={label}
+      aria-label={
+        pointerPhase
+          ? label
+          : t(
+              listening
+                ? 'voiceAccessibleFinish'
+                : status === 'transcribing'
+                  ? 'voiceAccessibleCancel'
+                  : 'holdVoiceSpeak'
+            )
+      }
       aria-pressed={listening}
       data-cancel-armed={cancelArmed ? '' : undefined}
       onContextMenu={(event) => event.preventDefault()}
@@ -73,37 +83,24 @@ export const HoldToSpeak = ({
       }}
       onPointerMove={(event) => {
         const hold = held.current
-        if (hold?.key === event.pointerId && 'startY' in hold) {
+        if (hold?.key === event.pointerId) {
           setPointerPhase(shouldCancelSwipe(hold, event.clientY) ? 'cancelling' : 'holding')
         }
       }}
       onPointerUp={(event) => {
         const hold = held.current
-        if (hold?.key === event.pointerId && 'startY' in hold) {
+        if (hold?.key === event.pointerId) {
           release(event.pointerId, shouldCancelSwipe(hold, event.clientY))
         }
       }}
       onPointerCancel={(event) => release(event.pointerId, true)}
       onLostPointerCapture={(event) => release(event.pointerId, true)}
       onKeyDown={(event) => {
-        if (event.key === ' ' || event.key === 'Enter') {
+        if (event.key === 'Escape' && status !== 'idle') {
           event.preventDefault()
-          if (!event.repeat && held.current === null && status === 'idle') {
-            held.current = { key: event.key }
-            start()
-          }
-        }
-      }}
-      onKeyUp={(event) => {
-        if (event.key === ' ' || event.key === 'Enter') {
-          event.preventDefault()
-          release(event.key, false)
-        }
-      }}
-      onBlur={() => {
-        const hold = held.current
-        if (typeof hold?.key === 'string') {
-          release(hold.key, true)
+          held.current = null
+          setPointerPhase(null)
+          cancel()
         }
       }}
       onClick={(event) => {
@@ -112,6 +109,8 @@ export const HoldToSpeak = ({
             start()
           } else if (listening) {
             finish()
+          } else {
+            cancel()
           }
         }
       }}
