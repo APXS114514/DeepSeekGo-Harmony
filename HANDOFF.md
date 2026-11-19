@@ -140,7 +140,15 @@
 
 ## 验证与后续
 
-- 下文记录中的 `Game-Miscellaneous/` 脚本位于维护者的本机工作区。新克隆可直接运行本仓库的前端检查和构建命令。
+- **浏览器回归**：脚本在 [`chat-demo-main/tests/harmony/`](chat-demo-main/tests/harmony/)，在 `chat-demo-main/` 运行 `pnpm test:harmony`。它先执行 `pnpm build:harmony`，再由 `run.mjs` 依次运行全部 `*.test.mjs` 并汇总结果；`node tests/harmony/run.mjs personalization` 只运行文件名包含该片段的脚本，设置 `SHOTS_DIR` 可保存脚本截图。脚本加载鸿蒙网页资源，用模拟的 DeepSeek 接口（含 `/user/balance`）和 ArkWeb 消息通道，不需要真实 Key。依赖开发依赖 `playwright-core@1.62.1`（不下载浏览器），默认用 `channel: 'chrome'` 启动本机 Google Chrome，可用 `CHROME_PATH` 改为其他 Chromium 内核浏览器。仓库路径由 `support.mjs` 根据脚本位置推算，不依赖本机目录。
+  - `device-features`：分享冷启动与运行中接收、按住说话（实时文字、引擎先结束时等松手提交、松手后等最终结果、上滑取消、系统中断、权限拒绝、识别出错、没识别到内容、切回键盘）、拍照与图库识字、导出保存，以及设备不支持时隐藏入口。
+  - `personalization`：自定义指令、记忆的自动提炼、整理、撤销、编辑和清空。
+  - `adaptation`：顶栏对齐、返回手势分层、字体缩放、键盘偏移时的安全区、无痕对话、后台完成通知、2in1 快捷键与右键菜单、按住说话时返回只取消收音。
+  - `appearance-settings`：默认主题色、深浅色背景跟随主题色、开关分隔和位置信息。
+  - `window-sizes`：五种悬浮窗和分屏尺寸下没有越界或横向滚动。
+  - `motion-smoke`、`brand-sider-smoke`、`edit-regression`：1.0.x 起的键盘、动效、侧栏、Logo、Key 保存与消息编辑回归。
+  - `readme-shots.mjs` 不是测试，运行 `pnpm screenshots` 会把 README 截图写到 `assets/images/screenshots/`，也可以传入其他输出目录。
+- 1.4.2 起回归脚本从维护者本机的 `Game-Miscellaneous/` 移入仓库，并按 1.4.x 的行为更新：补上余额接口的模拟，语音改为按住说话，不支持语音时空输入框不显示发送键。下文较早的记录里提到的 `Game-Miscellaneous/` 路径只作历史参考。`device-features` 清空输入框前等待 100ms，避开语音写入后移动光标的那一帧打断全选。
 - 前端已通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony` 和 `pnpm build`。这些命令在 `chat-demo-main/` 下执行，`pnpm build:harmony` 生成 ArkWeb 网页资源。
 - 1.0.6 浏览器模拟已验证键盘开合与失焦、Logo 完整显示、首条消息、设置和搜索面板、小窗抽屉和宽窗侧栏、减少动态效果、草稿保留、思考折叠与历史消息编辑。
 - 检查原生代码时用 HarmonyOS 26.0.0 SDK 自带的 `codelinter`，例如在 `harmony/` 下运行 `codelinter -p default -e error entry/src/main/ets/pages/Index.ets`。1.0.6 的键盘配置已通过该检查。真机待验证项包括系统键盘与页面动效同步、横屏和分屏下的可用高度、启动器图标、折叠屏展开态侧栏及深浅主题下的顶栏反馈。

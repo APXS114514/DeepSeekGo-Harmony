@@ -17,6 +17,8 @@
    pnpm build:harmony
    ```
 
+   改动界面行为时，再运行浏览器回归 `pnpm test:harmony`。它会先构建鸿蒙网页资源，再用本机安装的 Google Chrome 依次跑 `chat-demo-main/tests/harmony/` 下的脚本，接口和设备消息通道都是模拟的，不需要真实 API Key。Chrome 不在默认位置时，用 `CHROME_PATH` 指定可执行文件。
+
 3. 修改原生代码或鸿蒙配置时，使用带 HarmonyOS 26.0.0 SDK 的 DevEco Studio 检查，并留意 HarmonyOS 5.0（API 12）的最低兼容要求。构建步骤见 [README](README.md#从源码构建)。
 4. 提交前运行 `git diff --check`。PR 里简要写清要解决的问题、改动效果、验证步骤和未覆盖的场景。界面改动请附截图。API Key、私钥、签名文件和构建产物请留在本机。
 

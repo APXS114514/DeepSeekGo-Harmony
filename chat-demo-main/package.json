@@ -11,6 +11,8 @@
     "build:harmony": "NODE_ENV=production CHAT_DEMO_PLATFORM=harmony rspack build -c rspack.config.ts",
     "type": "tsc -p tsconfig.json",
     "lint": "oxlint src rspack.config.ts",
+    "test:harmony": "pnpm build:harmony && node tests/harmony/run.mjs",
+    "screenshots": "node tests/harmony/readme-shots.mjs",
     "format": "oxfmt --write ."
   },
   "dependencies": {
@@ -43,6 +45,7 @@
     "@types/node": "~20.9.2",
     "oxfmt": "0.48.0",
     "oxlint": "1.63.0",
+    "playwright-core": "1.62.1",
     "typescript": "7.0.2"
   }
 }

@@ -9,7 +9,7 @@
 ## 开发与验证
 
 - 开始前读 `HANDOFF.md`，检查 `git status --short`。如果仓库根目录有 `AGENTS.local.md`，同时读取其中适用于当前工作区的本机说明。保留已有改动，按可独立验证的任务组织提交。
-- 修复 Bug 时尽量先用原入口复现，再用同一场景验证。修改前端后，在 `chat-demo-main/` 运行 `pnpm type`、`pnpm lint` 和 `pnpm build:harmony`。改 ArkTS 或鸿蒙配置时，用相应 SDK 检查改动及最低版本兼容性。
+- 修复 Bug 时尽量先用原入口复现，再用同一场景验证。修改前端后，在 `chat-demo-main/` 运行 `pnpm type`、`pnpm lint` 和 `pnpm build:harmony`；改动界面行为时再运行 `pnpm test:harmony`，并在 `chat-demo-main/tests/harmony/` 补充或更新对应回归。改 ArkTS 或鸿蒙配置时，用相应 SDK 检查改动及最低版本兼容性。
 - 修改键盘、侧栏、动画、消息流、会话存储或 API Key 保存时，从实际页面入口做相关回归。浏览器测试用模拟 API 和设备消息通道，检查成功路径及这次涉及的失败或重试路径。涉及真机效果时，有设备就验证实际安装的版本；交接时记录未实测的部分。
 - 提交前运行 `git diff --check` 并自查暂存改动，确认文件属于本次任务，保留用户已有工作，且源码和交付内容中没有密钥或签名材料。汇报提交、通过的检查和待验证项。
 
