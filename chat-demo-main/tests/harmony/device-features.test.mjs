@@ -665,6 +665,69 @@ try {
       document.activeElement?.hasAttribute('data-history-message') &&
       document.activeElement.textContent.includes('独特消息 1+1')
   )
+  // 用已保存的 50 条标题命中复现搜索弹窗铺满窗口。
+  await featurePage.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        const request = indexedDB.open('chat-demo')
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const db = request.result
+          const tx = db.transaction(['sessions', 'sessionSummaries'], 'readwrite')
+          tx.oncomplete = () => {
+            db.close()
+            resolve()
+          }
+          tx.onerror = () => {
+            db.close()
+            reject(tx.error)
+          }
+          for (let index = 0; index < 50; index++) {
+            const title = `批量搜索测试 ${index + 1}`
+            const summary = {
+              id: `search-fixture-${index}`,
+              title,
+              createdAt: index,
+              updatedAt: index,
+            }
+            tx.objectStore('sessions').put({ ...summary, messages: [] })
+            tx.objectStore('sessionSummaries').put({ ...summary, fileIds: [] })
+          }
+        }
+      })
+  )
+  await featurePage.emulateMedia({ reducedMotion: 'reduce' })
+  for (const [width, height] of [
+    [942, 680],
+    [360, 320],
+  ]) {
+    await featurePage.setViewportSize({ width, height })
+    await featurePage.reload()
+    await featurePage.getByText('今天想聊什么？', { exact: true }).waitFor()
+    if (!(await history.isVisible())) {
+      await openSider()
+    }
+    await history.click()
+    await searchField.fill('批量搜索测试')
+    await search.getByRole('status').getByText('显示 50 条结果').waitFor()
+    const bounds = await search.boundingBox()
+    assert(
+      bounds.height <= height * 0.78,
+      `${width}×${height} 搜索弹窗应留出屏幕边距，实际高 ${bounds.height}px`
+    )
+    const before = await searchField.boundingBox()
+    const results = search.getByRole('list')
+    const scroll = await results.evaluate((list) => {
+      list.scrollTop = list.scrollHeight
+      return list.scrollTop
+    })
+    assert(scroll > 0, '长结果列表应可独立滚动')
+    assert.equal((await searchField.boundingBox()).y, before.y, '滚动结果时搜索框应保持可见')
+    assert.equal(await results.getByRole('listitem').count(), 50)
+    const last = results.getByRole('listitem').last().getByRole('button')
+    await last.click()
+    await search.waitFor({ state: 'hidden' })
+  }
   assert.deepEqual(experience.errors, [])
   await experience.context.close()
 

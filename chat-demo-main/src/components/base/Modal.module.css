@@ -49,7 +49,7 @@
 }
 
 :global(.harmony-app) .content {
-  max-height: 100%;
+  max-height: var(--modal-max-height, 100%);
   animation: dialog-enter var(--surface-motion) both;
 }
 
