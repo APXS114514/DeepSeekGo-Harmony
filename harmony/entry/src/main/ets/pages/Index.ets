@@ -51,6 +51,7 @@ struct Index {
   private mainWindow: window.Window | null = null;
   private disposed: boolean = false;
   private hasWindowUi: boolean = false;
+  private insetsRevision: number = 0;
   private nativeColorMode?: ConfigurationConstant.ColorMode;
   @State private insets: WindowInsets = EMPTY_INSETS;
   @State private pageZoomed: boolean = false;
@@ -90,17 +91,32 @@ struct Index {
     if (!mainWindow) {
       return;
     }
+    const revision = ++this.insetsRevision;
+    const ui = this.getUIContext();
     try {
       let immersive = mainWindow.getImmersiveModeEnabledState();
       if (deviceInfo.sdkApiVersion >= 20 && canIUse('SystemCapability.Window.SessionManager')) {
         immersive = mainWindow.isImmersiveLayout();
       }
-      this.insets = immersive ? readWindowInsets(mainWindow, this.getUIContext()) : EMPTY_INSETS;
-      this.sendWindowLayout();
+      if (!immersive) {
+        this.insets = EMPTY_INSETS;
+        this.sendWindowLayout();
+        return;
+      }
+      readWindowInsets(mainWindow, ui).then((insets) => {
+        if (!this.disposed && this.insetsRevision === revision) {
+          this.insets = insets;
+          this.sendWindowLayout();
+        }
+      }).catch((error: BusinessError) => this.logInsetError(error));
     } catch (error) {
-      hilog.warn(0x0000, 'PocketChat', 'Unable to read window insets: %{public}d', (error as BusinessError).code);
+      this.logInsetError(error as BusinessError);
     }
   };
+
+  private logInsetError(error: BusinessError): void {
+    hilog.warn(0x0000, 'PocketChat', 'Unable to read window insets: %{public}d', error.code);
+  }
 
   /** 把系统分享收到的内容交给网页；页面未连接时留在队列里。 */
   private flushShares = (): void => {

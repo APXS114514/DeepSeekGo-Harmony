@@ -1,4 +1,5 @@
 // 为 README 生成截图：加载鸿蒙版网页资源，接口与设备消息通道使用模拟数据。
+import assert from 'node:assert/strict'
 import { mkdir, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { extname, join } from 'node:path'
@@ -234,6 +235,44 @@ try {
     })
     console.log(width, height, JSON.stringify(overflow))
     await page.screenshot({ path: join(out, `w${width}x${height}-chat.png`) })
+    await context.close()
+  }
+  // Pura X Max 展开时的桌面式设置不能因位置说明过宽而横向滚动。
+  for (const width of [768, 942]) {
+    const { context, page } = await open({
+      width,
+      height: 680,
+      scale: 1,
+      storage: { ...quietMemory, 'chat-demo:sider-collapsed': 'true' },
+      mobile: true,
+    })
+    const welcome = page.getByText('今天想聊什么？', { exact: true })
+    await page.evaluate(() =>
+      window.devicePost({
+        type: 'window-layout',
+        insets: { top: 42, right: 0, bottom: 16, left: 0 },
+        nativeHeader: false,
+      })
+    )
+    const bounds = await welcome.boundingBox()
+    assert(Math.abs(bounds.x + bounds.width / 2 - width / 2) < 1, '欢迎信息应以窗口为中心')
+    await page.getByRole('button', { name: '打开边栏' }).click()
+    await page.getByRole('button', { name: '设置', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: '设置', exact: true })
+    for (const name of ['通用设置', '个性化', '数据管理']) {
+      await dialog.getByRole('tab', { name, exact: true }).click()
+      const panel = dialog.getByRole('tabpanel')
+      const metrics = await panel.evaluate((node) => {
+        const width = node.clientWidth
+        const scrollWidth = node.scrollWidth
+        node.scrollLeft = 100
+        node.scrollTop = 100
+        return { overflow: scrollWidth - width, x: node.scrollLeft, y: node.scrollTop }
+      })
+      assert.equal(metrics.overflow, 0, `${width}px 下的${name}应完整显示`)
+      assert.equal(metrics.x, 0)
+      if (name === '通用设置') assert(metrics.y > 0, '设置仍能纵向滚动')
+    }
     await context.close()
   }
   console.log('window sizes: OK')

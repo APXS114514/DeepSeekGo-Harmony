@@ -72,8 +72,9 @@
   min-height: 0;
   margin-right: -24px;
   padding: 0 24px;
+  overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior-y: contain;
+  overscroll-behavior: none contain;
 }
 
 .cell {
@@ -119,7 +120,8 @@
 }
 
 .locationCell .text {
-  flex: 1 0 auto;
+  flex: 1 1 220px;
+  overflow-wrap: anywhere;
   padding-right: 8px;
 }
 

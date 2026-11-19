@@ -3,9 +3,10 @@
   --surface-motion: 200ms cubic-bezier(0.2, 0.75, 0.25, 1);
   --viewport-transition: none;
   --app-safe-top: max(env(safe-area-inset-top, 0px), var(--native-inset-top, 0px));
-  --app-safe-right: max(env(safe-area-inset-right, 0px), var(--native-inset-right, 0px));
+  /* 原生按窗口把角落挖孔划入上下边，避免 ArkWeb 再把它当成整条侧边。 */
+  --app-safe-right: var(--native-inset-right, env(safe-area-inset-right, 0px));
   --app-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--native-inset-bottom, 0px));
-  --app-safe-left: max(env(safe-area-inset-left, 0px), var(--native-inset-left, 0px));
+  --app-safe-left: var(--native-inset-left, env(safe-area-inset-left, 0px));
   --app-display-safe-top: calc(var(--app-safe-top) / var(--app-page-scale, 1));
   --app-display-safe-right: calc(var(--app-safe-right) / var(--app-page-scale, 1));
   --app-display-safe-left: calc(var(--app-safe-left) / var(--app-page-scale, 1));
