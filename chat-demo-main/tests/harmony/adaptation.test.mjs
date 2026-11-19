@@ -27,13 +27,13 @@ const media = {
 const chats = []
 const extractions = []
 let hold = null
-const sse = (text, title) =>
+const sse = (text, title, stopReason = 'end_turn') =>
   [
     { type: 'message_start', message: { id: 'mock', content: [] } },
     { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
     { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } },
     { type: 'content_block_stop', index: 0 },
-    { type: 'message_delta', delta: { stop_reason: 'end_turn', title } },
+    { type: 'message_delta', delta: { stop_reason: stopReason, title } },
     { type: 'message_stop' },
   ]
     .map((frame) => `event: ${frame.type}\ndata: ${JSON.stringify(frame)}\n\n`)
@@ -48,6 +48,7 @@ const open = async ({
   features = {},
   storage = {},
   insets = { top: 31, right: 0, bottom: 18, left: 0 },
+  refuseReply = false,
 } = {}) => {
   const context = await browser.newContext({
     locale: 'zh-CN',
@@ -156,7 +157,9 @@ const open = async ({
     return route.fulfill({
       headers,
       contentType: 'text/event-stream',
-      body: sse(`第 ${chats.length} 条：**加粗**和 \`code\`\n\n- 列表`, `测试会话 ${chats.length}`),
+      body: refuseReply
+        ? sse('待审核的示例正文', undefined, 'refusal')
+        : sse(`第 ${chats.length} 条：**加粗**和 \`code\`\n\n- 列表`, `测试会话 ${chats.length}`),
     })
   })
   const page = await context.newPage()
@@ -276,6 +279,7 @@ try {
     await page.getByText('第 1 条').first().waitFor()
     await page.waitForFunction(() => window.lastWindowUi.generating === false)
     assert(chats[0].system.includes('我在杭州') && chats[0].system.includes('- 用户是护士'))
+    assert.equal(Object.hasOwn(chats[0], 'safety_check'), false)
     await page.waitForFunction(() => window.deviceLog.some((e) => e.operation === 'reply-done'))
     const done = JSON.parse(
       (await page.evaluate(() => window.deviceLog.find((e) => e.operation === 'reply-done'))).value
@@ -293,6 +297,7 @@ try {
       .evaluate((el) => getComputedStyle(el).fontSize)
     assert.equal(bubble, '24px')
     await waitFor(page, async () => extractions.length === 1, 'memory extraction for saved chat')
+    assert.deepEqual(extractions[0].safety_check, { level: 'high' })
 
     // 消息编辑：返回取消编辑
     await page.getByText('你好，我想聊聊排班').hover()
@@ -481,6 +486,23 @@ try {
       insets: { top: 0, right: 0, bottom: 0, left: 0 },
     })
     await page.getByRole('button', { name: '收起边栏', exact: true }).waitFor()
+    await context.close()
+  }
+
+  // 无痕联网请求使用服务端默认检查，仍处理流式响应结尾的拒答。
+  {
+    const { context, page, errors } = await open({ refuseReply: true })
+    await page.getByRole('button', { name: '无痕对话', exact: true }).click()
+    await page.getByRole('button', { name: '智能搜索', exact: true }).click()
+    await send(page, '测试一条联网请求', '这个问题我暂时答不上来，换个话题吧。')
+    const request = chats.at(-1)
+    assert.equal(Object.hasOwn(request, 'safety_check'), false)
+    assert.deepEqual(
+      request.tools.map(({ type }) => type),
+      ['deepseek_read_url', 'deepseek_web_search']
+    )
+    assert.equal(await page.getByText('待审核的示例正文', { exact: true }).count(), 0)
+    assert.deepEqual(errors, [])
     await context.close()
   }
   console.log(`1.3 regression: OK (${chats.length} chats, ${extractions.length} extractions)`)
