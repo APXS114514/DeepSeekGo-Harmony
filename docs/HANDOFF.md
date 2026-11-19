@@ -3,7 +3,7 @@
 ## 工作区
 
 - 当前源码为 1.5.3，版本代码为 `1000021`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
-- 1.5.3 未签名 Release 测试包为 `HAPS/Deepseek-GO-1.5.3-unsigned.hap`，构建自 1.5.3 版本提交，源码含修复提交 `735c1fa`。SHA-256 为 `057defced981edb56680589ba5465db163da2021e5c295b4f36bb77efbe01631`。维护者签名安装后已在 HOP-AL10 真机复测通过，尚未推送、打标签或发布。
+- 1.5.3 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.3-unsigned.hap`，对应标签 `v1.5.3`（指向 `1990016`，与构建源码只差交接文档）。SHA-256 为 `057defced981edb56680589ba5465db163da2021e5c295b4f36bb77efbe01631`。维护者签名安装后已在 HOP-AL10 真机复测通过。GitHub Releases 的 `v1.5.3` 附件与本地包逐字节一致。
 - 1.5.2 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.2-unsigned.hap`，对应标签 `v1.5.2`。SHA-256 为 `235375f025fab29424731279fdd1a53ef8428f356fb9d7e32f5c9262b092dcd6`。
 - 已发布的 1.5.1 未签名 Release 包 `HAPS/Deepseek-GO-1.5.1-unsigned.hap` 构建自 `94bda5f`，SHA-256 为 `e58277edddb7c8170aff7e5cf0868dc4098a7d569499a139d10ba5bf86544695`。上一份 1.5.1 测试包构建自 `1f3d305`，归档为 `HAPS/Deepseek-GO-1.5.1-1f3d305-unsigned.hap`，SHA-256 为 `eeb609199e827a02c558f5b6d8dcd3247c1e578fec2c474f48854eec2f65d501`。
 - 1.5.0 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.0-unsigned.hap`，构建自提交 `902b474`，版本代码 `1000018`。维护者确认本轮测试通过，9 项鸿蒙回归与 HarmonyOS 26.0.0 SDK Release 构建通过。包内确认最低 API 12、155 个网页资源、欢迎页 Logo、启动器图标和图像授权声明。SHA-256 为 `cad85a0ab5374258c81124d645e982946cd62aa6859e10a53e53ac23a62796f5`。上一包归档为 `HAPS/Deepseek-GO-1.5.0-6f7b82e-unsigned.hap`，SHA-256 为 `9bd35be013fc782621fc5155d383fdc4e4c30ace2c249495bdc999de4ab2a5d0`。
