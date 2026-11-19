@@ -3,7 +3,7 @@
 ## 工作区
 
 - 当前源码为 1.5.0，版本代码为 `1000018`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
-- 1.5.0 未签名 Release 测试包为 `HAPS/Deepseek-GO-1.5.0-unsigned.hap`，构建自布局修复提交 `82b7a26`，版本代码 `1000018`。包内确认最低 API 12、155 个网页资源、欢迎页 Logo 和启动器图标。SHA-256 为 `5cd46a8404b34a8dd028235d4c886a3400fe21b3d09eb08125dc4de6d2e4d380`。初版测试包保存在 `HAPS/Deepseek-GO-1.5.0-849467f-unsigned.hap`，SHA-256 为 `4723af157bb0cad269d97cd4ce5e0a993390fcb54559aa1787046e7917d110c5`。
+- 1.5.0 未签名 Release 测试包为 `HAPS/Deepseek-GO-1.5.0-unsigned.hap`，构建自提交 `da3e022`，版本代码 `1000018`。包内确认最低 API 12、155 个网页资源、欢迎页 Logo 和启动器图标。SHA-256 为 `bce48ca72fc5abf45741ccc9e6d04f2915428b4f06e3db3a911c05e2b388da02`。布局修订包归档为 `HAPS/Deepseek-GO-1.5.0-82b7a26-unsigned.hap`，SHA-256 为 `5cd46a8404b34a8dd028235d4c886a3400fe21b3d09eb08125dc4de6d2e4d380`。初版测试包保存在 `HAPS/Deepseek-GO-1.5.0-849467f-unsigned.hap`，SHA-256 为 `4723af157bb0cad269d97cd4ce5e0a993390fcb54559aa1787046e7917d110c5`。
 - 1.4.2 本地测试包是 `HAPS/Deepseek-GO-1.4.2-unsigned.hap`，版本代码为 `1000017`，对应提交 `cb3286d`。SHA-256 为 `1f1f80763a6ff192d75f1011301b408aeb391534eb0316ca7cd2496f365cf844`。上一轮测试包归档在 `HAPS/Deepseek-GO-1.4.2-ed689a4-unsigned.hap`，SHA-256 为 `6360fbf238728e2e9d5b4b4bd4b67e9c60f026f94cc24a55f91aa51c489ac774`。
 - 最近一次发布是 GitHub Releases 的 `v1.4.2`，标签指向提交 `f3908b0`。该版本已通过用户测试，远端 HAP 与上列本地测试包的 SHA-256 一致。只有用户明确要求时才打包当前源码版本。
 - 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。贡献方式见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。仓库只收源码、配置、文档和图片资源。根目录只留 README、AGENTS、许可证和图像授权声明，其他文档在 `docs/`。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`，使用鸿蒙版网页构建产物、模拟接口和设备消息通道生成。维护者的截图生成命令见本机 `AGENTS.local.md`。
@@ -45,7 +45,7 @@
 - 通过 `pnpm type`、`pnpm lint`、网页版与鸿蒙网页构建、`pnpm test:harmony` 的 8 个脚本、ArkTS CodeLinter 和 HarmonyOS 26.0.0 SDK Debug 构建。确认包名 `com.pocketchat.deepseek`、版本 `1.5.0` / `1000018` 和最低 API 12，包内 155 个网页资源与构建产物逐字节一致。新增浏览器回归使用虚拟麦克风和模拟消息通道，覆盖语音默认值及持久化、API 授权拒绝和重试、上滑取消、键盘操作、本机朗读和停止、三种分享格式与失败重试、标题和正文搜索、消息定位以及强制色彩焦点。
 - 已在 HOP-AL10（HarmonyOS 7.0.0.111，API 26）从 1.4.2 覆盖至初版 1.5.0（提交 `849467f`），确认已有历史条目仍可打开侧栏查看、语音输入默认本地且可选 DeepSeek API、可选本机离线朗读，以及历史搜索的空结果。待真机验证 ArkWeb 麦克风授权、离线朗读和系统音频打断、系统分享接收应用能否打开 Markdown 和长图，以及系统屏幕朗读在深浅主题和高对比度下的焦点与播报。API 12 仍需单独实测。
 
-- 多结果以 50 条已保存会话在 942×680 的鸿蒙模拟窗口复现。历史搜索弹窗高度限制为可见空间的 75%，上限 560px，结果列表单独滚动。在 942×680 和 360×320 上验证输入框保持原位、可滚到底并打开最后一项。
+- 多结果以 50 条已保存会话在 942×680 的鸿蒙模拟窗口复现。历史搜索弹窗高度限制为可见空间的 75%，上限 560px，结果列表单独滚动。在 942×680 和 360×320 上验证输入框保持原位、可滚到底并打开最后一项。前端类型、Lint、双平台网页构建、8 项鸿蒙浏览器回归和 SDK Release 构建通过，搜索弹窗修复待最新版覆盖安装后实测。
 
 ### Pura X Max 内屏布局
 
