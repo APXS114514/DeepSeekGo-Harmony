@@ -31,7 +31,7 @@ export const mergeTranscript = (
 
 /**
  * 鸿蒙系统离线语音输入：按住开始，松开后结束。引擎也会在检测到停顿后自动结束。
- * 识别中实时显示文字，结束后整段交给 onText。不经过 DeepSeek API。
+ * 识别中实时显示文字，松手确认后整段交给 onText。不经过 DeepSeek API。
  */
 export const useDeviceVoiceInput = (onText: (text: string) => void) => {
   const available = useDeviceFeatures((state) => state.voice)
@@ -41,6 +41,7 @@ export const useDeviceVoiceInput = (onText: (text: string) => void) => {
   const operationRef = useRef(0)
   const startingRef = useRef(false)
   const stopAfterStart = useRef(false)
+  const completedRef = useRef(false)
   const statusRef = useRef<VoiceInputStatus>('idle')
   const onTextRef = useRef(onText)
   onTextRef.current = onText
@@ -53,6 +54,7 @@ export const useDeviceVoiceInput = (onText: (text: string) => void) => {
   const reset = useCallback(() => {
     startingRef.current = false
     stopAfterStart.current = false
+    completedRef.current = false
     textRef.current = { committed: '', partial: '' }
     setTranscript('')
     update('idle')
@@ -66,10 +68,20 @@ export const useDeviceVoiceInput = (onText: (text: string) => void) => {
     reset()
   }, [reset])
 
+  const commit = useCallback(() => {
+    const text = (textRef.current.committed + textRef.current.partial).trim()
+    reset()
+    if (text) {
+      onTextRef.current(text)
+    } else {
+      showToast({ key: 'voiceInputEmpty' })
+    }
+  }, [reset])
+
   useEffect(
     () =>
       bindDeviceVoice((event: DeviceVoiceEvent) => {
-        if (statusRef.current === 'idle') {
+        if (statusRef.current === 'idle' || completedRef.current) {
           return
         }
         if (event.event === 'result') {
@@ -78,23 +90,29 @@ export const useDeviceVoiceInput = (onText: (text: string) => void) => {
           return
         }
         operationRef.current++
-        const text = (textRef.current.committed + textRef.current.partial).trim()
         if (event.event === 'end') {
-          if (text) {
-            onTextRef.current(text)
+          // 引擎可先于松手结束。等手势确认，用户仍能上滑丢弃这段文字。
+          if (statusRef.current === 'recording') {
+            completedRef.current = true
           } else {
-            showToast({ key: 'voiceInputEmpty' })
+            commit()
           }
-        } else if (event.event === 'error') {
+          return
+        }
+        if (event.event === 'error') {
           showToast({ key: 'voiceInputFailed' })
         }
         reset()
       }),
-    [reset]
+    [commit, reset]
   )
 
   const finish = useCallback(() => {
     if (statusRef.current !== 'recording') {
+      return
+    }
+    if (completedRef.current) {
+      commit()
       return
     }
     update('transcribing')
@@ -103,7 +121,7 @@ export const useDeviceVoiceInput = (onText: (text: string) => void) => {
     } else {
       stopDeviceVoice()
     }
-  }, [update])
+  }, [commit, update])
 
   const start = useCallback(async () => {
     if (!available || statusRef.current !== 'idle') {
@@ -144,6 +162,16 @@ export const useDeviceVoiceInput = (onText: (text: string) => void) => {
     },
     []
   )
+
+  useEffect(() => {
+    const discardOnHide = () => {
+      if (document.hidden && completedRef.current) {
+        cancel()
+      }
+    }
+    document.addEventListener('visibilitychange', discardOnHide)
+    return () => document.removeEventListener('visibilitychange', discardOnHide)
+  }, [cancel])
 
   // 收音或识别中按返回取消，不退出页面。
   useBackLayer(status !== 'idle', cancel)

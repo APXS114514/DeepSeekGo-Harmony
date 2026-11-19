@@ -258,6 +258,8 @@ export const zh = {
   holdVoiceToggle: '切换到按住说话',
   holdVoiceSpeak: '按住说话',
   holdVoiceRelease: '松开结束',
+  holdVoiceSwipeCancel: '上滑取消',
+  holdVoiceCancelRelease: '松开取消',
   holdVoiceKeyboard: '切换到键盘',
   voiceInputTimer: '录音中 {seconds}s',
   voiceInputStop: '结束录音并转写',

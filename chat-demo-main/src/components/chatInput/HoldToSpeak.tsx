@@ -1,7 +1,13 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import type { VoiceInputStatus } from './useVoiceInput.js'
 import styles from './ChatInput.module.css'
+
+const SWIPE_CANCEL_DISTANCE = 56
+type PointerHold = { key: number; startY: number; scale: number }
+
+const shouldCancelSwipe = (hold: PointerHold, clientY: number) =>
+  (hold.startY - clientY) * hold.scale >= SWIPE_CANCEL_DISTANCE
 
 export const HoldToSpeak = ({
   status,
@@ -19,18 +25,24 @@ export const HoldToSpeak = ({
   cancel: () => void
 }) => {
   const t = useTranslate()
-  const held = useRef<number | string | null>(null)
+  const held = useRef<PointerHold | { key: string } | null>(null)
+  const [pointerPhase, setPointerPhase] = useState<'holding' | 'cancelling' | null>(null)
   const listening = status === 'recording'
+  const cancelArmed = listening && pointerPhase === 'cancelling'
+  const showSwipeHint = listening && pointerPhase === 'holding'
   const label = t(
-    listening
-      ? 'holdVoiceRelease'
-      : status === 'transcribing'
-        ? 'harmonyVoiceFinishing'
-        : 'holdVoiceSpeak'
+    cancelArmed
+      ? 'holdVoiceCancelRelease'
+      : listening
+        ? 'holdVoiceRelease'
+        : status === 'transcribing'
+          ? 'harmonyVoiceFinishing'
+          : 'holdVoiceSpeak'
   )
   const release = (key: number | string, aborted: boolean) => {
-    if (held.current === key) {
+    if (held.current?.key === key) {
       held.current = null
+      setPointerPhase(null)
       if (aborted) {
         cancel()
       } else {
@@ -45,22 +57,39 @@ export const HoldToSpeak = ({
       className={styles.holdToSpeak}
       aria-label={label}
       aria-pressed={listening}
+      data-cancel-armed={cancelArmed ? '' : undefined}
       onContextMenu={(event) => event.preventDefault()}
       onPointerDown={(event) => {
         if (event.isPrimary && event.button === 0 && held.current === null && status === 'idle') {
           event.currentTarget.setPointerCapture(event.pointerId)
-          held.current = event.pointerId
+          held.current = {
+            key: event.pointerId,
+            startY: event.clientY,
+            scale: window.visualViewport?.scale ?? 1,
+          }
+          setPointerPhase('holding')
           start()
         }
       }}
-      onPointerUp={(event) => release(event.pointerId, false)}
+      onPointerMove={(event) => {
+        const hold = held.current
+        if (hold?.key === event.pointerId && 'startY' in hold) {
+          setPointerPhase(shouldCancelSwipe(hold, event.clientY) ? 'cancelling' : 'holding')
+        }
+      }}
+      onPointerUp={(event) => {
+        const hold = held.current
+        if (hold?.key === event.pointerId && 'startY' in hold) {
+          release(event.pointerId, shouldCancelSwipe(hold, event.clientY))
+        }
+      }}
       onPointerCancel={(event) => release(event.pointerId, true)}
       onLostPointerCapture={(event) => release(event.pointerId, true)}
       onKeyDown={(event) => {
         if (event.key === ' ' || event.key === 'Enter') {
           event.preventDefault()
           if (!event.repeat && held.current === null && status === 'idle') {
-            held.current = event.key
+            held.current = { key: event.key }
             start()
           }
         }
@@ -72,8 +101,9 @@ export const HoldToSpeak = ({
         }
       }}
       onBlur={() => {
-        if (typeof held.current === 'string') {
-          release(held.current, true)
+        const hold = held.current
+        if (typeof hold?.key === 'string') {
+          release(hold.key, true)
         }
       }}
       onClick={(event) => {
@@ -86,7 +116,10 @@ export const HoldToSpeak = ({
         }
       }}
     >
-      {listening && transcript ? transcript : label}
+      <span className={styles.voiceLine}>
+        {listening && !cancelArmed && transcript ? transcript : label}
+      </span>
+      {showSwipeHint ? <span className={styles.voiceHint}>{t('holdVoiceSwipeCancel')}</span> : null}
     </button>
   )
 }

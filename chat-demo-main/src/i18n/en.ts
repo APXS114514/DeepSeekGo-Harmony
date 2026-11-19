@@ -271,6 +271,8 @@ export const en = {
   holdVoiceToggle: 'Switch to hold to speak',
   holdVoiceSpeak: 'Hold to speak',
   holdVoiceRelease: 'Release to finish',
+  holdVoiceSwipeCancel: 'Swipe up to cancel',
+  holdVoiceCancelRelease: 'Release to cancel',
   holdVoiceKeyboard: 'Switch to keyboard',
   voiceInputTimer: 'Recording {seconds}s',
   voiceInputStop: 'Stop recording and transcribe',
