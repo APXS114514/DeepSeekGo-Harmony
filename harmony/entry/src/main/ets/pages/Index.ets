@@ -4,7 +4,7 @@ import { webview } from '@kit.ArkWeb';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
 import { DeviceBridge } from '../services/DeviceBridge';
-import { requestMicrophone } from '../services/Microphone';
+import { WebMicrophonePermission } from '../services/Microphone';
 import { OPEN_SESSION_KEY } from '../services/BackgroundReply';
 import { ShareInbox } from '../services/ShareInbox';
 import { clampFontScale, FONT_SCALE_KEY } from '../window/FontScale';
@@ -48,6 +48,7 @@ struct Index {
   private readonly controller: webview.WebviewController = new webview.WebviewController();
   private devicePort: webview.WebMessagePort | null = null;
   private bridge: DeviceBridge | null = null;
+  private webMicrophone: WebMicrophonePermission | null = null;
   private mainWindow: window.Window | null = null;
   private disposed: boolean = false;
   private hasWindowUi: boolean = false;
@@ -70,6 +71,7 @@ struct Index {
     const dark = context.config.colorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
     this.windowUi.dark = dark;
     this.bridge = new DeviceBridge(context, ui, (message) => this.sendWebMessage(message));
+    this.webMicrophone = new WebMicrophonePermission(context, APP_ORIGIN, () => this.confirmWebMicrophone());
     ShareInbox.subscribe(this.flushShares);
     window.getLastWindow(context).then((mainWindow) => {
       if (this.disposed) {
@@ -321,6 +323,7 @@ struct Index {
     ShareInbox.unsubscribe(this.flushShares);
     this.bridge?.dispose();
     this.bridge = null;
+    this.webMicrophone = null;
     try {
       this.mainWindow?.off('avoidAreaChange', this.updateInsets);
       this.mainWindow?.off('windowSizeChange', this.updateInsets);
@@ -365,34 +368,26 @@ struct Index {
   }
 
   private authorizeWebMicrophone(request: PermissionRequest): void {
-    const origin = request.getOrigin();
-    const resources = request.getAccessibleResource();
     const port = this.devicePort;
-    if (!port || (origin !== APP_ORIGIN && origin !== APP_ORIGIN + '/') ||
-      resources.length !== 1 || resources[0] !== ProtectedResourceType.AUDIO_CAPTURE ||
-      !canIUse('SystemCapability.Multimedia.Audio.Capturer')) {
+    if (!port || !this.webMicrophone) {
       request.deny();
       return;
     }
-    const ui = this.getUIContext();
-    const context = ui.getHostContext() as common.UIAbilityContext;
-    ui.showAlertDialog({
-      title: $r('app.string.web_microphone_title'),
-      message: $r('app.string.web_microphone_description'),
-      cancel: () => request.deny(),
-      primaryButton: { value: $r('app.string.web_microphone_cancel'), action: () => request.deny() },
-      secondaryButton: {
-        value: $r('app.string.web_microphone_allow'),
-        action: () => {
-          requestMicrophone(context).then((granted) => {
-            if (granted && this.devicePort === port) {
-              request.grant([ProtectedResourceType.AUDIO_CAPTURE]);
-            } else {
-              request.deny();
-            }
-          }).catch(() => request.deny());
-        }
-      }
+    this.webMicrophone.authorize(request, () => this.devicePort === port).catch((error: BusinessError) => {
+      hilog.warn(0x0000, 'PocketChat', 'Cannot authorize web microphone: %{public}d', error.code);
+      request.deny();
+    });
+  }
+
+  private confirmWebMicrophone(): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      this.getUIContext().showAlertDialog({
+        title: $r('app.string.web_microphone_title'),
+        message: $r('app.string.web_microphone_description'),
+        cancel: () => resolve(false),
+        primaryButton: { value: $r('app.string.web_microphone_cancel'), action: () => resolve(false) },
+        secondaryButton: { value: $r('app.string.web_microphone_allow'), action: () => resolve(true) }
+      });
     });
   }
 

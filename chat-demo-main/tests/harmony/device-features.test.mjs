@@ -48,6 +48,21 @@ const newContext = async (features, initialShare) => {
       window.speechStatus = 0
       window.allowTestMic = true
       if (features.apiVoice) {
+        window.testMicStarted = 0
+        window.testMicReady = 0
+        const createProcessor = AudioContext.prototype.createScriptProcessor
+        AudioContext.prototype.createScriptProcessor = function (...args) {
+          const processor = createProcessor.apply(this, args)
+          const recording = ++window.testMicStarted
+          processor.addEventListener(
+            'audioprocess',
+            () => {
+              window.testMicReady = Math.max(window.testMicReady, recording)
+            },
+            { once: true }
+          )
+          return processor
+        }
         const getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
         navigator.mediaDevices.getUserMedia = async (constraints) => {
           if (!window.allowTestMic) throw new DOMException('Denied', 'NotAllowedError')
@@ -496,6 +511,11 @@ try {
   await featurePage.getByRole('button', { name: '切换到按住说话' }).click()
   const recordControl = featurePage.getByRole('button', { name: '按住说话', exact: true })
   const bounds = await recordControl.boundingBox()
+  const recordFrame = async (start) => {
+    const previous = await featurePage.evaluate(() => window.testMicStarted)
+    await start()
+    await featurePage.waitForFunction((recording) => window.testMicReady > recording, previous)
+  }
   const pressApi = async () => {
     await featurePage.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
     await featurePage.mouse.down()
@@ -512,16 +532,14 @@ try {
   await featurePage.evaluate(() => {
     window.allowTestMic = true
   })
-  await pressApi()
-  await featurePage.waitForTimeout(360)
+  await recordFrame(pressApi)
   await featurePage.mouse.move(bounds.x + bounds.width / 2, bounds.y - 90, { steps: 4 })
   await featurePage.getByRole('button', { name: '松开取消', exact: true }).waitFor()
   await featurePage.mouse.up()
   assert.equal(experience.asrRequests.length, 0)
   assert.equal(await featureInput.inputValue(), '')
   experience.setAsrFailure(true)
-  await pressApi()
-  await featurePage.waitForTimeout(600)
+  await recordFrame(pressApi)
   assert.equal(experience.asrRequests.length, 0)
   await featurePage.mouse.up()
   await toast(featurePage, '语音识别失败，请稍后再试')
@@ -529,14 +547,13 @@ try {
   experience.setAsrFailure(false)
   // 键盘开始、结束和取消，使用同一个录音入口。
   await recordControl.focus()
-  await featurePage.keyboard.press('Space')
+  await recordFrame(() => featurePage.keyboard.press('Space'))
   await featurePage.getByRole('button', { name: '结束录音' }).waitFor()
   await featurePage.keyboard.press('Escape')
   await recordControl.waitFor()
   assert.equal(experience.asrRequests.length, 1)
-  await featurePage.keyboard.press('Enter')
+  await recordFrame(() => featurePage.keyboard.press('Enter'))
   await featurePage.getByRole('button', { name: '结束录音' }).waitFor()
-  await featurePage.waitForTimeout(600)
   await featurePage.keyboard.press('Enter')
   await featurePage.waitForFunction(
     () => document.querySelector('textarea')?.value === 'Recognized in the cloud'
