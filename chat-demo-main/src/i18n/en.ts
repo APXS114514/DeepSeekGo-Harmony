@@ -391,4 +391,6 @@ export const en = {
   contextUnknownFiles:
     'Some attachments are processed by the server and may use additional tokens.',
   replyContextExceeded: 'This request exceeded the context limit.',
+  replyInputTooLongForTools:
+    'With web search or link reading on, one message including attachments can be about 32K tokens at most. Turn off web search, remove the link, or shorten the content, then try again.',
 } satisfies Record<keyof typeof zh, string>

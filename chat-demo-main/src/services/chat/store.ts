@@ -7,6 +7,7 @@ import {
   getFileErrorCode,
   isContextOverflow,
   isRetryableApiError,
+  isUserInputTooLong,
 } from '../api/errors.js'
 import { cancelUpload, describeUploadError, uploadAttachment, useUploads } from '../attachments.js'
 import { DEFAULT_GENERATION, useSettings } from '../settings.js'
@@ -1217,6 +1218,10 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
     const system = buildSystemPrompt(CHAT_SYSTEM_PROMPT, {
       memory: !getSession(sessionId)?.ephemeral,
     })
+    /** 阅读链接按本轮设置开启；长输入回退时可在本次发送中关闭 */
+    let readLinks = generation.readLinks
+    /** 本轮提问是否含链接；含链接时不能为长输入关闭阅读链接 */
+    let questionHasLink = false
     for (let attempt = 0; ; attempt += 1) {
       /** 附件补齐前出错属于上传失败，请求还没有发出 */
       let preparing = true
@@ -1234,13 +1239,14 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
           prepared.prefix,
           initial.thinking ?? false,
           latestReminder,
-          generation.readLinks
+          readLinks
         )
+        questionHasLink = /https?:\/\//i.test(prepared.question.content)
         const preferredModel = prepared.prefix?.model ?? generation.model
         // 附件和联网工具使用 Flash。阅读链接开启时，纯文本请求仍可选 Pro。
         const needsFlash =
           initial.search ||
-          (generation.readLinks && /https?:\/\//i.test(prepared.question.content)) ||
+          (readLinks && questionHasLink) ||
           messages.some((message) =>
             message.role === 'user'
               ? Array.isArray(message.content) &&
@@ -1265,7 +1271,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
             ...(generation.maxTokens ? { max_tokens: generation.maxTokens } : {}),
             tools: serverTools(
               initial.search ?? false,
-              generation.readLinks && model === FLASH_MODEL
+              readLinks && model === FLASH_MODEL
             ),
             ...(titleRequests.has(controller) ? { title: { enabled: true } } : {}),
           },
@@ -1313,6 +1319,19 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
           })
           break
         }
+        // 长输入不能同时生成标题或启用阅读链接：本轮去掉标题，提问不含链接时也关闭阅读链接，
+        // 重发一次。会话保持无标题，之后较短的提问再生成。这次重发不占用附件补传的重试次数。
+        const dropReadLinks = readLinks && !questionHasLink
+        if (
+          !receivedContent &&
+          (titleRequests.has(controller) || dropReadLinks) &&
+          isUserInputTooLong(error)
+        ) {
+          titleRequests.delete(controller)
+          readLinks &&= !dropReadLinks
+          attempt -= 1
+          continue
+        }
         // 附件失效：重新补传后重发。收到过内容块（含丢弃的客户端工具）后不自动重发。
         if (
           attempt < FILE_RETRY_LIMIT &&
@@ -1340,7 +1359,10 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
             kind: error.kind,
             message: error.message,
             status: error.status,
-            localMessage: error.localMessage,
+            // 仍超过时只剩智能搜索或提问中的链接，提示用户按需关闭，服务端原文保留在 message。
+            localMessage: isUserInputTooLong(error)
+              ? { key: 'replyInputTooLongForTools' }
+              : error.localMessage,
           })
         } else {
           reply = settleReply(reply, 'error', Date.now(), {

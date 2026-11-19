@@ -69,6 +69,16 @@ export const isContextOverflow = (error: unknown): error is ApiError =>
     ) ||
     /\binput tokens? exceed(?:s|ed)? the limit\b/i.test(error.message))
 
+/**
+ * 请求开启 `title`、智能搜索或阅读链接时，服务端要求最新一条用户消息（含附件）不超过
+ * 32,768 Token，超过时整次请求返回 400「user input too long」。三者都不开启时，
+ * 同样的输入按模型上下文正常回答；更早轮次的附件不计入这项检查。
+ */
+export const isUserInputTooLong = (error: unknown): boolean =>
+  error instanceof ApiError &&
+  (error.status === 400 || error.kind === 'stream') &&
+  /\buser input too long\b/i.test(error.message)
+
 /** 服务端判定附件失效的情况：本地有原件时重新上传即可自愈 */
 export type FileErrorCode = 'fileIdMissing' | 'fileDataMissing' | 'invalidFileId'
 

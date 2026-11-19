@@ -365,4 +365,6 @@ export const zh = {
   contextLastUsage: '上一轮输入 {input} Token，其中缓存命中 {cached} Token。',
   contextUnknownFiles: '部分附件需由服务端解析，实际占用可能更高。',
   replyContextExceeded: '本轮请求超出上下文上限。',
+  replyInputTooLongForTools:
+    '开启智能搜索或阅读链接时，单条消息连同附件最多约 3.2 万 Token。请关闭智能搜索、去掉链接或缩短内容后重试。',
 } as const
