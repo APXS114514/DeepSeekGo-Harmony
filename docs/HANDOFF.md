@@ -2,7 +2,8 @@
 
 ## 工作区
 
-- 当前源码为 1.5.2，版本代码为 `1000020`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 当前源码为 1.5.3，版本代码为 `1000021`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 1.5.3 未签名 Release 测试包为 `HAPS/Deepseek-GO-1.5.3-unsigned.hap`，构建自 1.5.3 版本提交，源码含修复提交 `735c1fa`。SHA-256 为 `057defced981edb56680589ba5465db163da2021e5c295b4f36bb77efbe01631`。等待维护者签名后真机测试，尚未推送、打标签或发布。
 - 1.5.2 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.2-unsigned.hap`，对应标签 `v1.5.2`。SHA-256 为 `235375f025fab29424731279fdd1a53ef8428f356fb9d7e32f5c9262b092dcd6`。
 - 已发布的 1.5.1 未签名 Release 包 `HAPS/Deepseek-GO-1.5.1-unsigned.hap` 构建自 `94bda5f`，SHA-256 为 `e58277edddb7c8170aff7e5cf0868dc4098a7d569499a139d10ba5bf86544695`。上一份 1.5.1 测试包构建自 `1f3d305`，归档为 `HAPS/Deepseek-GO-1.5.1-1f3d305-unsigned.hap`，SHA-256 为 `eeb609199e827a02c558f5b6d8dcd3247c1e578fec2c474f48854eec2f65d501`。
 - 1.5.0 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.0-unsigned.hap`，构建自提交 `902b474`，版本代码 `1000018`。维护者确认本轮测试通过，9 项鸿蒙回归与 HarmonyOS 26.0.0 SDK Release 构建通过。包内确认最低 API 12、155 个网页资源、欢迎页 Logo、启动器图标和图像授权声明。SHA-256 为 `cad85a0ab5374258c81124d645e982946cd62aa6859e10a53e53ac23a62796f5`。上一包归档为 `HAPS/Deepseek-GO-1.5.0-6f7b82e-unsigned.hap`，SHA-256 为 `9bd35be013fc782621fc5155d383fdc4e4c30ace2c249495bdc999de4ab2a5d0`。
@@ -37,13 +38,16 @@
 - **原生组件级配置**可通过 `systemMaterial` 等属性调整支持的组件。应用级未禁用时，组件配置优先，个别组件可通过 `uiMaterial.Material.empty` 关闭。排查时，在支持的系统上用 `uiMaterial.getMaterialInfo()` 读取应用级配置状态，用 `uiMaterial.isImmersiveMaterialSupported()` 检查设备能力，再用真机验证呈现。 [组件适配指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
 - **通用设置 → 外观 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](../chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](../chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
 
-## 1.5.2 页面优化
+## 1.5.3 长附件修复
 
-- 已发布的 1.5.2 HAP 和 `v1.5.2` 标签不含下面的长附件修复，修复在之后的提交中，版本号沿用 1.5.2。
+- 通过 HarmonyOS 26.0.0 SDK Release 构建，构建日志确认跳过签名。包内 `module.json` 为 `com.pocketchat.deepseek`、`1.5.3` / `1000021`、最低 API 12、目标 API 26、SDK `26.0.0.105`、Release 非调试，权限、分享技能和材质配置与 1.5.2 相同。155 个网页资源与构建产物逐字节一致，含本次修复的提示文案，欢迎页 Logo、图像授权声明一致，启动器图标与 1.5.2 包相同。构建前类型、Lint、鸿蒙网页构建和 10 项回归通过。
 - **长附件被以 32,768 Token 拒绝**：服务端对开启了 `title`、`deepseek_read_url` 或 `deepseek_web_search` 的请求，限制最新一条用户消息（文字和附件合计）不超过 32,768 Token，超过时返回 400 `invalid_request_error`，原文为 `user input too long, N tokens exceeds max 32768 tokens (request_id: …)`，早先为 `User input too long. N Tokens, Exceeded max 32768 tokens`。官方文档没有写这条限制。三者都不开启时，同一份 464 KB EPUB（服务端解析为 762,454 字节 Markdown，175,873 输入 Token）可以正常回答。更早轮次的附件不计入这项检查，`system`、`latest_reminder`、`tools: []` 和深度思考都不触发。新会话首条消息会请求标题，阅读链接默认开启且带附件时总会附上该工具，所以长附件在新对话里必然失败。
 - 修复：[`store.ts`](../chat-demo-main/src/services/chat/store.ts) 在收到这类 400 且尚未收到内容时，去掉标题，提问不含链接时同时关闭本次的阅读链接（工具和历史网页块一起按关闭处理），重发一次，不占用附件补传的重试次数。会话保持无标题，下一条较短的提问再请求标题。智能搜索开启或提问含链接时仍被拒，回复显示 `replyInputTooLongForTools` 的中文说明，不再显示英文原文。判断函数为 [`errors.ts`](../chat-demo-main/src/services/api/errors.ts) 的 `isUserInputTooLong`。
 - 复现与验证：在 HOP-AL10（HarmonyOS 7.0.0.111，已安装 1.5.2 / `1000020`）的新无痕对话上传该 EPUB，开关深度思考、智能搜索和阅读链接都失败，服务端计 175,869 Token；合成 TXT 约 75K Token 失败、约 30K 成功。用测试 Key 直连 Messages API 逐项比对：只加 `title`、只加阅读链接工具或只加搜索工具都返回 400，多文档按合计计算，行内长文字同样受限。修复后在 Chrome 加载鸿蒙网页、接真实 API 复测：首个请求 400，自动重发 200，接着发「谢谢」时生成标题。新增 `input-limit` 回归，类型、Lint、鸿蒙网页构建和 10 项回归通过。同一轮核对真实服务端的 file_id 不存在、file_id 非法、文件无法解析的报错和 `/user/balance` 结构，仍与客户端识别规则一致。修订版尚未签名安装到真机。
 - 上下文超限实测：约 1.23M Token 的合成 TXT（5.6 MB，`user_data`）不带标题和工具时返回 400，原文为 `This model's maximum context length is 1048576 tokens. However, you requested N tokens (N in the messages, 0 in the completion)…`，能被 `isContextOverflow` 识别。带标题时先触发 32K 检查。真实 API 下的鸿蒙网页先按 32K 回退，重发后显示「本轮请求超出上下文上限」，草稿和附件还原，暂停重复发送。42 页英文 PDF 用 `rich_layout_recognition` 解析为约 52K Token，用 `text_recognition` 约 51K，两者开启标题或阅读链接时都同样受 32K 限制，不开启时正常回答。
+
+## 1.5.2 页面优化
+
 - 通过 HarmonyOS 26.0.0 SDK Release 构建，确认包未签名，版本为 `1.5.2` / `1000020`，最低 API 12、目标 API 26。核对包内 155 个网页资源、欢迎页 Logo、启动器图标和随包授权声明。
 - 「外观」「对话」「语音」进入和返回时以 200ms 淡入页面，标题和入口箭头分别向相反方向轻移。通过类型检查、Lint、鸿蒙网页构建及 9 项回归。在模拟的 360px、768px 和 942px 窗口验证动效期间控件位置稳定、返回栏与列表分开、返回后恢复入口焦点，开启 `prefers-reduced-motion: reduce` 后立即切换。真机观感待签名安装后验证。
 - 在 HOP-AL10（HarmonyOS 7.0.0.111）外屏 `1264×1848` 上，从已安装的 1.5.1 的「设置 → 通用设置 → 对话」复现。向下阅读后，返回按钮仍在 `y=662–784`，推理强度标签移到 `y=715–777`，左右也有交集。二级页改为返回栏独占一行，只有下方控件列表可以滚动。模拟 360px、768px 和 942px 窗口验证返回栏不覆盖列表，可以正常切换开关和返回。类型、Lint、鸿蒙网页构建和 9 项回归通过，修订版待签名安装后真机复测。
