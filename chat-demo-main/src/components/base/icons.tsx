@@ -641,3 +641,22 @@ export const IconIncognitoOutline16 = () => (
     <path d="M2 2L14 14" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
   </svg>
 )
+export const IconKeyboardOutline16 = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <rect
+      x="1.5"
+      y="3.25"
+      width="13"
+      height="9.5"
+      rx="2"
+      stroke="currentColor"
+      strokeWidth="1.25"
+    />
+    <path
+      d="M4.5 6.4h.1m3.35 0h.1m3.35 0h.1M4.5 9.5h7"
+      stroke="currentColor"
+      strokeWidth="1.45"
+      strokeLinecap="round"
+    />
+  </svg>
+)

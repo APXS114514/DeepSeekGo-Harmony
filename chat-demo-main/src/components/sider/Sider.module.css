@@ -298,6 +298,12 @@
   box-shadow: 8px 0 22px rgba(11, 25, 18, 0.12);
 }
 
+:global(.harmony-app[data-page-zoom]) .drawer .mobile {
+  zoom: calc(1 / var(--app-page-scale));
+  padding-top: calc(6px + var(--app-safe-top));
+  padding-bottom: calc(var(--frame-safe-bottom) * var(--app-page-scale));
+}
+
 .mobile {
   width: 300px;
   max-width: calc(100vw - 48px);

@@ -29,6 +29,10 @@
   color: var(--dsw-alias-label-primary);
 }
 
+:global(.harmony-app[data-page-zoom]) .welcome {
+  zoom: calc(1 / var(--app-page-scale));
+}
+
 .logo {
   width: 132px;
   height: 80px;

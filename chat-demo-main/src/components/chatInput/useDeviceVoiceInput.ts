@@ -30,16 +30,17 @@ export const mergeTranscript = (
 }
 
 /**
- * 鸿蒙系统离线语音输入：点击开始，引擎检测到停顿后自动结束，也可再次点击提前结束。
+ * 鸿蒙系统离线语音输入：按住开始，松开后结束。引擎也会在检测到停顿后自动结束。
  * 识别中实时显示文字，结束后整段交给 onText。不经过 DeepSeek API。
  */
 export const useDeviceVoiceInput = (onText: (text: string) => void) => {
   const available = useDeviceFeatures((state) => state.voice)
   const [status, setStatus] = useState<VoiceInputStatus>('idle')
-  const [seconds, setSeconds] = useState(0)
   const [transcript, setTranscript] = useState('')
   const textRef = useRef({ committed: '', partial: '' })
   const operationRef = useRef(0)
+  const startingRef = useRef(false)
+  const stopAfterStart = useRef(false)
   const statusRef = useRef<VoiceInputStatus>('idle')
   const onTextRef = useRef(onText)
   onTextRef.current = onText
@@ -50,6 +51,8 @@ export const useDeviceVoiceInput = (onText: (text: string) => void) => {
   }, [])
 
   const reset = useCallback(() => {
+    startingRef.current = false
+    stopAfterStart.current = false
     textRef.current = { committed: '', partial: '' }
     setTranscript('')
     update('idle')
@@ -90,25 +93,37 @@ export const useDeviceVoiceInput = (onText: (text: string) => void) => {
     [reset]
   )
 
-  const toggle = useCallback(async () => {
-    if (!available) {
+  const finish = useCallback(() => {
+    if (statusRef.current !== 'recording') {
       return
     }
-    if (statusRef.current === 'recording') {
-      update('transcribing')
+    update('transcribing')
+    if (startingRef.current) {
+      stopAfterStart.current = true
+    } else {
       stopDeviceVoice()
-      return
     }
-    if (statusRef.current === 'transcribing') {
-      cancel()
+  }, [update])
+
+  const start = useCallback(async () => {
+    if (!available || statusRef.current !== 'idle') {
       return
     }
     const operation = ++operationRef.current
     textRef.current = { committed: '', partial: '' }
     setTranscript('')
+    startingRef.current = true
     update('recording')
     const result = await startDeviceVoice()
-    if (operationRef.current !== operation || result === DeviceStatus.ok) {
+    if (operationRef.current !== operation) {
+      return
+    }
+    startingRef.current = false
+    if (result === DeviceStatus.ok) {
+      if (stopAfterStart.current) {
+        stopAfterStart.current = false
+        stopDeviceVoice()
+      }
       return
     }
     reset()
@@ -117,19 +132,7 @@ export const useDeviceVoiceInput = (onText: (text: string) => void) => {
     } else if (result !== DeviceStatus.cancelled) {
       showToast({ key: 'voiceInputFailed' })
     }
-  }, [available, cancel, reset, update])
-
-  useEffect(() => {
-    if (status !== 'recording') {
-      return
-    }
-    const startedAt = Date.now()
-    setSeconds(0)
-    const timer = setInterval(() => {
-      setSeconds(Math.floor((Date.now() - startedAt) / 1000))
-    }, 500)
-    return () => clearInterval(timer)
-  }, [status])
+  }, [available, reset, update])
 
   // 切换会话或卸载输入框时停止收音。
   useEffect(
@@ -145,7 +148,5 @@ export const useDeviceVoiceInput = (onText: (text: string) => void) => {
   // 收音或识别中按返回取消，不退出页面。
   useBackLayer(status !== 'idle', cancel)
 
-  const getAnalyser = useCallback((): AnalyserNode | null => null, [])
-
-  return { status, seconds, transcript, getAnalyser, toggle, cancel, available }
+  return { status, transcript, cancel, available, start, finish }
 }

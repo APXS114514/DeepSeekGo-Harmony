@@ -20,7 +20,11 @@ export class VoiceInput {
   private readonly context: common.UIAbilityContext;
   private readonly emit: (message: string) => void;
   private engine: speechRecognizer.SpeechRecognitionEngine | null = null;
+  private engineTask: Promise<speechRecognizer.SpeechRecognitionEngine> | null = null;
+  private disposed: boolean = false;
   private session: string = '';
+  private ready: boolean = false;
+  private finishQueued: boolean = false;
   private serial: number = 0;
 
   constructor(context: common.UIAbilityContext, emit: (message: string) => void) {
@@ -39,7 +43,11 @@ export class VoiceInput {
     this.cancel();
     const sessionId = 'voice-' + (++this.serial);
     this.session = sessionId;
-    if (!await this.requestMicrophone()) {
+    const granted = await this.requestMicrophone();
+    if (this.session !== sessionId) {
+      return DeviceStatus.CANCELLED;
+    }
+    if (!granted) {
       this.session = '';
       return DeviceStatus.DENIED;
     }
@@ -62,6 +70,9 @@ export class VoiceInput {
       });
       return DeviceStatus.OK;
     } catch (error) {
+      if (this.session !== sessionId) {
+        return DeviceStatus.CANCELLED;
+      }
       this.session = '';
       const code = (error as BusinessError).code;
       hilog.warn(0x0000, 'PocketChat', 'Cannot start speech recognition: %{public}d', code);
@@ -71,6 +82,10 @@ export class VoiceInput {
 
   /** 停止收音，等待引擎返回最后结果。 */
   stop(): void {
+    if (this.session && !this.ready) {
+      this.finishQueued = true;
+      return;
+    }
     if (this.session && this.engine) {
       try {
         this.engine.finish(this.session);
@@ -84,6 +99,8 @@ export class VoiceInput {
   cancel(): void {
     const session = this.session;
     this.session = '';
+    this.ready = false;
+    this.finishQueued = false;
     if (session && this.engine) {
       try {
         this.engine.cancel(session);
@@ -102,6 +119,7 @@ export class VoiceInput {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.cancel();
     try {
       this.engine?.shutdown();
@@ -115,10 +133,35 @@ export class VoiceInput {
     if (this.engine) {
       return this.engine;
     }
+    if (this.engineTask) {
+      return this.engineTask;
+    }
+    const task = this.createEngine();
+    this.engineTask = task;
+    try {
+      return await task;
+    } finally {
+      this.engineTask = null;
+    }
+  }
+
+  private async createEngine(): Promise<speechRecognizer.SpeechRecognitionEngine> {
     const extraParams: Record<string, Object> = { 'locate': 'CN', 'recognizerMode': 'short' };
     const engine = await speechRecognizer.createEngine({ language: 'zh-CN', online: 1, extraParams: extraParams });
+    if (this.disposed) {
+      engine.shutdown();
+      throw new Error('Speech input has been disposed');
+    }
     engine.setListener({
-      onStart: (): void => {},
+      onStart: (sessionId: string): void => {
+        if (sessionId === this.session) {
+          this.ready = true;
+          if (this.finishQueued) {
+            this.finishQueued = false;
+            this.stop();
+          }
+        }
+      },
       onEvent: (): void => {},
       onResult: (sessionId: string, result: speechRecognizer.SpeechRecognitionResult): void => {
         if (sessionId === this.session) {

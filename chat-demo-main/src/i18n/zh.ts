@@ -195,7 +195,6 @@ export const zh = {
   personalPromptMemory:
     '## 关于用户的记忆\n以下信息来自此前的对话，仅在与当前问题相关时自然地参考，不要逐条复述；用户问起时可以说明你记得什么。',
   harmonyMicrophoneDenied: '无法使用麦克风，请在系统设置中允许 Deepseek GO 访问麦克风',
-  harmonyVoiceListening: '正在聆听，说完会自动结束…',
   harmonyVoiceFinishing: '正在识别…',
   harmonyScanText: '识别图片文字',
   harmonyScanCamera: '拍照识字',
@@ -256,6 +255,10 @@ export const zh = {
   dragFileToUpload: '拖放文件到这里上传',
   dragFileDesc: '最多 {count} 个，每个 {size} MB',
   voiceInput: '语音输入',
+  holdVoiceToggle: '切换到按住说话',
+  holdVoiceSpeak: '按住说话',
+  holdVoiceRelease: '松开结束',
+  holdVoiceKeyboard: '切换到键盘',
   voiceInputTimer: '录音中 {seconds}s',
   voiceInputStop: '结束录音并转写',
   voiceInputCancel: '正在转写，点击取消',

@@ -32,6 +32,7 @@
 }
 
 :global(.harmony-app) .wrapper {
+  --input-padding-top: 8px;
   box-shadow: 0 3px 14px rgba(12, 24, 17, 0.06);
 }
 
@@ -247,24 +248,31 @@
   visibility: hidden;
 }
 
-/* 鸿蒙版语音识别中的实时文字，覆盖在输入框位置，保持最新内容可见 */
-.transcript {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  box-sizing: border-box;
-  padding: var(--input-padding-top) 12px 0 16px;
+.holdToSpeak {
+  display: block;
+  flex-shrink: 0;
+  width: calc(100% - 16px);
+  min-height: 44px;
+  margin: 2px 8px 0;
+  padding: 4px 8px;
   overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px 12px 0 0;
   color: var(--dsw-alias-label-primary);
-  white-space: pre-wrap;
-  word-break: break-word;
-  pointer-events: none;
-}
+  background: transparent;
+  font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  user-select: none;
+  touch-action: none;
+  cursor: pointer;
 
-.transcriptHint {
-  color: var(--dsw-alias-label-caption);
+  &[aria-pressed='true'] {
+    background: var(--dsw-alias-button-ghost-active-fill);
+    color: var(--dsw-alias-brand-text);
+  }
 }
 
 @media not all and (min-width: 440px) {
@@ -305,6 +313,21 @@
   gap: 8px;
   margin-top: 4px;
   padding: 12px;
+}
+
+:global(.harmony-app) .textarea,
+:global(.harmony-app) .mirror {
+  min-height: calc(var(--line-height) + var(--input-padding-top));
+}
+
+:global(.harmony-app) .functionRow {
+  gap: 5px;
+  margin-top: 0;
+  padding: 3px 8px 5px;
+}
+
+.primarySlot {
+  margin-left: 6px;
 }
 
 .toggles {

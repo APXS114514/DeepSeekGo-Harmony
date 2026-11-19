@@ -52,6 +52,7 @@ struct Index {
   private hasWindowUi: boolean = false;
   private nativeColorMode?: ConfigurationConstant.ColorMode;
   @State private insets: WindowInsets = EMPTY_INSETS;
+  @State private pageZoomed: boolean = false;
   @StorageProp(FONT_SCALE_KEY) @Watch('sendFontScale') private fontScale: number = 1;
   @StorageLink(OPEN_SESSION_KEY) @Watch('openPendingSession') private pendingSession: string = '';
   @State private windowUi: WebWindowUi = {
@@ -236,7 +237,7 @@ struct Index {
     this.sendWebMessage(JSON.stringify({
       type: 'window-layout',
       insets: this.insets,
-      nativeHeader: this.windowUi.mobile && !this.windowUi.covered
+      nativeHeader: this.windowUi.mobile && !this.windowUi.covered && !this.pageZoomed
     }));
   }
 
@@ -361,11 +362,18 @@ struct Index {
         .fileAccess(false)
         .geolocationAccess(false)
         .multiWindowAccess(false)
+        .onScaleChange((event) => {
+          const zoomed = event.newScale > 1.01;
+          if (this.pageZoomed !== zoomed) {
+            this.pageZoomed = zoomed;
+            this.sendWindowLayout();
+          }
+        })
         .onPageEnd((event) => this.connectDevicePort(event.url))
         .onLoadIntercept((event) => event.data.getRequestUrl() !== APP_PAGE)
         // ArkWeb accepts null to continue loading, although the SDK callback type omits it.
         .onInterceptRequest((event) => this.getLocalResponse(event.request.getRequestUrl()) as WebResourceResponse)
-      if (this.windowUi.mobile && !this.windowUi.covered && this.devicePort) {
+      if (this.windowUi.mobile && !this.windowUi.covered && !this.pageZoomed && this.devicePort) {
         Column() {
           ChatHeader({
             title: this.windowUi.title,

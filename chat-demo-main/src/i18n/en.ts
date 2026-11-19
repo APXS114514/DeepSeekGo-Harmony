@@ -204,7 +204,6 @@ export const en = {
     '## Memories about the user\nThese come from earlier chats. Use them naturally only when relevant and don’t list them back; if the user asks, you may explain what you remember.',
   harmonyMicrophoneDenied:
     'Microphone unavailable. Allow Deepseek GO to use it in system settings.',
-  harmonyVoiceListening: 'Listening... stops automatically when you pause',
   harmonyVoiceFinishing: 'Recognizing...',
   harmonyScanText: 'Recognize text in an image',
   harmonyScanCamera: 'Take a photo',
@@ -269,6 +268,10 @@ export const en = {
   dragFileToUpload: 'Drop files here to upload',
   dragFileDesc: 'Up to {count} files, {size} MB each',
   voiceInput: 'Voice input',
+  holdVoiceToggle: 'Switch to hold to speak',
+  holdVoiceSpeak: 'Hold to speak',
+  holdVoiceRelease: 'Release to finish',
+  holdVoiceKeyboard: 'Switch to keyboard',
   voiceInputTimer: 'Recording {seconds}s',
   voiceInputStop: 'Stop recording and transcribe',
   voiceInputCancel: 'Transcribing. Click to cancel',

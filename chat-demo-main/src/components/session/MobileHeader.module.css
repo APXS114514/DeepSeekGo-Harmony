@@ -7,7 +7,7 @@
   padding: 12px 10px 4px;
 }
 
-:global([data-native-chat-header]) .header > * {
+:global([data-native-chat-header]:not([data-page-zoom])) .header > * {
   visibility: hidden;
 }
 
@@ -16,10 +16,14 @@
   padding-bottom: 0;
 }
 
+:global(.harmony-app[data-page-zoom]) .header {
+  zoom: calc(1 / var(--app-page-scale));
+}
+
 /* 与原生 ChatHeader 逐项对齐：按钮 44、间距 8、标题 15 号 Medium。打开侧栏时两者切换不跳动。 */
 :global(.harmony-app) .title {
   margin: 0 8px;
-  font: 500 calc(15px * var(--app-font-scale, 1)) / 22px var(--dsw-font-family);
+  font: 500 calc(15px * var(--app-font-scale, 1)) / 1.25 var(--dsw-font-family);
 }
 
 .title {

@@ -2,6 +2,8 @@ import clsx from 'clsx'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   IconGlobeLanguageOutline14,
+  IconKeyboardOutline16,
+  IconMicOutline16,
   IconPaperclipOutline16,
   IconSendOutline16,
   IconStopFill16,
@@ -47,16 +49,13 @@ import { useVoiceInput } from './useVoiceInput.js'
 import { useDeviceVoiceInput } from './useDeviceVoiceInput.js'
 import { ScanTextButton } from './ScanTextButton.js'
 import { VoiceButton } from './VoiceButton.js'
+import { HoldToSpeak } from './HoldToSpeak.js'
 import { Spectrum } from './Spectrum.js'
 import { useTranslate } from '../../i18n/index.js'
 import styles from './ChatInput.module.css'
 
 /** 鸿蒙版使用系统离线语音识别，网页版录音后调用转写接口。 */
-const useChatVoiceInput: (
-  onText: (text: string) => void
-) => ReturnType<typeof useVoiceInput> & { transcript?: string } = __HARMONY_APP__
-  ? useDeviceVoiceInput
-  : useVoiceInput
+const useChatVoiceInput = __HARMONY_APP__ ? useDeviceVoiceInput : useVoiceInput
 const EMPTY_CONTEXT = getHistoryContext([])
 
 /** 输入框：自适应高度的文本框 + 文件 + 深度思考与智能搜索开关 + 语音输入 + 发送 / 停止 */
@@ -69,6 +68,8 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   const t = useTranslate()
   const draft = useDrafts((state) => state.drafts.get(sessionId) ?? EMPTY_DRAFT)
   const { text, attachments } = draft
+  const hasInput = text.trim() !== '' || attachments.length > 0
+  const [voiceMode, setVoiceMode] = useState(false)
   const setText = (value: string) => setDraftText(sessionId, value)
   const draftReady = useUploads((state) => prepareDraftMessage(draft, state.tasks) !== null)
   const streaming = useChatStore(
@@ -148,6 +149,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
 
   /** 转写或识字结果插入到光标处，并把光标移到插入内容之后 */
   const insertText = (inserted: string) => {
+    setVoiceMode(false)
     const textarea = textareaRef.current
     const current = getDraft(sessionId).text
     const start = textarea?.selectionStart ?? current.length
@@ -158,10 +160,26 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
       textarea?.setSelectionRange(start + inserted.length, start + inserted.length)
     })
   }
-  const voice = useChatVoiceInput(insertText)
+  const voice = useChatVoiceInput((transcript) => {
+    if (__HARMONY_APP__) {
+      const current = getDraft(sessionId).text
+      setText(current ? `${current}\n${transcript}` : transcript)
+      setVoiceMode(false)
+    } else {
+      insertText(transcript)
+    }
+  })
+  const holdVoice = 'start' in voice && voice.available && voiceMode && !hasInput && !streaming
+  const cancelVoice = voice.cancel
+
+  useEffect(() => {
+    if (voiceMode && (hasInput || streaming || !voice.available)) {
+      cancelVoice()
+      setVoiceMode(false)
+    }
+  }, [cancelVoice, hasInput, streaming, voice.available, voiceMode])
 
   // 欢迎页导入后会话 ID 不变，不能依赖卸载取消语音；订阅开始事件也覆盖快速完成的导入。
-  const cancelVoice = voice.cancel
   useEffect(
     () =>
       useChatStore.subscribe((state, previous) => {
@@ -231,7 +249,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
       }}
     >
       <DraftAttachments items={attachments} onRetry={retryFile} onRemove={removeFile} />
-      <div className={styles.textareaWrapper}>
+      <div className={styles.textareaWrapper} hidden={holdVoice}>
         <textarea
           ref={textareaRef}
           className={clsx(
@@ -239,7 +257,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
             ((recording && isMobile) || listening) && styles.textareaHidden
           )}
           placeholder={t('chatInputPlaceholderChat')}
-          rows={2}
+          rows={__HARMONY_APP__ ? 1 : 2}
           // 移动端不自动聚焦，避免一打开就弹出键盘
           autoFocus={!isMobile}
           disabled={importingHistory}
@@ -266,19 +284,23 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
             }
           }}
         />
-        {listening ? (
-          <div className={styles.transcript} aria-live="polite">
-            <span className={clsx(!voice.transcript && styles.transcriptHint)}>
-              {voice.transcript || t(recording ? 'harmonyVoiceListening' : 'harmonyVoiceFinishing')}
-            </span>
-          </div>
-        ) : recording && isMobile ? (
+        {'getAnalyser' in voice && recording && isMobile ? (
           <Spectrum getAnalyser={voice.getAnalyser} />
         ) : null}
         <div className={styles.mirror} aria-hidden>
           {`${text}\n`}
         </div>
       </div>
+      {holdVoice ? (
+        <HoldToSpeak
+          status={voice.status}
+          transcript={voice.transcript}
+          disabled={importingHistory}
+          start={() => void voice.start()}
+          finish={voice.finish}
+          cancel={voice.cancel}
+        />
+      ) : null}
       <div className={styles.functionRow}>
         {/* 深度思考 / 智能搜索开关，tooltip 在按钮上方 */}
         <div ref={togglesRef} className={styles.toggles}>
@@ -311,7 +333,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
           {__HARMONY_APP__ ? (
             <ScanTextButton disabled={importingHistory || listening} onText={insertText} />
           ) : null}
-          {!__HARMONY_APP__ || voice.available ? (
+          {'toggle' in voice ? (
             <VoiceButton
               status={voice.status}
               disabled={!voice.available}
@@ -319,9 +341,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
               onClick={() => {
                 if (
                   voice.status !== 'idle' ||
-                  (!useChatStore.getState().importingHistory &&
-                    // 鸿蒙版在本机识别，不需要 API Key。
-                    (__HARMONY_APP__ || ensureApiKey()))
+                  (!useChatStore.getState().importingHistory && ensureApiKey())
                 ) {
                   void voice.toggle()
                 }
@@ -333,7 +353,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
             tone="primary"
             icon={<IconPaperclipOutline16 />}
             tooltip={t('uploadFile')}
-            disabled={importingHistory}
+            disabled={importingHistory || listening}
             onClick={() => ensureApiKey() && fileInputRef.current?.click()}
           />
           <input
@@ -359,6 +379,27 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
             >
               <IconStopFill16 />
             </button>
+          ) : __HARMONY_APP__ && !hasInput ? (
+            voice.available ? (
+              <IconButton
+                className={styles.primarySlot}
+                size="m"
+                tone="primary"
+                icon={holdVoice ? <IconKeyboardOutline16 /> : <IconMicOutline16 />}
+                tooltip={t(holdVoice ? 'holdVoiceKeyboard' : 'holdVoiceToggle')}
+                disabled={importingHistory}
+                onClick={() => {
+                  if (holdVoice) {
+                    voice.cancel()
+                    setVoiceMode(false)
+                    requestAnimationFrame(() => textareaRef.current?.focus({ preventScroll: true }))
+                  } else {
+                    textareaRef.current?.blur()
+                    setVoiceMode(true)
+                  }
+                }}
+              />
+            ) : null
           ) : (
             <button
               type="button"

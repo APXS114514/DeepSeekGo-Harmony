@@ -6,6 +6,9 @@
   --app-safe-right: max(env(safe-area-inset-right, 0px), var(--native-inset-right, 0px));
   --app-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--native-inset-bottom, 0px));
   --app-safe-left: max(env(safe-area-inset-left, 0px), var(--native-inset-left, 0px));
+  --app-display-safe-top: calc(var(--app-safe-top) / var(--app-page-scale, 1));
+  --app-display-safe-right: calc(var(--app-safe-right) / var(--app-page-scale, 1));
+  --app-display-safe-left: calc(var(--app-safe-left) / var(--app-page-scale, 1));
   --chat-footer-inset: 0px;
   --dsw-static-blue-50: #e6f2ea;
   --dsw-static-blue-100: #d5e9dc;

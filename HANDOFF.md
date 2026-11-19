@@ -2,8 +2,8 @@
 
 ## 工作区
 
-- 当前源码为 1.4.1，版本代码为 `1000016`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
-- 最近一次本地测试包是 `HAPS/Deepseek-GO-1.4.0-unsigned.hap`，版本代码为 `1000015`，对应提交 `e54547b`。SHA-256 为 `64be1ae2330f2aa73aa21c6e9a2e6702aac138d1fda0a3a4f82b0907bba2c7c0`。
+- 当前源码为 1.4.2，版本代码为 `1000017`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 最近一次本地测试包是 `HAPS/Deepseek-GO-1.4.1-unsigned.hap`，版本代码为 `1000016`，对应提交 `3b84d52`。SHA-256 为 `56e89776d5bcfc74508d48ba7a91b69170ad7887bba1a053c047870e0d231c57`。
 - 最近一次交付是 `HAPS/Deepseek-GO-1.3.3-unsigned.hap`，版本代码为 `1000013`，对应 GitHub Releases 标签 `v1.3.3`。只有用户明确要求时才打包当前源码版本。
 - 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。贡献方式见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。仓库只收源码、配置、文档和图片资源。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`，使用鸿蒙版网页构建产物、模拟接口和设备消息通道生成。维护者的截图生成命令见本机 `AGENTS.local.md`。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
@@ -33,6 +33,14 @@
 
 - **原生组件级配置**可通过 `systemMaterial` 等属性调整支持的组件。应用级未禁用时，组件配置优先，个别组件可通过 `uiMaterial.Material.empty` 关闭。排查时，在支持的系统上用 `uiMaterial.getMaterialInfo()` 读取应用级配置状态，用 `uiMaterial.isImmersiveMaterialSupported()` 检查设备能力，再用真机验证呈现。 [组件适配指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
 - **设置 → 通用设置 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
+
+## 1.4.2 聊天缩放与按住说话
+
+- 原生层用 ArkWeb 的缩放事件控制原生顶栏。放大时聊天框架跟随视觉视口的位置与大小，正文按可见宽度排版，由网页顶栏接管。顶栏和输入区保持接近原有的屏幕尺寸，窗口安全区按缩放比例换算，软键盘仍按实际遮挡量避让。
+- 阅读收起和展开沿用原有滚动逻辑，过渡改为 360ms，遵循减少动态效果偏好。鸿蒙输入区以单行为起点，长草稿和附件沿用现有的布局及滚动处理。
+- 空白输入框右下角在设备支持时显示语音模式入口。当有文字或附件时，同一位置显示发送。按住时启动原有的鸿蒙离线识别，松手收尾，结果留在草稿等待发送。按压取消、系统返回或切到后台会结束收音。松手早于授权或引擎就绪时，等启动确认后再结束该次识别。
+- 用浏览器和模拟 ArkWeb 消息通道复现 1.4.1 放大后聊天布局超出可见区域的问题。1.4.2 在 2.7 倍缩放、平移、系统字号放大和模拟键盘弹起时通过布局回归，也验证了缩放区间内打开侧栏和设置、缩回时恢复顶栏和保留草稿。390px 窗口下，单行输入栏实测从约 106px 降到 76px。回归覆盖收起和展开的中间帧、阅读位置、减少动态效果、空草稿与附件、触摸按压和取消、延迟启动、麦克风授权拒绝及重试。设置滚动、鸿蒙分享与识字、历史编辑、后台回复、个性化、余额和上下文回归通过。
+- 前端类型、Lint、格式、网页版和鸿蒙网页构建，改动 ArkTS 文件的 codelinter 及 HarmonyOS 26.0.0 SDK Debug 编译通过。核对 Debug 包版本、最低 API 12 和 155 个网页资源。未连接真机，ArkWeb 双指缩放、输入框收起展开的实际观感、首次麦克风授权与离线识别仍待实测。
 
 ## 1.4.1 设置滚动与输入框动效
 
