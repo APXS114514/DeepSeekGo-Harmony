@@ -18,7 +18,7 @@ const close = () => useOpen.setState({ open: false })
 const Search = () => {
   const t = useTranslate()
   const sessions = useChatStore((state) => state.sessions)
-  const importing = useChatStore((state) => state.importingHistory)
+  const importing = useChatStore((state) => state.importingHistory !== false)
   const [value, setValue] = useState('')
   const [retry, setRetry] = useState(0)
   const [results, setResults] = useState<HistoryMatch[]>([])

@@ -1,4 +1,5 @@
 import type { MessageUsage } from '../api/types.js'
+import { DEFAULT_GENERATION, type GenerationOptions } from '../settings.js'
 import type { Draft } from './drafts.js'
 import { getContextRounds } from './reply.js'
 import type { FileAttachment, Message } from './types.js'
@@ -18,7 +19,12 @@ export const getContextRejection = (messages: Message[]) => {
   const question = messages.at(-2)
   const reply = messages.at(-1)
   return reply?.role === 'assistant' && reply.error?.kind === 'context' && question?.role === 'user'
-    ? { question, thinking: reply.thinking ?? false, search: reply.search ?? false }
+    ? {
+        question,
+        thinking: reply.thinking ?? false,
+        search: reply.search ?? false,
+        generation: reply.generation ?? DEFAULT_GENERATION,
+      }
     : null
 }
 
@@ -85,7 +91,8 @@ export const estimateContext = (
   history: ReturnType<typeof getHistoryContext>,
   draft: Draft,
   system: string,
-  thinking: boolean
+  thinking: boolean,
+  maxTokens: number | null
 ) => {
   let tokens =
     history.tokens + textTokens(draft.text.trim()) + textTokens(system) + REQUEST_OVERHEAD
@@ -98,7 +105,7 @@ export const estimateContext = (
       tokens += estimate
     }
   }
-  const ratio = (tokens + (thinking ? 65_536 : 8_192)) / CONTEXT_LIMIT
+  const ratio = (tokens + (maxTokens ?? (thinking ? 65_536 : 8_192))) / CONTEXT_LIMIT
   return {
     unknownFiles,
     near: ratio >= WARN_AT,
@@ -111,11 +118,19 @@ export const estimateContext = (
 export const matchesRejectedDraft = (
   draft: Draft,
   rejected: ReturnType<typeof getContextRejection>,
-  { thinking, search }: { thinking: boolean; search: boolean }
+  {
+    thinking,
+    search,
+    generation,
+  }: { thinking: boolean; search: boolean; generation: GenerationOptions }
 ) =>
   !!rejected &&
   rejected.thinking === thinking &&
   rejected.search === search &&
+  rejected.generation.model === generation.model &&
+  rejected.generation.readLinks === generation.readLinks &&
+  (!thinking || rejected.generation.effort === generation.effort) &&
+  rejected.generation.maxTokens === generation.maxTokens &&
   rejected.question.content === draft.text.trim() &&
   rejected.question.files.length === draft.attachments.length &&
   rejected.question.files.every((file, index) => file.id === draft.attachments[index]?.id)

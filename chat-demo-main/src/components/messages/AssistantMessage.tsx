@@ -3,14 +3,14 @@ import clsx from 'clsx'
 import { memo } from 'react'
 import { IconRefreshOutline16, IconShareOutline16, IconWarningOutline16 } from '../base/icons.js'
 import { describeReply } from '../../services/chat/describe.js'
-import { canContinueReply } from '../../services/chat/reply.js'
-import { continueReply, regenerateReply } from '../../services/chat/store.js'
+import { canContinueReply, canFollowUpReply } from '../../services/chat/reply.js'
+import { continueReply, regenerateReply, sendMessage } from '../../services/chat/store.js'
 import { useDeviceFeatures } from '../../services/harmony.js'
 import { shareAnswer } from '../../services/chat/share.js'
 import { openShare } from '../share/ShareDialog.js'
 import { stopReadAloud } from '../../services/speech/readAloud.js'
 import type { AssistantMessage as AssistantMessageType } from '../../services/chat/types.js'
-import { openSettings } from '../settings/settingsDialogState.js'
+import { ensureApiKey, openSettings } from '../settings/settingsDialogState.js'
 import { IconButton } from '../base/IconButton.js'
 import { Button } from '../base/Button.js'
 import { Markdown } from '../markdown/Markdown.js'
@@ -47,6 +47,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   onSelectVersion: SelectMessageVersion
 }) {
   const t = useTranslate()
+  const followUp = isLast && canFollowUpReply(message)
   const sharing = useDeviceFeatures((state) => state.share)
   const view = useReplyView(message, streaming)
   const panelEntry = useSearchPanel((state) => state.entry)
@@ -171,7 +172,7 @@ export const AssistantMessage = memo(function AssistantMessage({
               }}
             />
           </div>
-          {isLast && canContinueReply(message) ? (
+          {followUp || (isLast && canContinueReply(message)) ? (
             <Button
               variant="outlined"
               size="s"
@@ -179,10 +180,16 @@ export const AssistantMessage = memo(function AssistantMessage({
               disabled={busy}
               onClick={() => {
                 stopReadAloud()
-                continueReply(sessionId, message.id)
+                if (followUp) {
+                  if (ensureApiKey()) {
+                    sendMessage(sessionId, { replyId: message.id, text: t('followUpPrompt') })
+                  }
+                } else {
+                  continueReply(sessionId, message.id)
+                }
               }}
             >
-              {t('continueGenerating')}
+              {t(followUp ? 'followUpAnswer' : 'continueGenerating')}
             </Button>
           ) : null}
         </div>

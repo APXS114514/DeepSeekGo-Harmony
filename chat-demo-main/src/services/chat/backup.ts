@@ -1,7 +1,7 @@
 import { formatDate } from '../../utils/format.js'
 import * as db from './db.js'
-import { replaceHistory, useChatStore } from './store.js'
-import type { Session } from './types.js'
+import { updateHistory, useChatStore } from './store.js'
+import type { HistoryImportMode, Session } from './types.js'
 
 export { BackupError } from './history/errors.js'
 
@@ -9,7 +9,9 @@ export { BackupError } from './history/errors.js'
 let backupQueue: Promise<unknown> = Promise.resolve()
 
 const enqueueBackup = <T>(run: () => Promise<T>): Promise<T> => {
-  const task = backupQueue.then(run)
+  const task = backupQueue.then(
+    () => navigator.locks?.request('chat-demo:history-backup', run) ?? run()
+  )
   backupQueue = task.catch(() => {})
   return task
 }
@@ -40,18 +42,17 @@ export const exportHistory = (): Promise<{ name: string; blob: Blob }> =>
   })
 
 /**
- * 确认覆盖后调用：先检查 ZIP 格式与版本，校验失败时保留正在生成的回答；
- * 通过后从 ZIP 流式写入暂存，成功才替换原有会话与图片原件。返回导入的会话数。
+ * 校验 ZIP 后流式写入暂存，成功才合并或替换正式数据。返回新导入的会话数。
  */
-export const importHistory = (file: File): Promise<number> =>
+export const importHistory = (file: File, mode: HistoryImportMode): Promise<number> =>
   enqueueBackup(async () => {
     const { checkArchiveFormat, importArchive } = await import('./history/importArchive.js')
     await checkArchiveFormat(file)
-    return replaceHistory(() => importArchive(file))
+    return updateHistory(() => importArchive(file), mode)
   })
 
 /** 确认删除后调用：以空历史原子替换全部本地会话与附件，保留 API Key 和其他设置。 */
 export const clearHistory = (): Promise<void> =>
   enqueueBackup(async () => {
-    await replaceHistory(async () => {})
+    await updateHistory(async () => {}, 'replace')
   })

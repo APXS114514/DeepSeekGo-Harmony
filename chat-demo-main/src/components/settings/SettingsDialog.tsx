@@ -19,6 +19,7 @@ import {
 import { useIsMobile } from '../../app/viewport.js'
 import { useSurfacePresence } from '../../app/useSurfacePresence.js'
 import { useChatStore } from '../../services/chat/store.js'
+import type { HistoryImportMode } from '../../services/chat/types.js'
 import {
   DeviceStatus,
   requestNotificationPermission,
@@ -27,6 +28,8 @@ import {
 } from '../../services/harmony.js'
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
 import {
+  OUTPUT_LIMITS,
+  setGenerationOptions,
   setImmersiveLight,
   setHideComposerOnScroll,
   setReplyNotify,
@@ -95,8 +98,8 @@ const SettingsContent = ({
   const apiKeyEditor = useApiKeyEditor()
   const historyImport = useHistoryImport()
   const historyDelete = useHistoryDelete()
-  const replacingHistory = useChatStore((state) => state.importingHistory)
-  const historyBusy = historyImport.busy || historyDelete.busy || replacingHistory
+  const importingHistory = useChatStore((state) => state.importingHistory !== false)
+  const historyBusy = historyImport.busy || historyDelete.busy || importingHistory
   return (
     <>
       <Modal
@@ -177,6 +180,7 @@ const SettingsContent = ({
               <LocaleSetting />
               {__HARMONY_APP__ ? <VoiceInputSetting /> : null}
               <TtsVoiceSetting />
+              <GenerationSettings />
               <LocationSetting />
             </>
           ) : section === 'personal' ? (
@@ -364,6 +368,79 @@ const LocationSetting = () => {
   )
 }
 
+const GenerationSettings = () => {
+  const t = useTranslate()
+  const locale = useSettings((state) => state.locale)
+  const { model, readLinks, effort, maxTokens } = useSettings((state) => state.generation)
+  const numbers = new Intl.NumberFormat(locale)
+  return (
+    <>
+      <SettingCell
+        label={t('settingsChatModel')}
+        description={t('settingsChatModelDescription')}
+        status={null}
+        action={
+          <Select
+            ariaLabel={t('settingsChatModel')}
+            value={model}
+            options={[
+              { value: 'deepseek-flash', label: 'Flash' },
+              { value: 'deepseek-v4-pro', label: 'V4 Pro' },
+            ]}
+            onChange={(model) => setGenerationOptions({ model })}
+          />
+        }
+      />
+      <SettingsSwitch
+        className={styles.cell}
+        label={t('settingsReadLinks')}
+        description={t('settingsReadLinksDescription')}
+        checked={readLinks}
+        onChange={(readLinks) => setGenerationOptions({ readLinks })}
+      />
+      <SettingCell
+        label={t('settingsThinkingEffort')}
+        description={t('settingsThinkingEffortDescription')}
+        status={null}
+        action={
+          <Select
+            ariaLabel={t('settingsThinkingEffort')}
+            value={effort ?? ''}
+            options={[
+              { value: '', label: t('settingsApiDefault') },
+              { value: 'low', label: t('settingsEffortLow') },
+              { value: 'high', label: t('settingsEffortHigh') },
+              { value: 'max', label: t('settingsEffortMax') },
+            ]}
+            onChange={(effort) => setGenerationOptions({ effort: effort || null })}
+          />
+        }
+      />
+      <SettingCell
+        label={t('settingsMaxOutput')}
+        description={t('settingsMaxOutputDescription')}
+        status={null}
+        action={
+          <Select
+            ariaLabel={t('settingsMaxOutput')}
+            value={maxTokens === null ? '' : String(maxTokens)}
+            options={[
+              { value: '', label: t('settingsApiDefault') },
+              ...OUTPUT_LIMITS.map((value) => ({
+                value: String(value),
+                label: numbers.format(value),
+              })),
+            ]}
+            onChange={(value) =>
+              setGenerationOptions({ maxTokens: value === '' ? null : Number(value) })
+            }
+          />
+        }
+      />
+    </>
+  )
+}
+
 const LocaleSetting = () => {
   const t = useTranslate()
   const locale = useSettings((state) => state.locale)
@@ -442,7 +519,7 @@ const TtsVoiceSetting = () => {
   )
 }
 
-/** 覆盖导入的二次确认，叠在设置弹窗上 */
+/** 导入前选择合并或覆盖。 */
 const ImportConfirm = ({
   historyImport,
 }: {
@@ -455,14 +532,21 @@ const ImportConfirm = ({
       className={styles.importConfirm}
       onClose={historyImport.cancel}
       footer={
-        <>
+        <div className={styles.importActions}>
           <Button variant="outlined" size="m" autoFocus onClick={historyImport.cancel}>
             {t('cancel')}
           </Button>
-          <Button variant="dangerOutlined" size="m" onClick={() => void historyImport.confirm()}>
-            {t('historyImportConfirm')}
+          <Button
+            variant="dangerOutlined"
+            size="m"
+            onClick={() => void historyImport.confirm('replace')}
+          >
+            {t('historyImportReplace')}
           </Button>
-        </>
+          <Button size="m" onClick={() => void historyImport.confirm('merge')}>
+            {t('historyImportMerge')}
+          </Button>
+        </div>
       }
     >
       <div className={styles.importConfirmText}>{t('historyImportConfirmDescription')}</div>
@@ -616,14 +700,14 @@ const SettingCell = ({
   )
 }
 
-/** 选文件后先提示覆盖；确认后才检查文件并执行导入，任何错误都提示导入失败。 */
+/** 确认导入方式后校验文件，并报告写入结果。 */
 const useHistoryImport = () => {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<Status>(null)
   const importing = useRef(false)
 
-  const confirm = async () => {
+  const confirm = async (mode: HistoryImportMode) => {
     if (!file || importing.current) {
       return
     }
@@ -632,8 +716,15 @@ const useHistoryImport = () => {
     setBusy(true)
     setStatus(null)
     try {
-      const count = await importHistory(file)
-      setStatus({ key: count === 1 ? 'historyImportedOne' : 'historyImported', params: { count } })
+      const count = await importHistory(file, mode)
+      if (mode === 'merge' && count === 0) {
+        setStatus({ key: 'historyImportNoNew' })
+      } else {
+        setStatus({
+          key: count === 1 ? 'historyImportedOne' : 'historyImported',
+          params: { count },
+        })
+      }
     } catch {
       setStatus({ key: 'historyImportFailed', error: true })
     } finally {
@@ -645,7 +736,6 @@ const useHistoryImport = () => {
   return { file, busy, status, select: setFile, cancel: () => setFile(null), confirm }
 }
 
-/** 导入 = 覆盖：用选中文件替换本地全部会话与附件。 */
 const ImportHistory = ({
   historyImport,
   disabled,

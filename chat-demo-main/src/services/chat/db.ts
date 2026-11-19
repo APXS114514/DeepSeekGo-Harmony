@@ -1,5 +1,11 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import { toSessionSummary, type Session, type SessionSummary } from './types.js'
+import { createId } from '../../utils/id.js'
+import {
+  toSessionSummary,
+  type HistoryImportMode,
+  type Session,
+  type SessionSummary,
+} from './types.js'
 
 /** IndexedDB 存储结构版本；新增或调整存储、索引时递增。 */
 const DB_VERSION = 11
@@ -219,43 +225,78 @@ export const updateStagingFileTypes = async (types: ReadonlyMap<string, string>)
 }
 
 /**
- * 导入完成后用暂存替换正式数据：同一事务中替换会话、摘要和原件，并清空暂存。
+ * 在同一事务中提交会话、摘要与原件。合并时保留现有会话，给导入附件分配独立 ID。
  * 逐条游标复制，同一时间只读取一条记录；事务失败时整体回滚，正式数据不变。
  */
-export const commitStaging = async (): Promise<SessionSummary[]> => {
+export const commitStaging = async (
+  mode: HistoryImportMode,
+  existingIds: ReadonlySet<string>
+): Promise<SessionSummary[]> => {
   const summaries: SessionSummary[] = []
   const tx = (await getDB()).transaction(
     ['sessions', 'sessionSummaries', 'files', 'sessionsStaging', 'filesStaging'],
     'readwrite'
   )
-  const move = async (from: 'sessionsStaging' | 'filesStaging', to: 'sessions' | 'files') => {
+  const sessions = tx.objectStore('sessions')
+  const files = tx.objectStore('files')
+  const storedSummaries = tx.objectStore('sessionSummaries')
+  const stagedSessions = tx.objectStore('sessionsStaging')
+  const stagedFiles = tx.objectStore('filesStaging')
+  const commit = async () => {
     try {
-      const target = tx.objectStore(to)
-      await target.clear()
-      if (to === 'sessions') {
-        await tx.objectStore('sessionSummaries').clear()
+      if (mode === 'replace') {
+        await Promise.all([sessions.clear(), storedSummaries.clear(), files.clear()])
+        for (
+          let cursor = await stagedFiles.openCursor();
+          cursor;
+          cursor = await cursor.continue()
+        ) {
+          await files.put(cursor.value)
+        }
       }
+      const importedFileIds = new Map<string, string>()
       for (
-        let cursor = await tx.objectStore(from).openCursor();
+        let cursor = await stagedSessions.openCursor();
         cursor;
         cursor = await cursor.continue()
       ) {
-        await target.put(cursor.value)
-        if (to === 'sessions') {
-          const summary = storedSummary(cursor.value as Session)
-          await tx.objectStore('sessionSummaries').put(summary)
-          summaries.push(toSessionSummary(summary))
+        const session = cursor.value
+        if (mode === 'merge') {
+          if (existingIds.has(session.id) || (await sessions.getKey(session.id)) !== undefined) {
+            continue
+          }
+          for (const message of session.messages) {
+            if (message.role !== 'user') {
+              continue
+            }
+            for (const file of message.files) {
+              let id = importedFileIds.get(file.id)
+              if (id === undefined) {
+                id = createId()
+                importedFileIds.set(file.id, id)
+                const original = await stagedFiles.get(file.id)
+                if (original) {
+                  await files.add({ id, blob: original.blob })
+                }
+              }
+              file.id = id
+            }
+          }
         }
+        await sessions.add(session)
+        const summary = storedSummary(session)
+        await storedSummaries.put(summary)
+        summaries.push(toSessionSummary(summary))
       }
-      await tx.objectStore(from).clear()
+      await Promise.all([stagedSessions.clear(), stagedFiles.clear()])
     } catch (error) {
       // 同步抛出的错误不会让事务自动回滚，需显式中止，避免只提交清空和部分移入。
       abortTransaction(tx)
       throw error
     }
   }
-  await Promise.all([move('sessionsStaging', 'sessions'), move('filesStaging', 'files'), tx.done])
-  // 直接返回本次提交的列表，调用方无需在替换成功后再发起可能失败的读取。
+  await Promise.all([commit(), tx.done])
+  // 直接返回新写入的摘要，调用方无需在提交成功后再读取数据库。
   return summaries
 }
 

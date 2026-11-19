@@ -163,6 +163,14 @@ export const settleReply = (
 export const getReplyText = (reply: AssistantMessage) =>
   reply.blocks.map((block) => (block.type === 'text' ? block.text : '')).join('')
 
+const hasServerToolBlocks = (reply: AssistantMessage) =>
+  reply.blocks.some(
+    (block) =>
+      block.type === 'server_tool_use' ||
+      block.type === 'web_search_tool_result' ||
+      block.type === 'web_fetch_tool_result'
+  )
+
 /**
  * 只有正常达到输出上限或被停止的回复可续写，报错回复不能续写。
  * 末条限制由调用方判断，拒绝和客户端工具调用不能续写。
@@ -174,19 +182,13 @@ export const canContinueReply = (reply: AssistantMessage): boolean => {
     !reply.prefix ||
     reply.stopReason === 'refusal' ||
     reply.stopReason === 'tool_use' ||
-    reply.blocks.some(
-      (block) =>
-        block.type === 'server_tool_use' ||
-        block.type === 'web_search_tool_result' ||
-        block.type === 'web_fetch_tool_result' ||
-        (block.type === 'text' && block.isTemplate)
-    )
+    hasServerToolBlocks(reply) ||
+    reply.blocks.some((block) => block.type === 'text' && block.isTemplate)
   ) {
     return false
   }
   return (
-    reply.status === 'stopped' ||
-    (reply.status === 'done' && reply.stopReason === 'max_tokens')
+    reply.status === 'stopped' || (reply.status === 'done' && reply.stopReason === 'max_tokens')
   )
 }
 
@@ -200,6 +202,10 @@ const isUsableReply = (message: Message): message is AssistantMessage =>
   message.stopReason !== 'refusal' &&
   !message.blocks.some((block) => block.type === 'text' && block.isTemplate) &&
   getReplyText(message) !== ''
+
+/** 联网回复可作为新一轮的上下文，由新用户消息请求接着回答。 */
+export const canFollowUpReply = (reply: AssistantMessage) =>
+  isUsableReply(reply) && hasServerToolBlocks(reply)
 
 /** 有文件时用内容块数组：先文件后文本，文件按 Files API 的 file_id 引用 */
 const toUserParam = ({ content, files }: UserMessage): MessageParam => {
@@ -222,8 +228,7 @@ const toUserParam = ({ content, files }: UserMessage): MessageParam => {
  */
 const toAssistantParam = (
   { blocks }: AssistantMessage,
-  prefix = false,
-  thinking = false
+  { prefix = false, thinking = false, readLinks = true } = {}
 ): Extract<MessageParam, { role: 'assistant' }> => {
   const content: AssistantBlockParam[] = []
   // 成功阅读的网页靠签名恢复正文；缺少有效签名时，调用与结果都不回传。
@@ -263,6 +268,7 @@ const toAssistantParam = (
       const { type, thinking, signature } = block
       content.push({ type, thinking, signature: signature ?? '' })
     } else if (
+      readLinks &&
       block.type === 'server_tool_use' &&
       block.kind === 'read_link' &&
       !unsignedReadLinks.has(block.id)
@@ -270,6 +276,7 @@ const toAssistantParam = (
       const { type, id, name, input, kind } = block
       content.push({ type, id, name, input, kind })
     } else if (
+      readLinks &&
       block.type === 'web_fetch_tool_result' &&
       block.kind === 'read_link' &&
       !unsignedReadLinks.has(block.tool_use_id)
@@ -305,7 +312,8 @@ export const toRequestMessages = (
   question: UserMessage,
   prefix?: AssistantMessage,
   thinking = prefix?.thinking ?? false,
-  latestReminder?: string
+  latestReminder?: string,
+  readLinks = true
 ): MessageParam[] => {
   const messages: MessageParam[] = []
   let previousReminder: string | undefined
@@ -322,12 +330,12 @@ export const toRequestMessages = (
       continue
     }
     appendReminder(reply.latestReminder)
-    messages.push(toUserParam(user), toAssistantParam(reply))
+    messages.push(toUserParam(user), toAssistantParam(reply, { readLinks }))
   }
   appendReminder(latestReminder)
   messages.push(toUserParam(question))
   if (prefix?.prefix) {
-    const assistant = toAssistantParam(prefix, true, thinking)
+    const assistant = toAssistantParam(prefix, { prefix: true, thinking, readLinks })
     // 没有非空白正文或有效思考时直接重发原问题，避免服务端拒绝空 Prefill。
     if (
       assistant.content.some(

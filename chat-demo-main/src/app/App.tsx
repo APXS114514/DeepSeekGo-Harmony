@@ -66,7 +66,7 @@ export const App = () => {
   const ready = useChatStore((state) => state.ready)
   const initError = useChatStore((state) => state.initError)
   const saveError = useChatStore((state) => Object.values(state.sessionSaveErrors).some(Boolean))
-  const importingHistory = useChatStore((state) => state.importingHistory)
+  const importingHistory = useChatStore((state) => state.importingHistory !== false)
   const session = useChatStore((state) =>
     state.activeId !== null && Object.hasOwn(state.sessionCache, state.activeId)
       ? state.sessionCache[state.activeId]

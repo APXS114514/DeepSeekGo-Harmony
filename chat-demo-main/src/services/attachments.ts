@@ -9,10 +9,10 @@ import { ACCEPT_FILE_EXTS } from './uploadExts.js'
 export const ACCEPTED_EXTS = ACCEPT_FILE_EXTS
 /** 选择文件对话框的过滤条件 */
 export const ACCEPT = ACCEPTED_EXTS.map((ext) => `.${ext}`).join(',')
-/** 单文件大小上限与 Files API 一致 */
-export const MAX_SIZE_MB = 64
-/** 按 user_data 上传的文件（纯文本、代码、表格、电子书）原文件上限更小 */
-export const MAX_USER_DATA_SIZE_MB = 32
+/** Files API 原文件上限，单位 MiB。 */
+export const MAX_DOCUMENT_SIZE_MIB = 100
+export const MAX_IMAGE_SIZE_MIB = 64
+export const MAX_USER_DATA_SIZE_MIB = 32
 export const MAX_COUNT = 50
 /** 同时上传的文件数 */
 const MAX_CONCURRENT = 3
@@ -36,20 +36,26 @@ export const getUploadPurpose = (name: string, isImage: boolean): FilePurpose | 
   return LAYOUT_RECOGNITION_EXTS.has(getFileExt(name)) ? 'rich_layout_recognition' : 'user_data'
 }
 
-/** 文件允许的最大体积（MB），按上传时的 purpose 区分 */
-const getMaxSizeMB = (file: File) =>
-  getUploadPurpose(file.name, isImage(resolveMimeType(file))) === 'user_data'
-    ? MAX_USER_DATA_SIZE_MB
-    : MAX_SIZE_MB
+/** 按实际上传的 purpose 查找对应上限。 */
+const getMaxSizeMiB = (file: File) => {
+  switch (getUploadPurpose(file.name, isImage(resolveMimeType(file)))) {
+    case null:
+      return MAX_IMAGE_SIZE_MIB
+    case 'rich_layout_recognition':
+      return MAX_DOCUMENT_SIZE_MIB
+    default:
+      return MAX_USER_DATA_SIZE_MIB
+  }
+}
 
 /** 添加前校验：格式 → 大小 → 数量，任一不满足即整批不添加 */
 export const validateFiles = (files: File[], currentCount: number): TranslationMessage | null => {
   if (files.some((file) => !isAcceptedExt(file.name))) {
     return { key: 'uploadUnsupportedFormat' }
   }
-  const oversized = files.find((file) => file.size > getMaxSizeMB(file) * 1024 * 1024)
+  const oversized = files.find((file) => file.size > getMaxSizeMiB(file) * 1024 * 1024)
   if (oversized) {
-    return { key: 'uploadMaxMBSize', params: { size: getMaxSizeMB(oversized) } }
+    return { key: 'uploadMaxMBSize', params: { size: getMaxSizeMiB(oversized) } }
   }
   if (currentCount + files.length > MAX_COUNT) {
     return { key: 'uploadMaxFiles', params: { count: MAX_COUNT } }

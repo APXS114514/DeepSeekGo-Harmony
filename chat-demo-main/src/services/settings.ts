@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { TtsVoice } from './api/speech.js'
+import type { ChatModel, ThinkingEffort } from './api/types.js'
 import { readDeviceApiKey, saveDeviceApiKey } from './harmony.js'
 import { normalizeLocation, type UserLocation } from './location.js'
 
@@ -10,6 +11,22 @@ export type Locale = 'zh-CN' | 'en-US'
 
 /** 主题偏好；默认跟随系统 */
 export type ThemePreference = 'light' | 'dark' | 'system'
+
+export const OUTPUT_LIMITS = [8192, 32768, 65536, 131072, 393216] as const
+
+export type GenerationOptions = {
+  model: ChatModel
+  readLinks: boolean
+  effort: ThinkingEffort | null
+  maxTokens: number | null
+}
+
+export const DEFAULT_GENERATION: GenerationOptions = {
+  model: 'deepseek-flash',
+  readLinks: true,
+  effort: null,
+  maxTokens: null,
+}
 
 /** 本机设置，鸿蒙端的 API Key 由系统资产服务保管。 */
 type Settings = {
@@ -25,6 +42,7 @@ type Settings = {
   voiceInputMode: VoiceInputMode
   thinking: boolean
   search: boolean
+  generation: GenerationOptions
   siderCollapsed: boolean
   /** 鸿蒙版：应用在后台时回答完成后发通知 */
   replyNotify: boolean
@@ -42,6 +60,7 @@ const KEYS = {
   voiceInputMode: 'chat-demo:voice-input-mode',
   thinking: 'chat-demo:thinking',
   search: 'chat-demo:search',
+  generation: 'chat-demo:generation',
   siderCollapsed: 'chat-demo:sider-collapsed',
   replyNotify: 'chat-demo:reply-notify',
   replyNotifyAsked: 'chat-demo:reply-notify-asked',
@@ -108,6 +127,21 @@ const initialTtsVoice = (): ReadAloudVoice => {
   return saved === 'tide' || (__HARMONY_APP__ && saved === 'local') ? saved : 'stella'
 }
 
+const initialGeneration = (): GenerationOptions => {
+  try {
+    const saved = JSON.parse(read(KEYS.generation) ?? 'null')
+    const effort = saved?.effort
+    return {
+      model: saved?.model === 'deepseek-v4-pro' ? 'deepseek-v4-pro' : DEFAULT_GENERATION.model,
+      readLinks: saved?.readLinks !== false,
+      effort: effort === 'low' || effort === 'high' || effort === 'max' ? effort : null,
+      maxTokens: OUTPUT_LIMITS.find((limit) => limit === saved?.maxTokens) ?? null,
+    }
+  } catch {
+    return DEFAULT_GENERATION
+  }
+}
+
 export const useSettings = create<Settings>(() => ({
   apiKey: __HARMONY_APP__ ? null : read(KEYS.apiKey),
   apiKeyTemporary: false,
@@ -121,6 +155,7 @@ export const useSettings = create<Settings>(() => ({
   voiceInputMode: read(KEYS.voiceInputMode) === 'api' ? 'api' : 'local',
   thinking: read(KEYS.thinking) === 'true',
   search: read(KEYS.search) === 'true',
+  generation: initialGeneration(),
   siderCollapsed: read(KEYS.siderCollapsed) === 'true',
   replyNotify: read(KEYS.replyNotify) !== 'false',
 }))
@@ -202,6 +237,12 @@ export const setThinking = (thinking: boolean) => {
 export const setSearch = (search: boolean) => {
   write(KEYS.search, String(search))
   useSettings.setState({ search })
+}
+
+export const setGenerationOptions = (options: Partial<GenerationOptions>) => {
+  const generation = { ...useSettings.getState().generation, ...options }
+  write(KEYS.generation, JSON.stringify(generation))
+  useSettings.setState({ generation })
 }
 
 export const setSiderCollapsed = (siderCollapsed: boolean) => {

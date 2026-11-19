@@ -5,11 +5,12 @@ All features in the current version of Deepseek GO. For changes by version, see 
 ## Chat
 
 - Stream replies in multi-turn chats, edit earlier messages and regenerate replies, and switch between reply versions.
-- **DeepThink.** Preview the latest few lines of reasoning. The preview collapses when the answer starts. Tap its heading to expand it.
-- **Web search.** Search the web with source citations. In wide windows, source cards appear alongside the chat on the right.
+- **Chat model.** Select Flash or V4 Pro in General settings. Requests with attachments or the existing web tools use Flash automatically.
+- **DeepThink.** Preview the latest few lines of reasoning. The preview collapses when the answer starts. Tap its heading to expand it. Set reasoning effort and output token limits in General settings.
+- **Web search.** Search the web with source citations. In wide windows, source cards appear alongside the chat on the right. Control link reading separately in General settings. Use **Continue in a new turn** to follow up on replies that used web tools.
 - Render Markdown, highlighted code, equations, and Mermaid diagrams. Copy replies or read them aloud.
 - **Search chat history.** Search titles or messages in the current version of each chat from the sidebar. Open a chat or jump to the matching message.
-- Attach images, PDFs, Office documents, and code files.
+- Attach images, PDFs, Office documents, and code files. The per-file limits are 100 MiB for PDF, Word, and PowerPoint, 64 MiB for images, and 32 MiB for plain text, spreadsheets, and ebooks.
 - **Incognito chat.** Turn it on from the new chat screen. Incognito chats skip history and memory and are discarded when you leave.
 
 ## HarmonyOS features
@@ -19,7 +20,7 @@ All features in the current version of Deepseek GO. For changes by version, see 
 - **Share a reply or chat.** Open a preview from the reply toolbar or chat menu, then use the system share sheet to send a reply or the current chat branch as plain text, Markdown, or a long image.
 - **Recognize text in an image.** Take a photo or pick one from the gallery. The app recognizes text on your device and inserts it into the composer without uploading the image.
 - **Share to Deepseek GO.** Choose **Share → Deepseek GO** in another app. Text, links, images, and documents appear in a new chat for you to review before sending.
-- **Export chat history.** In **Settings → Data**, export all chats as a ZIP file and choose where to save it in the system file picker. Import an archive from the same page.
+- **Import and export chat history.** In **Settings → Data**, export your chats as a ZIP file or merge an archive into local history. A merge keeps existing chats with matching IDs. You can also choose to replace all local chats.
 - **Background generation and reply notifications.** Replies can keep generating in the background. Tap the completion notification to go straight to the chat. You can turn this off in **Settings → General → Reply notifications**.
 - **Secure API key storage.** HarmonyOS Asset Store keeps the key in the device’s secure storage, outside web storage.
 

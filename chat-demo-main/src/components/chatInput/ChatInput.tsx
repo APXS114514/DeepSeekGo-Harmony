@@ -87,17 +87,22 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   )
   const thinking = useSettings((state) => state.thinking)
   const search = useSettings((state) => state.search)
+  const generation = useSettings((state) => state.generation)
   const estimate = useMemo(
-    () => estimateContext(history, draft, system, thinking),
-    [history, draft, system, thinking]
+    () => estimateContext(history, draft, system, thinking, generation.maxTokens),
+    [history, draft, system, thinking, generation.maxTokens]
   )
-  const rejectedDraft = matchesRejectedDraft(draft, history.rejected, { thinking, search })
+  const rejectedDraft = matchesRejectedDraft(draft, history.rejected, {
+    thinking,
+    search,
+    generation,
+  })
   const showRejected = rejectedDraft || (history.rejected !== null && !hasDraft(draft))
   const attachmentCount = hasDraft(draft)
     ? attachments.length
     : (history.rejected?.question.files.length ?? 0)
   const [carrying, setCarrying] = useState(false)
-  const importingHistory = useChatStore((state) => state.importingHistory)
+  const importingHistory = useChatStore((state) => state.importingHistory !== false)
   const isMobile = useIsMobile()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)

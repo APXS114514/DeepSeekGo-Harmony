@@ -9,13 +9,14 @@ import {
   isRetryableApiError,
 } from '../api/errors.js'
 import { cancelUpload, describeUploadError, uploadAttachment, useUploads } from '../attachments.js'
-import { useSettings } from '../settings.js'
+import { DEFAULT_GENERATION, useSettings } from '../settings.js'
 import { appendBranch, getVisibleMessages, normalizeSession, selectVersion } from './branches.js'
 import * as db from './db.js'
 import {
   clearAllDrafts,
   clearDraft,
   clearSentDraft,
+  EMPTY_DRAFT,
   getDraft,
   hasDraft,
   makeMessageDraft,
@@ -34,6 +35,7 @@ import { createLatestReminder } from './latestReminder.js'
 import {
   applyEvent,
   canContinueReply,
+  canFollowUpReply,
   getContextRounds,
   getReplyText,
   settleReply,
@@ -45,6 +47,7 @@ import {
   toSessionSummary,
   type AssistantMessage,
   type FileAttachment,
+  type HistoryImportMode,
   type Message,
   type Session,
   type SessionSummary,
@@ -52,7 +55,7 @@ import {
 } from './types.js'
 
 /** deepseek-flash 同时支持深度思考与图片输入 */
-const MODEL: ChatModel = 'deepseek-flash'
+const FLASH_MODEL: ChatModel = 'deepseek-flash'
 /** 保留最近打开的详情；当前会话、生成中及尚未成功保存的会话不淘汰。 */
 const SESSION_CACHE_LIMIT = 5
 /** 服务端判定 file_id 失效后，重新补传并重发的最多次数（不含首次请求） */
@@ -60,11 +63,11 @@ const FILE_RETRY_LIMIT = 2
 /** 退避基数，第 n 次重试等待 2^n 倍；连续失败达到上限就放弃，把原始报错展示出来 */
 const FILE_RETRY_BASE_DELAY = 1000
 
-/** 阅读链接始终开启，智能搜索开关控制是否另行声明搜索工具（含边想边搜）。 */
-const serverTools = (search: boolean): CreateMessageRequest['tools'] => {
-  const tools: CreateMessageRequest['tools'] = [
-    { type: 'deepseek_read_url', name: 'deepseek_read_url' },
-  ]
+const serverTools = (search: boolean, readLinks: boolean): CreateMessageRequest['tools'] => {
+  const tools: CreateMessageRequest['tools'] = []
+  if (readLinks) {
+    tools.push({ type: 'deepseek_read_url', name: 'deepseek_read_url' })
+  }
   if (search) {
     tools.push({ type: 'deepseek_web_search', name: 'deepseek_web_search' })
   }
@@ -88,7 +91,7 @@ type ChatState = {
   ready: boolean
   initError: boolean
   /** 历史导入或全部删除期间锁定交互，提交成功前仍展示原有记录。 */
-  importingHistory: boolean
+  importingHistory: false | HistoryImportMode
   /** 仅列表元数据，按 updatedAt 降序；流式消息更新不会改变此数组。 */
   sessions: SessionSummary[]
   sessionCache: Record<string, Session>
@@ -257,7 +260,7 @@ export const retrySaveSessions = () => {
 /** 离开前先合并尚未绘制的增量；隐藏期间浏览器可能暂停动画帧。 */
 export const bindChatPersistence = () => {
   const save = () => {
-    if (get().importingHistory) {
+    if (get().importingHistory === 'replace') {
       return
     }
     for (const [id, flush] of streamFlushes) {
@@ -273,7 +276,7 @@ export const bindChatPersistence = () => {
   const onVisibilityChange = () => {
     if (document.visibilityState === 'hidden') {
       save()
-    } else if (!get().importingHistory) {
+    } else if (get().importingHistory !== 'replace') {
       streamFlushes.forEach((flush) => flush())
     }
   }
@@ -287,14 +290,15 @@ export const bindChatPersistence = () => {
 
 /** 按当前开关创建回复：深度思考对应 thinking，智能搜索控制 deepseek_web_search。 */
 const createReply = (): AssistantMessage => {
-  const { thinking, search } = useSettings.getState()
+  const { thinking, search, generation } = useSettings.getState()
   return {
     id: createId(),
     role: 'assistant',
     createdAt: Date.now(),
-    model: MODEL,
+    model: generation.model,
     thinking,
     search,
+    generation,
     prefix: true,
     status: 'pending',
     blocks: [],
@@ -418,32 +422,47 @@ const waitForIdle = (sessionId?: string) =>
   })
 
 /**
- * 替换历史对话：先写入暂存，成功后原子替换旧记录；写入为空即删除全部会话与附件。
- * 期间停止生成并禁止修改会话；失败时清除暂存，保留原有记录。
+ * 先写入暂存，再原子合并或替换历史。替换前结束生成并释放旧会话状态。
  */
-export const replaceHistory = async (write: () => Promise<void>): Promise<number> => {
+export const updateHistory = async (
+  write: () => Promise<void>,
+  mode: HistoryImportMode
+): Promise<number> => {
   if (get().importingHistory) {
     throw new Error('History replacement is already in progress')
   }
-  set({ importingHistory: true })
+  set({ importingHistory: mode })
   try {
-    for (const controller of Object.values(get().streaming)) {
-      controller.abort()
-    }
     // 已开始的单条删除先同步到内存，避免本次替换失败后列表残留已被删除的记录。
     await Promise.all(deletionTasks)
-    historyEpoch += 1
-    initTask = undefined
-    sessionLoads.clear()
-    await waitForIdle()
+    if (mode === 'replace') {
+      for (const controller of Object.values(get().streaming)) {
+        controller.abort()
+      }
+      historyEpoch += 1
+      initTask = undefined
+      sessionLoads.clear()
+      await waitForIdle()
+    } else {
+      await initChat()
+      if (!get().ready) {
+        throw new Error('Existing chat history could not be loaded')
+      }
+    }
     await db.clearStaging()
     let summaries: SessionSummary[]
     try {
       await write()
-      summaries = await db.commitStaging()
+      const { sessions, sessionCache } = get()
+      const existingIds = new Set([...sessions.map(({ id }) => id), ...Object.keys(sessionCache)])
+      summaries = await db.commitStaging(mode, existingIds)
     } catch (error) {
       await db.clearStaging().catch(db.reportStorageError('clear unfinished history replacement'))
       throw error
+    }
+    if (mode === 'merge') {
+      set((state) => ({ sessions: sortSessions([...state.sessions, ...summaries]) }))
+      return summaries.length
     }
     sessionAccess.clear()
     unsavedSessions.clear()
@@ -693,11 +712,14 @@ export const stopReply = (sessionId: string) => getStreamController(sessionId)?.
  * 提交指定会话的最新草稿；null 表示新建会话。
  * 同步接收成功才清空草稿，附件原件由会话接管；保存失败仍通过保存入口重试。
  */
-export const sendMessage = (targetSessionId: string | null) => {
+export const sendMessage = (
+  targetSessionId: string | null,
+  followUp?: { replyId: string; text: string }
+) => {
   if (get().importingHistory || !get().ready) {
     return false
   }
-  const draft = getDraft(targetSessionId)
+  const draft = followUp ? { ...EMPTY_DRAFT, text: followUp.text } : getDraft(targetSessionId)
   const prepared = prepareDraftMessage(draft, useUploads.getState().tasks)
   if (!prepared) {
     return false
@@ -721,6 +743,16 @@ export const sendMessage = (targetSessionId: string | null) => {
     return false
   }
   const history = getVisibleMessages(current)
+  if (followUp) {
+    const previous = history.at(-1)
+    if (
+      previous?.role !== 'assistant' ||
+      previous.id !== followUp.replyId ||
+      !canFollowUpReply(previous)
+    ) {
+      return false
+    }
+  }
   if (matchesRejectedDraft(draft, getContextRejection(history), useSettings.getState())) {
     return false
   }
@@ -752,8 +784,10 @@ export const sendMessage = (targetSessionId: string | null) => {
     ])
   }
   persist(sessionId)
-  clearSentDraft(targetSessionId)
-  void streamReply(sessionId, reply, { history, question, draft })
+  if (!followUp) {
+    clearSentDraft(targetSessionId)
+  }
+  void streamReply(sessionId, reply, { history, question, draft: followUp ? undefined : draft })
   return true
 }
 
@@ -851,7 +885,7 @@ export const continueReply = (sessionId: string, messageId: string) => {
   const reply: AssistantMessage = {
     ...previous,
     // 未记录请求配置的回复，续写时使用默认模型和当前开关。
-    model: previous.model ?? MODEL,
+    model: previous.model ?? FLASH_MODEL,
     thinking: previous.thinking ?? thinking,
     search: previous.search ?? search,
     status: 'pending',
@@ -1107,6 +1141,10 @@ const waitForRetry = (attempt: number, signal: AbortSignal) =>
  * 服务端判定 file_id 失效时重新补传后重发，退避重试且次数有上限，超过则按原始报错收尾。
  */
 const streamReply = async (sessionId: string, initial: AssistantMessage, request: Request) => {
+  const generation = initial.generation ?? {
+    ...DEFAULT_GENERATION,
+    model: initial.model ?? FLASH_MODEL,
+  }
   const controller = new AbortController()
   if (!getSession(sessionId)?.title) {
     titleRequests.add(controller)
@@ -1136,24 +1174,45 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
         const latestReminder = prepared.prefix
           ? prepared.prefix.latestReminder
           : createLatestReminder(useSettings.getState())
-        reply = { ...reply, latestReminder }
-        updateReply(sessionId, reply)
-        persist(sessionId)
         const messages = toRequestMessages(
           prepared.history,
           prepared.question,
           prepared.prefix,
           initial.thinking ?? false,
-          latestReminder
+          latestReminder,
+          generation.readLinks
         )
+        const preferredModel = prepared.prefix?.model ?? generation.model
+        // 附件和联网工具使用 Flash。阅读链接开启时，纯文本请求仍可选 Pro。
+        const needsFlash =
+          initial.search ||
+          (generation.readLinks && /https?:\/\//i.test(prepared.question.content)) ||
+          messages.some((message) =>
+            message.role === 'user'
+              ? Array.isArray(message.content) &&
+                message.content.some((block) => block.type !== 'text')
+              : message.role === 'assistant' &&
+                message.content.some((block) => block.type === 'server_tool_use')
+          )
+        const model = needsFlash ? FLASH_MODEL : preferredModel
+        reply = { ...reply, model, latestReminder }
+        updateReply(sessionId, reply)
+        persist(sessionId)
         const events = streamMessage(
           useSettings.getState().apiKey ?? '',
           {
-            model: initial.model ?? MODEL,
+            model,
             system,
             messages,
             thinking: { type: initial.thinking ? 'enabled' : 'disabled' },
-            tools: serverTools(initial.search ?? false),
+            ...(initial.thinking && generation.effort
+              ? { output_config: { effort: generation.effort } }
+              : {}),
+            ...(generation.maxTokens ? { max_tokens: generation.maxTokens } : {}),
+            tools: serverTools(
+              initial.search ?? false,
+              generation.readLinks && model === FLASH_MODEL
+            ),
             ...(titleRequests.has(controller) ? { title: { enabled: true } } : {}),
           },
           controller.signal
@@ -1167,7 +1226,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
             event.delta.title?.trim() &&
             titleRequests.has(controller) &&
             !controller.signal.aborted &&
-            !get().importingHistory
+            get().importingHistory !== 'replace'
           ) {
             const title = event.delta.title.trim()
             updateSession(sessionId, (session) => (session.title ? session : { ...session, title }))
@@ -1246,7 +1305,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
     if (
       reply.error?.kind === 'context' &&
       request.draft &&
-      !get().importingHistory &&
+      get().importingHistory !== 'replace' &&
       !deletingSessions.has(sessionId) &&
       getSession(sessionId)
     ) {
@@ -1262,7 +1321,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
         reply.status === 'done' &&
         finished &&
         !controller.signal.aborted &&
-        !get().importingHistory
+        get().importingHistory !== 'replace'
       ) {
         // 先同步交给原生发布，再通知它生成结束。点击通知时可读到已保存的最终回答。
         replyDoneListeners.forEach((listener) => listener(finished, reply))

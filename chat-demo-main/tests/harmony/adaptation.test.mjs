@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
+import { strToU8, zipSync } from 'fflate'
 import { chromium, launchOptions, repoRoot } from './support.mjs'
 
 const root = repoRoot
@@ -27,9 +28,10 @@ const media = {
 const chats = []
 const extractions = []
 let hold = null
-const sse = (text, title, stopReason = 'end_turn') =>
+const sse = (text, title, stopReason = 'end_turn', toolFrames = []) =>
   [
     { type: 'message_start', message: { id: 'mock', content: [] } },
+    ...toolFrames,
     { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
     { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } },
     { type: 'content_block_stop', index: 0 },
@@ -49,6 +51,7 @@ const open = async ({
   storage = {},
   insets = { top: 31, right: 0, bottom: 18, left: 0 },
   refuseReply = false,
+  mockChat,
 } = {}) => {
   const context = await browser.newContext({
     locale: 'zh-CN',
@@ -143,6 +146,9 @@ const open = async ({
       })
     if (path === '/models')
       return route.fulfill({ headers, json: { data: [{ id: 'deepseek-flash' }] } })
+    if (path === '/anthropic/v1/files') {
+      return route.fulfill({ headers, json: { id: 'file-api-test', mime_type: 'application/pdf' } })
+    }
     const body = request.postDataJSON()
     if (body.system.startsWith('你负责维护用户的长期记忆')) {
       extractions.push(body)
@@ -159,7 +165,8 @@ const open = async ({
       contentType: 'text/event-stream',
       body: refuseReply
         ? sse('待审核的示例正文', undefined, 'refusal')
-        : sse(`第 ${chats.length} 条：**加粗**和 \`code\`\n\n- 列表`, `测试会话 ${chats.length}`),
+        : (mockChat?.(body) ??
+          sse(`第 ${chats.length} 条：**加粗**和 \`code\`\n\n- 列表`, `测试会话 ${chats.length}`)),
     })
   })
   const page = await context.newPage()
@@ -193,6 +200,73 @@ const waitFor = async (page, predicate, label) => {
   }
   assert.fail(`timeout: ${label}`)
 }
+
+const desktop = { mobile: false, width: 960, height: 720 }
+const openSettings = async (page) => {
+  await page.getByRole('button', { name: '设置', exact: true }).click()
+  return page.getByRole('dialog', { name: '设置', exact: true })
+}
+
+const archive = (sessions, images = {}) => {
+  const json = (value) => strToU8(JSON.stringify(value))
+  return Buffer.from(
+    zipSync({
+      'manifest.json': json({ export_format_version: 3 }),
+      ...Object.fromEntries(
+        sessions.map((session) => [`chat_sessions/${session.id}.json`, json(session)])
+      ),
+      'chat_session_index.json': json(
+        sessions.map((session) => ({ ...session, message_count: session.messages.length }))
+      ),
+      ...images,
+    })
+  )
+}
+
+const archiveChat = (id, title) => {
+  const inserted_at = '2026-11-18T08:15:00.000Z'
+  return {
+    id,
+    title,
+    pinned: false,
+    current_message_id: 1,
+    inserted_at,
+    updated_at: inserted_at,
+    messages: [
+      {
+        id: 1,
+        parent_id: null,
+        role: 'USER',
+        status: 'FINISHED',
+        thinking_enabled: false,
+        search_enabled: false,
+        accumulated_token_usage: 0,
+        inserted_at,
+        fragments: [
+          { type: 'REQUEST', content: `${title}的正文` },
+          {
+            type: 'FILE',
+            files: [
+              {
+                id: 'shared-id',
+                file_name: 'sample.png',
+                file_size: 9,
+                token_usage: null,
+                inserted_at,
+                export_path: `chat_sessions/${id}_files/shared-id_sample.png`,
+                is_image: true,
+                width: null,
+                height: null,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  }
+}
+
+const pngBytes = (last) => Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10, last)
 
 try {
   // ---------- 手机：顶栏对齐、返回手势、字体缩放、安全区 ----------
@@ -502,6 +576,199 @@ try {
       ['deepseek_read_url', 'deepseek_web_search']
     )
     assert.equal(await page.getByText('待审核的示例正文', { exact: true }).count(), 0)
+    assert.deepEqual(errors, [])
+    await context.close()
+  }
+
+  // 模型、工具和生成参数在真实聊天入口组成正确的请求。
+  {
+    const { context, page, errors } = await open({
+      ...desktop,
+      mockChat: (body) =>
+        body.messages.at(-1).content === '搜索示例'
+          ? sse('模拟联网结果', undefined, 'max_tokens', [
+              {
+                type: 'content_block_start',
+                index: 1,
+                content_block: {
+                  type: 'server_tool_use',
+                  id: 'search-demo',
+                  name: 'deepseek_web_search',
+                  kind: 'search',
+                  input: { action: 'search', queries: ['搜索示例'] },
+                },
+              },
+              { type: 'content_block_stop', index: 1 },
+            ])
+          : undefined,
+    })
+    const settings = await openSettings(page)
+    const select = async (label, option) => {
+      await settings.getByRole('button', { name: label, exact: true }).click()
+      await page.getByRole('option', { name: option, exact: true }).click()
+    }
+    await select('聊天模型', 'V4 Pro')
+    await select('推理强度', '最高')
+    await select('输出上限', '32,768')
+    const readLinks = settings.getByRole('switch', { name: '阅读链接' })
+    assert(await readLinks.isChecked())
+    await page.keyboard.press('Escape')
+    await settings.waitFor({ state: 'hidden' })
+    const sendNormal = (text) => send(page, text, `第 ${chats.length + 1} 条`)
+    await sendNormal('阅读 https://example.com')
+    assert.equal(chats.at(-1).model, 'deepseek-flash')
+    assert.deepEqual(
+      chats.at(-1).tools.map(({ type }) => type),
+      ['deepseek_read_url']
+    )
+    assert.equal(chats.at(-1).output_config, undefined)
+    await openSettings(page)
+    await readLinks.uncheck()
+    await page.keyboard.press('Escape')
+    await settings.waitFor({ state: 'hidden' })
+    await page.reload()
+    await page.getByText('今天想聊什么？', { exact: true }).waitFor()
+    await page.getByRole('button', { name: '深度思考', exact: true }).click()
+    await sendNormal('链接只当文本 https://example.com')
+    assert.equal(chats.at(-1).model, 'deepseek-v4-pro')
+    assert.deepEqual(chats.at(-1).tools, [])
+    assert.deepEqual(chats.at(-1).output_config, { effort: 'max' })
+    assert.equal(chats.at(-1).max_tokens, 32768)
+
+    await page.getByRole('button', { name: '智能搜索', exact: true }).click()
+    await send(page, '搜索示例', '模拟联网结果')
+    assert.equal(chats.at(-1).model, 'deepseek-flash')
+    assert.deepEqual(
+      chats.at(-1).tools.map(({ type }) => type),
+      ['deepseek_web_search']
+    )
+    await page.locator('textarea:visible').first().fill('保留这份草稿')
+    await page.getByRole('button', { name: '接着回答', exact: true }).click()
+    await waitFor(
+      page,
+      () => chats.at(-1).messages.at(-1).content.includes('请接着上一条回答'),
+      'new follow-up turn'
+    )
+    assert.equal(chats.at(-1).messages.at(-1).role, 'user')
+    assert.equal(chats.at(-1).messages.at(-2).role, 'assistant')
+    assert.equal(await page.locator('textarea:visible').first().inputValue(), '保留这份草稿')
+    await page.waitForFunction(() => window.lastWindowUi.generating === false)
+
+    await page.getByRole('button', { name: '智能搜索', exact: true }).click()
+    const input = page.locator('input[type=file][multiple]')
+    const attachSizedFile = (name, type, mebibytes, extra = 0) =>
+      input.evaluate(
+        (el, [name, type, mebibytes, extra]) => {
+          const part = new Blob([new Uint8Array(1024 * 1024)])
+          const data = new DataTransfer()
+          data.items.add(
+            new File([...Array(mebibytes).fill(part), new Uint8Array(extra)], name, { type })
+          )
+          el.files = data.files
+          el.dispatchEvent(new Event('change', { bubbles: true }))
+        },
+        [name, type, mebibytes, extra]
+      )
+    await attachSizedFile('too-large.txt', 'text/plain', 32, 1)
+    await toast(page, '单个文件不能超过 32 MiB')
+    await attachSizedFile('too-large.png', 'image/png', 64, 1)
+    await toast(page, '单个文件不能超过 64 MiB')
+    await attachSizedFile('too-large.pdf', 'application/pdf', 100, 1)
+    await toast(page, '单个文件不能超过 100 MiB')
+    await attachSizedFile('large.pdf', 'application/pdf', 65)
+    await page.getByText('large.pdf', { exact: true }).waitFor()
+    await sendNormal('请查看上传的文档')
+    assert.equal(chats.at(-1).model, 'deepseek-flash')
+    assert.deepEqual(chats.at(-1).tools, [])
+    assert(
+      chats
+        .at(-1)
+        .messages.at(-1)
+        .content.some((block) => block.type !== 'text')
+    )
+    await sendNormal('继续问这个文档')
+    assert.equal(chats.at(-1).model, 'deepseek-flash', 'historical attachments require Flash')
+    assert.deepEqual(errors, [])
+    await context.close()
+  }
+
+  // 合并保留当前会话、草稿和图片原件，同 ID 会话跳过，重复导入不产生副本。
+  {
+    const { context, page, errors } = await open(desktop)
+    const imported = archiveChat('new-chat', '外部会话')
+    const existing = archiveChat('local-chat', '本机会话')
+    const chooseArchive = async (buffer, mode) => {
+      const settings = await openSettings(page)
+      await settings.getByRole('tab', { name: '数据管理' }).click()
+      await settings
+        .locator('input[type=file]')
+        .setInputFiles({ name: 'history.zip', mimeType: 'application/zip', buffer })
+      await page
+        .getByRole('dialog', { name: '确认导入历史对话？' })
+        .getByRole('button', { name: mode })
+        .click()
+      return settings
+    }
+    const initial = archive([existing], {
+      'chat_sessions/local-chat_files/shared-id_sample.png': pngBytes(1),
+    })
+    let settings = await chooseArchive(initial, '覆盖导入')
+    await settings.getByText('已导入 1 个对话').waitFor()
+    await page.keyboard.press('Escape')
+    await settings.waitFor({ state: 'hidden' })
+    await page.getByText('本机会话', { exact: true }).click()
+    await page.getByText('本机会话的正文', { exact: true }).waitFor()
+    await page.locator('textarea:visible').first().fill('导入时保留草稿')
+    const combined = archive([{ ...existing, title: '旧备份标题' }, imported], {
+      'chat_sessions/new-chat_files/shared-id_sample.png': pngBytes(2),
+    })
+    settings = await chooseArchive(combined, '合并导入')
+    await settings.getByText('已导入 1 个对话').waitFor()
+    await page.keyboard.press('Escape')
+    await settings.waitFor({ state: 'hidden' })
+    assert.equal(await page.locator('textarea:visible').first().inputValue(), '导入时保留草稿')
+    assert.equal(await page.getByText('旧备份标题', { exact: true }).count(), 0)
+    settings = await chooseArchive(combined, '合并导入')
+    await settings.getByText('没有可合并的新对话').waitFor()
+    await page.keyboard.press('Escape')
+    await settings.waitFor({ state: 'hidden' })
+    const corrupt = archive([imported, { ...imported, id: 'broken', current_message_id: 20 }])
+    settings = await chooseArchive(corrupt, '合并导入')
+    await settings.getByText(/导入失败/).waitFor()
+    await page.keyboard.press('Escape')
+    await settings.waitFor({ state: 'hidden' })
+    const saved = await page.evaluate(async () => {
+      const result = (request) =>
+        new Promise((resolve, reject) => {
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+      const db = await result(indexedDB.open('chat-demo'))
+      try {
+        const tx = db.transaction(['sessions', 'files'])
+        const [sessions, files] = await Promise.all([
+          result(tx.objectStore('sessions').getAll()),
+          result(tx.objectStore('files').getAll()),
+        ])
+        return await Promise.all(
+          sessions.map(async (session) => {
+            const fileId = session.messages[0].files[0].id
+            const bytes = new Uint8Array(
+              await files.find((file) => file.id === fileId).blob.arrayBuffer()
+            )
+            return [session.id, session.title, bytes.at(-1)]
+          })
+        )
+      } finally {
+        db.close()
+      }
+    })
+    assert.deepEqual(saved, [
+      ['local-chat', '本机会话', 1],
+      ['new-chat', '外部会话', 2],
+    ])
+    await page.getByText('外部会话', { exact: true }).click()
+    await page.getByText('外部会话的正文', { exact: true }).waitFor()
     assert.deepEqual(errors, [])
     await context.close()
   }

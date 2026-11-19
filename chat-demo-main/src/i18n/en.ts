@@ -68,6 +68,9 @@ export const en = {
   editMessage: 'Edit message',
   regenerate: 'Regenerate',
   continueGenerating: 'Continue',
+  followUpAnswer: 'Continue in a new turn',
+  followUpPrompt:
+    'Please continue the previous answer and avoid repeating what you already covered.',
   changeApiKey: 'Change API Key',
   topUp: 'Top up',
   messageSearchSummary: '1 web page',
@@ -126,6 +129,20 @@ export const en = {
   settingsTtsVoice: 'Read-aloud voice',
   settingsTtsVoiceStella: 'Stella (female)',
   settingsTtsVoiceTide: 'Tide (male)',
+  settingsChatModel: 'Chat model',
+  settingsChatModelDescription:
+    'V4 Pro uses its own API pricing. Attachments and web tools use Flash.',
+  settingsReadLinks: 'Read links',
+  settingsReadLinksDescription:
+    'Allow the model to fetch links in messages, independently of web search.',
+  settingsThinkingEffort: 'Reasoning effort',
+  settingsThinkingEffortDescription: 'Applies when DeepThink is on.',
+  settingsEffortLow: 'Low',
+  settingsEffortHigh: 'High',
+  settingsEffortMax: 'Maximum',
+  settingsMaxOutput: 'Output limit',
+  settingsMaxOutputDescription: 'Measured in tokens, including reasoning.',
+  settingsApiDefault: 'API default',
   settingsLocation: 'Location',
   settingsLocationNone: 'Not set',
   settingsLocationDescription:
@@ -260,11 +277,13 @@ export const en = {
   apiKeyInvalid: 'Invalid API Key. Check it and try again.',
   apiKeyVerificationFailed: 'Verification failed: {message}',
   historyImport: 'Import chat history',
-  historyImportConfirm: 'Import',
+  historyImportMerge: 'Merge',
+  historyImportReplace: 'Replace',
   historyImportConfirmTitle: 'Import chat history?',
-  historyImportConfirmDescription: 'This will replace all your current chats. Continue?',
-  historyImportDescription:
-    'Importing chat history replaces all local chats and attachments. Supports ZIP files exported from DeepSeek.',
+  historyImportConfirmDescription:
+    'Merge keeps local chats and skips duplicates. Replace removes all local chats and attachments.',
+  historyImportDescription: 'Merge or replace your history from a ZIP file exported by DeepSeek.',
+  historyImportNoNew: 'No new chats to merge',
   historyImportedOne: 'Imported 1 chat',
   historyImported: 'Imported {count} chats',
   historyImportFailed:
@@ -293,7 +312,7 @@ export const en = {
   search: 'Search',
   uploadFile: 'Upload files',
   chatInputStopButtonTooltip: 'Stop',
-  uploadMaxMBSize: 'File must be under {size} MB.',
+  uploadMaxMBSize: 'File must be no larger than {size} MiB.',
   uploadMaxFiles: 'You can upload up to {count} files',
   uploadFileStatusUploading: 'Uploading...',
   uploadServerBusy: 'Server busy',
@@ -302,7 +321,8 @@ export const en = {
   uploadStorageLimit: 'Storage limit reached ({limit} GB). ',
   uploadDeleteFiles: 'Delete files',
   dragFileToUpload: 'Drop files here to upload',
-  dragFileDesc: 'Up to {count} files, {size} MB each',
+  dragFileDesc:
+    'Up to {count} files. PDF, Word, and PowerPoint files can be up to {size} MiB each.',
   voiceInput: 'Voice input',
   holdVoiceToggle: 'Switch to hold to speak',
   holdVoiceSpeak: 'Hold to speak',

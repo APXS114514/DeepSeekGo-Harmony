@@ -2,7 +2,7 @@
 
 ## 工作区
 
-- 当前源码为 1.5.0，版本代码为 `1000018`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 当前源码为 1.5.1，版本代码为 `1000019`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
 - 1.5.0 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.0-unsigned.hap`，构建自提交 `902b474`，版本代码 `1000018`。维护者确认本轮测试通过，9 项鸿蒙回归与 HarmonyOS 26.0.0 SDK Release 构建通过。包内确认最低 API 12、155 个网页资源、欢迎页 Logo、启动器图标和图像授权声明。SHA-256 为 `cad85a0ab5374258c81124d645e982946cd62aa6859e10a53e53ac23a62796f5`。上一包归档为 `HAPS/Deepseek-GO-1.5.0-6f7b82e-unsigned.hap`，SHA-256 为 `9bd35be013fc782621fc5155d383fdc4e4c30ace2c249495bdc999de4ab2a5d0`。
 - 1.4.2 本地测试包是 `HAPS/Deepseek-GO-1.4.2-unsigned.hap`，版本代码为 `1000017`，对应提交 `cb3286d`。SHA-256 为 `1f1f80763a6ff192d75f1011301b408aeb391534eb0316ca7cd2496f365cf844`。上一轮测试包归档在 `HAPS/Deepseek-GO-1.4.2-ed689a4-unsigned.hap`，SHA-256 为 `6360fbf238728e2e9d5b4b4bd4b67e9c60f026f94cc24a55f91aa51c489ac774`。
 - 最近一次发布是 GitHub Releases 的 `v1.4.2`，标签指向提交 `f3908b0`。该版本已通过用户测试，远端 HAP 与上列本地测试包的 SHA-256 一致。只有用户明确要求时才打包当前源码版本。
@@ -35,10 +35,16 @@
 - **原生组件级配置**可通过 `systemMaterial` 等属性调整支持的组件。应用级未禁用时，组件配置优先，个别组件可通过 `uiMaterial.Material.empty` 关闭。排查时，在支持的系统上用 `uiMaterial.getMaterialInfo()` 读取应用级配置状态，用 `uiMaterial.isImmersiveMaterialSupported()` 检查设备能力，再用真机验证呈现。 [组件适配指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
 - **设置 → 通用设置 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](../chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](../chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
 
+## 1.5.1 客户端体验改善
+
+- 聊天请求省略 `safety_check`，收到 `refusal` 时继续用提示替换本轮正文。后台记忆提炼和整理独立请求 `high`。阅读链接默认开启，可独立于智能搜索关闭。关闭阅读链接时不回传历史网页的签名块，纯文本历史仍随请求发送。 [DeepSeek 模型内容安全](https://api-docs.deepseek.com/zh-cn/guides/safety/)
+- 「通用设置」保存首选模型、阅读链接、推理强度和输出 Token 上限，回答保存本轮生成选项供续写和附件重试使用。当前请求含附件、启用智能搜索，或需要读新链接或保留历史网页结果时使用 Flash。Pro 首选下的其他纯文本请求使用 Pro。用过联网工具的回答可发起新一轮跟进，保留已有草稿。 [Messages API](https://api-docs.deepseek.com/zh-cn/api/create-message/) · [联网工具](https://api-docs.deepseek.com/zh-cn/guides/web_tools/)
+- 聊天附件按 Files API 分类校验。采用版面解析的 PDF、Word 和 PPT 上限为 100 MiB，图片 64 MiB，`user_data` 为 32 MiB。 [Files API](https://api-docs.deepseek.com/zh-cn/guides/files_api/)
+- 合并导入使用现有 ZIP 暂存和 IndexedDB 事务，保留同 ID 的本地会话，给新会话的附件重新分配本地 ID，校验失败时不会写入正式存储。支持 Web Locks 的浏览器会串行处理跨窗口的归档操作。
+- 通过 `pnpm type`、`pnpm lint`、网页版和鸿蒙网页构建及 9 项鸿蒙回归。从页面入口用模拟 API 验证模型和工具搭配、参数持久化、65 MiB PDF 和各类文件超限提示、联网回答跟进、导入失败回滚、重复导入及图片原件隔离。HarmonyOS 26.0.0 SDK Debug 构建通过，核对版本 `1.5.1` / `1000019`、最低 API 12、目标 API 26 及包内 155 个网页资源。HDC 未发现真机，真实 API 和 ArkWeb 实机待验证。
+
 ## 1.5.0 对话查找、分享与语音
 
-- 流式聊天请求省略 `safety_check`，使用 DeepSeek API 的默认检查。智能搜索和阅读链接照常声明，API 仍可能返回 `refusal`，此时丢弃本轮思考和正文并显示拒答提示。后台的记忆提炼和整理仍独立请求 `high`。 [DeepSeek 模型内容安全](https://api-docs.deepseek.com/zh-cn/guides/safety/)
-- 用模拟接口从页面发送普通聊天，确认旧请求携带 `high`。修订后验证普通聊天和无痕联网请求均省略该参数，拒答仍显示提示，记忆提炼继续发送 `high`。类型、Lint、鸿蒙网页构建及 9 项鸿蒙回归通过，真实 API 和真机待验证。
 - 侧栏的历史搜索从 IndexedDB 逐条读取本机历史，优先展示标题命中，再分批返回当前分支的消息片段。搜索最多显示 50 条，关闭或改关键词会取消上一轮。定位消息时更新滚动位置并把焦点交给消息。无痕会话不在历史结果中。
 - 「语音输入」保存到 `chat-demo:voice-input-mode`，缺省和旧版升级都使用系统离线识别。DeepSeek API 模式复用网页录制的 16 kHz WAV，经现有 `/v1/tools/asr` 转写。ArkWeb 仅对内置 HTTPS 页面的音频收音处理麦克风权限，首次明确同意并通过系统授权后将页面同意写入原生 Preferences。之后每次录音仍查询当前系统权限，系统已有授权时跳过授权请求，权限撤销或临时授权失效时走系统流程。音频只在内存中暂存，松手确认后才上传，取消和切后台会释放录音并忽略迟到结果。
 - 在 HOP-AL10 的旧 1.5.0 包上通过按住说话观察到应用内麦克风确认，旧实现会为每次收音请求重开该弹窗。新增 `microphone-permission.test.mjs` 模拟系统权限和 Preferences，直接覆盖 ArkTS 的首次授权、连续录音、重建页面、拒绝后重试、系统权限撤销及端口重新连接。浏览器语音回归等待虚拟麦克风首帧后再结束录音。ArkTS CodeLinter 和 HarmonyOS 26.0.0 SDK Debug 构建通过，确认最低 API 12。维护者随后确认本轮修订通过其测试。

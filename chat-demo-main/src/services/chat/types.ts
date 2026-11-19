@@ -1,5 +1,6 @@
 import type { TranslationMessage } from '../../i18n/index.js'
 import type { ApiErrorKind } from '../api/client.js'
+import type { GenerationOptions } from '../settings.js'
 import type {
   ChatModel,
   MessageUsage,
@@ -79,8 +80,10 @@ export type AssistantMessage = MessageBranch & {
   model: ChatModel | null
   /** 请求时是否开启深度思考 */
   thinking?: boolean
-  /** 请求时是否声明 deepseek_web_search；关闭时仍声明 deepseek_read_url */
+  /** 请求时是否声明 deepseek_web_search。 */
   search?: boolean
+  /** 用户选择的生成选项，续写和附件重试沿用本轮快照。 */
+  generation?: GenerationOptions
   /** 本轮请求的系统信息快照；各回答版本独立保存，续写沿用。历史消息中缺省的快照保持为空。 */
   latestReminder?: string
   /** 是否允许作为续写前缀；仍需满足回复状态与内容限制。 */
@@ -106,6 +109,8 @@ export type AssistantMessage = MessageBranch & {
 }
 
 export type Message = UserMessage | AssistantMessage
+
+export type HistoryImportMode = 'merge' | 'replace'
 
 export type Session = {
   id: string
