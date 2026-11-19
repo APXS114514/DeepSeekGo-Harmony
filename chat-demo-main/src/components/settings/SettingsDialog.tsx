@@ -100,14 +100,15 @@ const SettingsContent = ({
   const tabsId = useId()
   const requestedSection = useSettingsDialog((state) => state.section)
   const [section, setSection] = useState(requestedSection)
-  const [generalPage, setGeneralPage] = useState<GeneralPage | null>(null)
+  const [generalView, setGeneralView] = useState<GeneralPage | 'returning' | null>(null)
+  const generalPage = generalView === 'returning' ? null : generalView
   const contentRef = useRef<HTMLDivElement>(null)
   const backButton = useRef<HTMLButtonElement>(null)
   const previousPage = useRef<{ value: GeneralPage['value']; scrollTop: number } | null>(null)
 
   const selectSection = (value: SettingsSection) => {
     previousPage.current = null
-    setGeneralPage(null)
+    setGeneralView(null)
     setSection(value)
   }
 
@@ -132,8 +133,9 @@ const SettingsContent = ({
 
   const openGeneralPage = (page: GeneralPage) => {
     previousPage.current = { value: page.value, scrollTop: contentRef.current?.scrollTop ?? 0 }
-    setGeneralPage(page)
+    setGeneralView(page)
   }
+  const backToGeneral = () => setGeneralView('returning')
   // 切换分组不丢失正在输入的 API Key 与导入状态
   const apiKeyEditor = useApiKeyEditor()
   const historyImport = useHistoryImport()
@@ -156,7 +158,7 @@ const SettingsContent = ({
         overlayRef={overlayRef}
         closing={closing}
         onClose={close}
-        onBack={generalPage ? () => setGeneralPage(null) : close}
+        onBack={generalPage ? backToGeneral : close}
       >
         <div
           role="tablist"
@@ -207,7 +209,11 @@ const SettingsContent = ({
           role="tabpanel"
           id={`${tabsId}-panel`}
           aria-labelledby={`${tabsId}-${section}`}
-          className={clsx(styles.content, generalPage && styles.subpageContent)}
+          className={clsx(
+            styles.content,
+            generalPage && styles.subpageContent,
+            generalView === 'returning' && styles.returningContent
+          )}
         >
           {section === 'general' ? (
             generalPage ? (
@@ -218,7 +224,7 @@ const SettingsContent = ({
                     type="button"
                     className={styles.subpageBack}
                     aria-label={t('settingsBackToGeneral')}
-                    onClick={() => setGeneralPage(null)}
+                    onClick={backToGeneral}
                   >
                     <IconChevronRightOutline14 />
                   </button>

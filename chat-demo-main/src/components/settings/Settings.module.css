@@ -126,6 +126,37 @@
   overflow: hidden;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .subpageContent,
+  .returningContent {
+    --settings-page-motion: var(--surface-motion, 200ms cubic-bezier(0.2, 0.75, 0.25, 1));
+    animation: settings-page-fade var(--settings-page-motion);
+  }
+
+  /* Keep control positions stable while animating the navigation cues. */
+  .subpageContent .subpageHeader h2 {
+    --settings-page-offset: 8px;
+    animation: settings-page-slide var(--settings-page-motion);
+  }
+
+  .returningContent .pageLink svg {
+    --settings-page-offset: -8px;
+    animation: settings-page-slide var(--settings-page-motion);
+  }
+}
+
+@keyframes settings-page-fade {
+  from {
+    opacity: 0.6;
+  }
+}
+
+@keyframes settings-page-slide {
+  from {
+    transform: translateX(var(--settings-page-offset));
+  }
+}
+
 .subpageScroll {
   display: flex;
   flex: 1;

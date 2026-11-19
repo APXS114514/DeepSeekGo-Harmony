@@ -263,8 +263,25 @@ try {
     await page.getByRole('button', { name: '打开边栏' }).click()
     await page.getByRole('button', { name: '设置', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: '设置', exact: true })
+    const panel = dialog.getByRole('tabpanel')
+    // 在首帧检查动效，避免设备或测试执行速度影响取样。
+    const pausedMotion = await page.addStyleTag({
+      content: '[role="tabpanel"], [role="tabpanel"] * { animation-play-state: paused !important }',
+    })
+    const assertMotion = async (selector, offset) => {
+      const motion = await panel.evaluate(
+        (node, targetSelector) => ({
+          opacity: Number(getComputedStyle(node).opacity),
+          transform: getComputedStyle(node).transform,
+          offset: new DOMMatrix(getComputedStyle(node.querySelector(targetSelector)).transform).m41,
+        }),
+        selector
+      )
+      assert(motion.opacity > 0 && motion.opacity < 1, '设置页面应有淡入动效')
+      assert.equal(motion.transform, 'none', '控件位置应保持稳定')
+      assert.equal(Math.sign(motion.offset), Math.sign(offset), '进出动效的方向应相反')
+    }
     const assertPanel = async (name) => {
-      const panel = dialog.getByRole('tabpanel')
       const metrics = await panel.evaluate((node) => {
         const scroll =
           [...node.children].find((child) => getComputedStyle(child).overflowY === 'auto') ?? node
@@ -299,7 +316,9 @@ try {
     }
     await assertPanel('通用设置')
     for (const name of ['外观', '对话', '语音']) {
-      await dialog.getByRole('button', { name, exact: true }).click()
+      const entry = dialog.getByRole('button', { name, exact: true })
+      await entry.click()
+      await assertMotion('header h2', 1)
       await assertPanel(name)
       if (width < 768 && name === '对话') {
         const toggle = dialog.getByRole('switch', { name: '猜你想问' })
@@ -308,6 +327,16 @@ try {
         await toggle.uncheck()
       }
       await dialog.getByRole('button', { name: '返回通用设置' }).click()
+      await assertMotion('[data-settings-page] svg', -1)
+      assert(await entry.evaluate((button) => button === document.activeElement))
+    }
+    await pausedMotion.evaluate((style) => style.remove())
+    if (width < 768) {
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await dialog.getByRole('button', { name: '对话', exact: true }).click()
+      assert.equal(await panel.evaluate((node) => node.getAnimations({ subtree: true }).length), 0)
+      await dialog.getByRole('button', { name: '返回通用设置' }).click()
+      assert.equal(await panel.evaluate((node) => node.getAnimations({ subtree: true }).length), 0)
     }
     for (const name of ['个性化', '数据管理']) {
       await dialog.getByRole('tab', { name, exact: true }).click()
