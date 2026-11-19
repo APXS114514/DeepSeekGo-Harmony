@@ -3,6 +3,7 @@
 ## 工作区
 
 - 当前源码为 1.5.1，版本代码为 `1000019`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 已交付的 1.5.1 未签名测试包 `HAPS/Deepseek-GO-1.5.1-unsigned.hap` 构建自 `1f3d305`。SHA-256 为 `eeb609199e827a02c558f5b6d8dcd3247c1e578fec2c474f48854eec2f65d501`。通用设置二级页和「猜你想问」是在该包之后加入的。
 - 1.5.0 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.0-unsigned.hap`，构建自提交 `902b474`，版本代码 `1000018`。维护者确认本轮测试通过，9 项鸿蒙回归与 HarmonyOS 26.0.0 SDK Release 构建通过。包内确认最低 API 12、155 个网页资源、欢迎页 Logo、启动器图标和图像授权声明。SHA-256 为 `cad85a0ab5374258c81124d645e982946cd62aa6859e10a53e53ac23a62796f5`。上一包归档为 `HAPS/Deepseek-GO-1.5.0-6f7b82e-unsigned.hap`，SHA-256 为 `9bd35be013fc782621fc5155d383fdc4e4c30ace2c249495bdc999de4ab2a5d0`。
 - 1.4.2 本地测试包是 `HAPS/Deepseek-GO-1.4.2-unsigned.hap`，版本代码为 `1000017`，对应提交 `cb3286d`。SHA-256 为 `1f1f80763a6ff192d75f1011301b408aeb391534eb0316ca7cd2496f365cf844`。上一轮测试包归档在 `HAPS/Deepseek-GO-1.4.2-ed689a4-unsigned.hap`，SHA-256 为 `6360fbf238728e2e9d5b4b4bd4b67e9c60f026f94cc24a55f91aa51c489ac774`。
 - 最近一次发布是 GitHub Releases 的 `v1.4.2`，标签指向提交 `f3908b0`。该版本已通过用户测试，远端 HAP 与上列本地测试包的 SHA-256 一致。只有用户明确要求时才打包当前源码版本。
@@ -33,12 +34,15 @@
   | `disable` | 在应用级禁用系统材质，组件级开启也不生效。 |
 
 - **原生组件级配置**可通过 `systemMaterial` 等属性调整支持的组件。应用级未禁用时，组件配置优先，个别组件可通过 `uiMaterial.Material.empty` 关闭。排查时，在支持的系统上用 `uiMaterial.getMaterialInfo()` 读取应用级配置状态，用 `uiMaterial.isImmersiveMaterialSupported()` 检查设备能力，再用真机验证呈现。 [组件适配指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
-- **设置 → 通用设置 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](../chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](../chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
+- **通用设置 → 外观 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](../chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](../chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
 
 ## 1.5.1 客户端体验改善
 
 - 聊天请求省略 `safety_check`，收到 `refusal` 时继续用提示替换本轮正文。后台记忆提炼和整理独立请求 `high`。阅读链接默认开启，可独立于智能搜索关闭。关闭阅读链接时不回传历史网页的签名块，纯文本历史仍随请求发送。 [DeepSeek 模型内容安全](https://api-docs.deepseek.com/zh-cn/guides/safety/)
-- 「通用设置」保存首选模型、阅读链接、推理强度和输出 Token 上限，回答保存本轮生成选项供续写和附件重试使用。当前请求含附件、启用智能搜索，或需要读新链接或保留历史网页结果时使用 Flash。Pro 首选下的其他纯文本请求使用 Pro。用过联网工具的回答可发起新一轮跟进，保留已有草稿。 [Messages API](https://api-docs.deepseek.com/zh-cn/api/create-message/) · [联网工具](https://api-docs.deepseek.com/zh-cn/guides/web_tools/)
+- 「通用设置 → 对话」保存首选模型、阅读链接、推理强度和输出 Token 上限，回答保存本轮生成选项供续写和附件重试使用。当前请求含附件、启用智能搜索，或需要读新链接或保留历史网页结果时使用 Flash。Pro 首选下的其他纯文本请求使用 Pro。 [Messages API](https://api-docs.deepseek.com/zh-cn/api/create-message/) · [联网工具](https://api-docs.deepseek.com/zh-cn/guides/web_tools/)
+- 通用设置首页保留语言和位置信息，其他选项按外观、对话和语音放入二级页。Esc 和系统返回先退出菜单，再返回通用设置，焦点恢复到进入二级页的按钮。
+- 对话页的「猜你想问」默认关闭，保存在 `chat-demo:suggested-questions`。开启后在前台当前对话的新回答正常结束时，另用 Flash 读取本轮提问和正文节选，生成最多三个问题。切换会话、分支、发送新消息或关闭开关时取消正在生成的建议。建议只供本地展示，无痕对话中的建议随会话丢弃。点按问题保留已有草稿与附件，将建议填入输入框，用户可编辑后发送。
+- 设置二级页和建议问题通过类型检查、Lint、网页构建和 9 项鸿蒙回归。模拟 API 验证开关缺省关闭、开启后重载、重复和异常结果、关闭时取消待处理请求，以及键盘选择建议后只填草稿、手动编辑发送和保留原位续写。模拟设备通道覆盖系统返回，真机设置页和真实建议请求待验证。
 - 聊天附件按 Files API 分类校验。采用版面解析的 PDF、Word 和 PPT 上限为 100 MiB，图片 64 MiB，`user_data` 为 32 MiB。 [Files API](https://api-docs.deepseek.com/zh-cn/guides/files_api/)
 - 合并导入使用现有 ZIP 暂存和 IndexedDB 事务，保留同 ID 的本地会话，给新会话的附件重新分配本地 ID，校验失败时不会写入正式存储。支持 Web Locks 的浏览器会串行处理跨窗口的归档操作。
 - 通过 `pnpm type`、`pnpm lint`、网页版和鸿蒙网页构建及 9 项鸿蒙回归。从页面入口用模拟 API 验证模型和工具搭配、参数持久化、65 MiB PDF 和各类文件超限提示、联网回答跟进、导入失败回滚、重复导入及图片原件隔离。HarmonyOS 26.0.0 SDK Debug 构建通过，核对版本 `1.5.1` / `1000019`、最低 API 12、目标 API 26 及包内 155 个网页资源。HDC 未发现真机，真实 API 和 ArkWeb 实机待验证。

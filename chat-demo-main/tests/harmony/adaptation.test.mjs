@@ -27,6 +27,7 @@ const media = {
 
 const chats = []
 const extractions = []
+const suggestRequests = []
 let hold = null
 const sse = (text, title, stopReason = 'end_turn', toolFrames = []) =>
   [
@@ -52,6 +53,7 @@ const open = async ({
   insets = { top: 31, right: 0, bottom: 18, left: 0 },
   refuseReply = false,
   mockChat,
+  mockSuggestions,
 } = {}) => {
   const context = await browser.newContext({
     locale: 'zh-CN',
@@ -156,6 +158,15 @@ const open = async ({
         headers,
         contentType: 'text/event-stream',
         body: sse('{"add":[],"update":[],"remove":[]}'),
+      })
+    }
+    if (body.system.startsWith('为对话界面的「猜你想问」')) {
+      suggestRequests.push(body)
+      const input = JSON.parse(body.messages[0].content)
+      return route.fulfill({
+        headers,
+        contentType: 'text/event-stream',
+        body: sse((await mockSuggestions?.(input)) ?? '[]'),
       })
     }
     chats.push(body)
@@ -461,6 +472,8 @@ try {
     )
     await page.evaluate(() => window.devicePost({ type: 'window-action', action: 'sidebar' }))
     await page.getByRole('button', { name: '设置', exact: true }).click()
+    const chatPage = settings.getByRole('button', { name: '对话', exact: true })
+    await chatPage.click()
     const notify = settings.getByRole('switch', { name: '回答完成通知' })
     assert(await notify.isChecked())
     await notify.uncheck()
@@ -470,6 +483,9 @@ try {
     await notify.check()
     await toast(page, '通知未开启，请在系统设置中允许 Deepseek GO 发送通知')
     await notify.uncheck()
+    await back(page)
+    await chatPage.waitFor()
+    assert(await chatPage.evaluate((element) => element === document.activeElement))
     await back(page)
     await settings.waitFor({ state: 'detached' })
     await back(page)
@@ -600,9 +616,22 @@ try {
               },
               { type: 'content_block_stop', index: 1 },
             ])
-          : undefined,
+          : body.messages.at(-1).content === '链接只当文本 https://example.com'
+            ? sse('纯文本达到输出上限', `测试会话 ${chats.length}`, 'max_tokens')
+            : undefined,
     })
     const settings = await openSettings(page)
+    const chatPage = settings.getByRole('button', { name: '对话', exact: true })
+    const suggestSwitch = settings.getByRole('switch', { name: '猜你想问' })
+    const closeSettings = async () => {
+      await settings.getByRole('button', { name: '关闭', exact: true }).click()
+      await settings.waitFor({ state: 'hidden' })
+    }
+    await chatPage.focus()
+    await page.keyboard.press('Enter')
+    const backButton = settings.getByRole('button', { name: '返回通用设置' })
+    assert(await backButton.evaluate((element) => element === document.activeElement))
+    assert.equal(await suggestSwitch.isChecked(), false)
     const select = async (label, option) => {
       await settings.getByRole('button', { name: label, exact: true }).click()
       await page.getByRole('option', { name: option, exact: true }).click()
@@ -612,8 +641,15 @@ try {
     await select('输出上限', '32,768')
     const readLinks = settings.getByRole('switch', { name: '阅读链接' })
     assert(await readLinks.isChecked())
+    await settings.getByRole('button', { name: '输出上限', exact: true }).click()
+    const options = page.getByRole('listbox', { name: '输出上限' })
+    await options.waitFor()
     await page.keyboard.press('Escape')
-    await settings.waitFor({ state: 'hidden' })
+    await options.waitFor({ state: 'hidden' })
+    assert(await backButton.isVisible())
+    await page.keyboard.press('Escape')
+    assert(await chatPage.evaluate((element) => element === document.activeElement))
+    await closeSettings()
     const sendNormal = (text) => send(page, text, `第 ${chats.length + 1} 条`)
     await sendNormal('阅读 https://example.com')
     assert.equal(chats.at(-1).model, 'deepseek-flash')
@@ -623,17 +659,22 @@ try {
     )
     assert.equal(chats.at(-1).output_config, undefined)
     await openSettings(page)
+    await chatPage.click()
     await readLinks.uncheck()
-    await page.keyboard.press('Escape')
-    await settings.waitFor({ state: 'hidden' })
+    await closeSettings()
     await page.reload()
     await page.getByText('今天想聊什么？', { exact: true }).waitFor()
+    await openSettings(page)
+    await chatPage.click()
+    assert.equal(await suggestSwitch.isChecked(), false)
+    await closeSettings()
     await page.getByRole('button', { name: '深度思考', exact: true }).click()
-    await sendNormal('链接只当文本 https://example.com')
+    await send(page, '链接只当文本 https://example.com', '纯文本达到输出上限')
     assert.equal(chats.at(-1).model, 'deepseek-v4-pro')
     assert.deepEqual(chats.at(-1).tools, [])
     assert.deepEqual(chats.at(-1).output_config, { effort: 'max' })
     assert.equal(chats.at(-1).max_tokens, 32768)
+    await page.getByRole('button', { name: '继续生成', exact: true }).waitFor()
 
     await page.getByRole('button', { name: '智能搜索', exact: true }).click()
     await send(page, '搜索示例', '模拟联网结果')
@@ -642,17 +683,8 @@ try {
       chats.at(-1).tools.map(({ type }) => type),
       ['deepseek_web_search']
     )
-    await page.locator('textarea:visible').first().fill('保留这份草稿')
-    await page.getByRole('button', { name: '接着回答', exact: true }).click()
-    await waitFor(
-      page,
-      () => chats.at(-1).messages.at(-1).content.includes('请接着上一条回答'),
-      'new follow-up turn'
-    )
-    assert.equal(chats.at(-1).messages.at(-1).role, 'user')
-    assert.equal(chats.at(-1).messages.at(-2).role, 'assistant')
-    assert.equal(await page.locator('textarea:visible').first().inputValue(), '保留这份草稿')
     await page.waitForFunction(() => window.lastWindowUi.generating === false)
+    assert.equal(suggestRequests.length, 0)
 
     await page.getByRole('button', { name: '智能搜索', exact: true }).click()
     const input = page.locator('input[type=file][multiple]')
@@ -688,6 +720,77 @@ try {
     )
     await sendNormal('继续问这个文档')
     assert.equal(chats.at(-1).model, 'deepseek-flash', 'historical attachments require Flash')
+    assert.deepEqual(errors, [])
+    await context.close()
+  }
+
+  // 猜你想问使用独立请求，选择只改草稿，错误或关闭时不会影响已完成的回答。
+  {
+    const later = Promise.withResolvers()
+    const { context, page, errors } = await open({
+      ...desktop,
+      mockSuggestions: ({ question }) => {
+        if (question === '怎么测试折叠屏布局？') {
+          return JSON.stringify([
+            '外屏要测试哪些窗口尺寸？',
+            '外屏要测试哪些窗口尺寸？',
+            42,
+            '怎么检查键盘遮挡？',
+          ])
+        }
+        return question === '检查关闭时取消建议' ? later.promise : 'invalid JSON'
+      },
+    })
+    const setSuggestions = async (enabled) => {
+      const settings = await openSettings(page)
+      await settings.getByRole('button', { name: '对话', exact: true }).click()
+      const control = settings.getByRole('switch', { name: '猜你想问' })
+      await control.setChecked(enabled)
+      await settings.getByRole('button', { name: '关闭', exact: true }).click()
+      await settings.waitFor({ state: 'hidden' })
+    }
+    await setSuggestions(true)
+    await page.reload()
+    await page.getByText('今天想聊什么？', { exact: true }).waitFor()
+    const sendNormal = (text) => send(page, text, `第 ${chats.length + 1} 条`)
+    await sendNormal('怎么测试折叠屏布局？')
+    const group = page.getByRole('group', { name: '猜你想问' })
+    await group.waitFor()
+    assert.deepEqual(await group.getByRole('button').allTextContents(), [
+      '外屏要测试哪些窗口尺寸？',
+      '怎么检查键盘遮挡？',
+    ])
+    const request = suggestRequests.at(-1)
+    assert.equal(request.model, 'deepseek-flash')
+    assert.equal(request.thinking.type, 'disabled')
+    assert.deepEqual(request.tools, [])
+    assert.equal(request.messages.length, 1)
+    const payload = JSON.parse(request.messages[0].content)
+    assert.equal(payload.question, '怎么测试折叠屏布局？')
+    assert.match(payload.answer, /加粗/)
+
+    const draft = page.locator('textarea:visible').first()
+    const sent = chats.length
+    await group.getByRole('button', { name: '外屏要测试哪些窗口尺寸？' }).click()
+    assert.equal(await draft.inputValue(), '外屏要测试哪些窗口尺寸？')
+    await draft.fill('给我一份清单。')
+    await group.getByRole('button', { name: '外屏要测试哪些窗口尺寸？' }).click()
+    await group.getByRole('button', { name: '怎么检查键盘遮挡？' }).focus()
+    await page.keyboard.press('Enter')
+    assert.equal(await draft.inputValue(), '给我一份清单。\n\n怎么检查键盘遮挡？')
+    await page.waitForFunction(() => document.activeElement?.tagName === 'TEXTAREA')
+    assert.equal(chats.length, sent)
+    await sendNormal('把键盘遮挡测试写成三个步骤')
+    assert.equal(chats.at(-1).messages.at(-1).content, '把键盘遮挡测试写成三个步骤')
+    await waitFor(page, () => suggestRequests.length === 2, 'malformed suggestion request')
+    assert.equal(await group.count(), 0)
+
+    await sendNormal('检查关闭时取消建议')
+    await waitFor(page, () => suggestRequests.length === 3, 'pending suggestion request')
+    await setSuggestions(false)
+    later.resolve(JSON.stringify(['这条迟到的问题不应出现？']))
+    await setSuggestions(true)
+    assert.equal(await group.count(), 0)
     assert.deepEqual(errors, [])
     await context.close()
   }

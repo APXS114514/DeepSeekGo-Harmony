@@ -91,6 +91,8 @@ export type AssistantMessage = MessageBranch & {
   status: ReplyStatus
   /** 可识别的内容块按接收顺序排列；续写产生的块追加在已有块之后 */
   blocks: ReplyBlock[]
+  /** 已生成的建议问题仅供本机展示，不作为上下文或回答正文。 */
+  suggestedQuestions?: string[]
   stopReason?: StopReason
   stopDetails?: StopDetails
   /** 最近一次请求的用量，续写后更新 */

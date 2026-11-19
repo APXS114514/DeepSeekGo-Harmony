@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import { useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 import {
+  IconChevronRightOutline14,
   IconDarkOutline16,
   IconDataOutline16,
   IconDownloadOutline16,
@@ -29,6 +30,7 @@ import {
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
 import {
   OUTPUT_LIMITS,
+  setSuggestedQuestions,
   setGenerationOptions,
   setImmersiveLight,
   setHideComposerOnScroll,
@@ -57,7 +59,7 @@ import { closeSettings, useSettingsDialog, type SettingsSection } from './settin
 import styles from './Settings.module.css'
 
 /**
- * 设置弹窗：分「通用设置」（主题、语言、朗读音色、位置）、「个性化」（指令与记忆）
+ * 设置弹窗：分「通用设置」（外观、对话、语音、语言、位置）、「个性化」（指令与记忆）
  * 与「数据管理」（API Key、导入、导出、删除）。
  * 桌面端为居中弹窗、左侧导航；移动端为底部弹层、导航横排在内容上方
  */
@@ -77,6 +79,14 @@ const sections: { value: SettingsSection; label: TranslationKey; icon: ReactNode
   { value: 'data', label: 'settingDialogAsideDataOptionLabel', icon: <IconDataOutline16 /> },
 ]
 
+const generalPages = [
+  { value: 'appearance', label: 'settingsAppearancePage' },
+  { value: 'chat', label: 'settingsChatPage' },
+  { value: 'voice', label: 'settingsVoicePage' },
+] as const
+
+type GeneralPage = (typeof generalPages)[number]
+
 const SettingsContent = ({
   overlayRef,
   closing,
@@ -88,18 +98,53 @@ const SettingsContent = ({
   const isMobile = useIsMobile()
   // 打开时按调用方指定的分组选中，之后在弹窗内切换
   const tabsId = useId()
-  const [section, setSection] = useState(() => useSettingsDialog.getState().section)
+  const requestedSection = useSettingsDialog((state) => state.section)
+  const [section, setSection] = useState(requestedSection)
+  const [generalPage, setGeneralPage] = useState<GeneralPage | null>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const backButton = useRef<HTMLButtonElement>(null)
+  const previousPage = useRef<{ value: GeneralPage['value']; scrollTop: number } | null>(null)
+
+  const selectSection = (value: SettingsSection) => {
+    previousPage.current = null
+    setGeneralPage(null)
+    setSection(value)
+  }
+
   useLayoutEffect(() => {
     if (!closing) {
-      setSection(useSettingsDialog.getState().section)
+      selectSection(requestedSection)
     }
-  }, [closing])
+  }, [closing, requestedSection])
+
+  useLayoutEffect(() => {
+    if (generalPage) {
+      backButton.current?.focus({ preventScroll: true })
+    } else if (section === 'general' && previousPage.current && contentRef.current) {
+      const { value, scrollTop } = previousPage.current
+      contentRef.current
+        .querySelector<HTMLButtonElement>(`[data-settings-page="${value}"]`)
+        ?.focus({ preventScroll: true })
+      contentRef.current.scrollTop = scrollTop
+      previousPage.current = null
+    }
+  }, [section, generalPage])
+
+  const openGeneralPage = (page: GeneralPage) => {
+    previousPage.current = { value: page.value, scrollTop: contentRef.current?.scrollTop ?? 0 }
+    setGeneralPage(page)
+  }
   // 切换分组不丢失正在输入的 API Key 与导入状态
   const apiKeyEditor = useApiKeyEditor()
   const historyImport = useHistoryImport()
   const historyDelete = useHistoryDelete()
   const importingHistory = useChatStore((state) => state.importingHistory !== false)
   const historyBusy = historyImport.busy || historyDelete.busy || importingHistory
+  const close = () => {
+    if (!historyDelete.busy) {
+      closeSettings()
+    }
+  }
   return (
     <>
       <Modal
@@ -110,11 +155,8 @@ const SettingsContent = ({
         mainClassName={styles.dialogMain}
         overlayRef={overlayRef}
         closing={closing}
-        onClose={() => {
-          if (!historyDelete.busy) {
-            closeSettings()
-          }
-        }}
+        onClose={close}
+        onBack={generalPage ? () => setGeneralPage(null) : close}
       >
         <div
           role="tablist"
@@ -137,7 +179,7 @@ const SettingsContent = ({
                       : -1
             if (next >= 0) {
               event.preventDefault()
-              setSection(sections[next].value)
+              selectSection(sections[next].value)
               event.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]')[next]?.focus()
             }
           }}
@@ -152,7 +194,7 @@ const SettingsContent = ({
               aria-selected={section === item.value}
               tabIndex={section === item.value ? 0 : -1}
               className={clsx(styles.navItem, section === item.value && styles.navItemActive)}
-              onClick={() => setSection(item.value)}
+              onClick={() => selectSection(item.value)}
             >
               {item.icon}
               {t(item.label)}
@@ -160,29 +202,48 @@ const SettingsContent = ({
           ))}
         </div>
         <div
-          key={section}
+          key={generalPage?.value ?? section}
+          ref={contentRef}
           role="tabpanel"
           id={`${tabsId}-panel`}
           aria-labelledby={`${tabsId}-${section}`}
-          className={styles.content}
+          className={clsx(styles.content, generalPage && styles.subpageContent)}
         >
           {section === 'general' ? (
-            <>
-              <ThemeSetting />
-              {__HARMONY_APP__ ? (
-                <>
-                  <AccentSetting />
-                  <ImmersiveLightSetting />
-                  <ReplyNotifySetting />
-                </>
-              ) : null}
-              <HideComposerSetting />
-              <LocaleSetting />
-              {__HARMONY_APP__ ? <VoiceInputSetting /> : null}
-              <TtsVoiceSetting />
-              <GenerationSettings />
-              <LocationSetting />
-            </>
+            generalPage ? (
+              <>
+                <header className={styles.subpageHeader}>
+                  <button
+                    ref={backButton}
+                    type="button"
+                    className={styles.subpageBack}
+                    aria-label={t('settingsBackToGeneral')}
+                    onClick={() => setGeneralPage(null)}
+                  >
+                    <IconChevronRightOutline14 />
+                  </button>
+                  <h2>{t(generalPage.label)}</h2>
+                </header>
+                <GeneralSettingsPage page={generalPage.value} />
+              </>
+            ) : (
+              <>
+                {generalPages.map((page) => (
+                  <button
+                    key={page.value}
+                    type="button"
+                    data-settings-page={page.value}
+                    className={clsx(styles.cell, styles.pageLink)}
+                    onClick={() => openGeneralPage(page)}
+                  >
+                    {t(page.label)}
+                    <IconChevronRightOutline14 />
+                  </button>
+                ))}
+                <LocaleSetting />
+                <LocationSetting />
+              </>
+            )
           ) : section === 'personal' ? (
             <PersonalizationSettings />
           ) : (
@@ -214,6 +275,53 @@ const SettingsContent = ({
       {!closing && historyImport.file ? <ImportConfirm historyImport={historyImport} /> : null}
       {!closing && historyDelete.opened ? <DeleteAllConfirm historyDelete={historyDelete} /> : null}
     </>
+  )
+}
+
+const GeneralSettingsPage = ({ page }: { page: GeneralPage['value'] }) => {
+  switch (page) {
+    case 'appearance':
+      return (
+        <>
+          <ThemeSetting />
+          {__HARMONY_APP__ ? (
+            <>
+              <AccentSetting />
+              <ImmersiveLightSetting />
+            </>
+          ) : null}
+        </>
+      )
+    case 'chat':
+      return (
+        <>
+          <GenerationSettings />
+          <SuggestedQuestionsSetting />
+          <HideComposerSetting />
+          {__HARMONY_APP__ ? <ReplyNotifySetting /> : null}
+        </>
+      )
+    case 'voice':
+      return (
+        <>
+          {__HARMONY_APP__ ? <VoiceInputSetting /> : null}
+          <TtsVoiceSetting />
+        </>
+      )
+  }
+}
+
+const SuggestedQuestionsSetting = () => {
+  const t = useTranslate()
+  const enabled = useSettings((state) => state.suggestedQuestions)
+  return (
+    <SettingsSwitch
+      className={styles.cell}
+      label={t('suggestedQuestions')}
+      description={t('settingsSuggestedQuestionsDescription')}
+      checked={enabled}
+      onChange={setSuggestedQuestions}
+    />
   )
 }
 

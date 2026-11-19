@@ -203,10 +203,6 @@ const isUsableReply = (message: Message): message is AssistantMessage =>
   !message.blocks.some((block) => block.type === 'text' && block.isTemplate) &&
   getReplyText(message) !== ''
 
-/** 联网回复可作为新一轮的上下文，由新用户消息请求接着回答。 */
-export const canFollowUpReply = (reply: AssistantMessage) =>
-  isUsableReply(reply) && hasServerToolBlocks(reply)
-
 /** 有文件时用内容块数组：先文件后文本，文件按 Files API 的 file_id 引用 */
 const toUserParam = ({ content, files }: UserMessage): MessageParam => {
   const blocks = toFileBlocks(files)

@@ -259,8 +259,7 @@ try {
     await page.getByRole('button', { name: '打开边栏' }).click()
     await page.getByRole('button', { name: '设置', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: '设置', exact: true })
-    for (const name of ['通用设置', '个性化', '数据管理']) {
-      await dialog.getByRole('tab', { name, exact: true }).click()
+    const assertPanel = async (name) => {
       const panel = dialog.getByRole('tabpanel')
       const metrics = await panel.evaluate((node) => {
         const width = node.clientWidth
@@ -271,7 +270,17 @@ try {
       })
       assert.equal(metrics.overflow, 0, `${width}px 下的${name}应完整显示`)
       assert.equal(metrics.x, 0)
-      if (name === '通用设置') assert(metrics.y > 0, '设置仍能纵向滚动')
+      if (name === '对话') assert(metrics.y > 0, '对话二级页仍能纵向滚动')
+    }
+    await assertPanel('通用设置')
+    for (const name of ['外观', '对话', '语音']) {
+      await dialog.getByRole('button', { name, exact: true }).click()
+      await assertPanel(name)
+      await dialog.getByRole('button', { name: '返回通用设置' }).click()
+    }
+    for (const name of ['个性化', '数据管理']) {
+      await dialog.getByRole('tab', { name, exact: true }).click()
+      await assertPanel(name)
     }
     await context.close()
   }

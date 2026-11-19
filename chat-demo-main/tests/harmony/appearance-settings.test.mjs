@@ -146,6 +146,8 @@ try {
     await page.evaluate(() => window.devicePost({ type: 'window-action', action: 'sidebar' }))
     await page.getByRole('button', { name: '设置', exact: true }).click()
     const settings = page.getByRole('dialog', { name: '设置' })
+    const chatPage = settings.getByRole('button', { name: '对话', exact: true })
+    await chatPage.click()
     const notify = settings.locator('label').filter({ hasText: '回答完成通知' })
     const style = await notify.evaluate((el) => ({
       pad: getComputedStyle(el).paddingTop,
@@ -153,6 +155,8 @@ try {
     }))
     assert.equal(style.pad, '12px')
     assert.notEqual(style.shadow, 'none', 'divider between switch rows')
+    await settings.getByRole('button', { name: '返回通用设置' }).click()
+    assert(await chatPage.evaluate((element) => element === document.activeElement))
     await settings
       .getByText(
         '随消息告诉 DeepSeek 你所在的国家或地区，用于天气、出行和本地推荐等问题。只发送地名，不使用定位。'

@@ -493,6 +493,7 @@ try {
     return featurePage.getByRole('dialog', { name: '设置', exact: true })
   }
   const general = await openSettings()
+  await general.getByRole('button', { name: '语音', exact: true }).click()
   const inputChoice = general.getByRole('button', { name: '语音输入', exact: true })
   assert.match(await inputChoice.innerText(), /本地识别/)
   await inputChoice.focus()

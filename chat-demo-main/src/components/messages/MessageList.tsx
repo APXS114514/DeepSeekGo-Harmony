@@ -15,6 +15,7 @@ import {
   getVisibleMessages,
   type MessageVersions,
 } from '../../services/chat/branches.js'
+import { getDraft, setDraftText } from '../../services/chat/drafts.js'
 import { useHistoryLocation } from '../../services/chat/historySearch.js'
 import { selectMessageVersion } from '../../services/chat/store.js'
 import type { Session } from '../../services/chat/types.js'
@@ -72,6 +73,7 @@ export const MessageList = ({
   const messages = getVisibleMessages(session)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [composerHidden, setComposerHidden] = useState(false)
+  const lastSuggestion = useRef<{ original: string; inserted: string } | null>(null)
   const activeEditor = messages.some((message) => message.id === editingMessageId)
     ? editingMessageId
     : null
@@ -296,6 +298,23 @@ export const MessageList = ({
 
   const lastIndex = messages.length - 1
   const uploadRetryId = getUploadRetryId(messages, streaming)
+  const selectSuggestion = useCallback(
+    (question: string) => {
+      const text = getDraft(session.id).text
+      const original =
+        lastSuggestion.current?.inserted === text ? lastSuggestion.current.original : text
+      const inserted = original.trim() ? `${original}\n\n${question}` : question
+      lastSuggestion.current = { original, inserted }
+      setDraftText(session.id, inserted)
+      setComposerHidden(false)
+      requestAnimationFrame(() => {
+        const input = composerRef.current?.querySelector('textarea')
+        input?.focus({ preventScroll: true })
+        input?.setSelectionRange(input.value.length, input.value.length)
+      })
+    },
+    [session.id]
+  )
   return (
     <ScrollToBottomContext.Provider value={scrollToBottom}>
       <div
@@ -330,6 +349,7 @@ export const MessageList = ({
                   busy={streaming}
                   versions={versions.get(message.id) ?? EMPTY_VERSIONS}
                   onSelectVersion={selectVersion}
+                  onSelectSuggestion={activeEditor === null ? selectSuggestion : undefined}
                 />
               )
             )}

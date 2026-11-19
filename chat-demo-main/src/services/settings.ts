@@ -43,6 +43,7 @@ type Settings = {
   thinking: boolean
   search: boolean
   generation: GenerationOptions
+  suggestedQuestions: boolean
   siderCollapsed: boolean
   /** 鸿蒙版：应用在后台时回答完成后发通知 */
   replyNotify: boolean
@@ -61,6 +62,7 @@ const KEYS = {
   thinking: 'chat-demo:thinking',
   search: 'chat-demo:search',
   generation: 'chat-demo:generation',
+  suggestedQuestions: 'chat-demo:suggested-questions',
   siderCollapsed: 'chat-demo:sider-collapsed',
   replyNotify: 'chat-demo:reply-notify',
   replyNotifyAsked: 'chat-demo:reply-notify-asked',
@@ -156,6 +158,7 @@ export const useSettings = create<Settings>(() => ({
   thinking: read(KEYS.thinking) === 'true',
   search: read(KEYS.search) === 'true',
   generation: initialGeneration(),
+  suggestedQuestions: read(KEYS.suggestedQuestions) === 'true',
   siderCollapsed: read(KEYS.siderCollapsed) === 'true',
   replyNotify: read(KEYS.replyNotify) !== 'false',
 }))
@@ -243,6 +246,11 @@ export const setGenerationOptions = (options: Partial<GenerationOptions>) => {
   const generation = { ...useSettings.getState().generation, ...options }
   write(KEYS.generation, JSON.stringify(generation))
   useSettings.setState({ generation })
+}
+
+export const setSuggestedQuestions = (suggestedQuestions: boolean) => {
+  write(KEYS.suggestedQuestions, String(suggestedQuestions))
+  useSettings.setState({ suggestedQuestions })
 }
 
 export const setSiderCollapsed = (siderCollapsed: boolean) => {

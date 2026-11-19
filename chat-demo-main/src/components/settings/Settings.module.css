@@ -91,6 +91,73 @@
   }
 }
 
+.pageLink,
+.subpageBack {
+  display: flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--dsw-alias-interactive-bg-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--dsw-alias-button-primary-fill);
+    outline-offset: -2px;
+  }
+}
+
+.pageLink {
+  justify-content: space-between;
+  gap: 8px;
+  padding-inline: 0 8px;
+  font-family: inherit;
+  text-align: start;
+
+  svg {
+    flex-shrink: 0;
+    color: var(--dsw-alias-label-secondary);
+  }
+}
+
+.subpageContent {
+  scroll-padding-top: 44px;
+}
+
+.subpageHeader {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  background-color: var(--dsw-alias-bg-layer-2);
+
+  h2 {
+    margin: 0;
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 500;
+  }
+}
+
+.subpageBack {
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  color: inherit;
+
+  svg {
+    transform: rotate(180deg);
+  }
+}
+
 .row {
   display: flex;
   align-items: center;
@@ -587,7 +654,9 @@
 
 @media (forced-colors: active) {
   .navItem[aria-selected='true'],
-  .navItem:focus-visible {
+  .navItem:focus-visible,
+  .pageLink:focus-visible,
+  .subpageBack:focus-visible {
     outline: 2px solid Highlight;
     outline-offset: -2px;
   }

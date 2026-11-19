@@ -68,9 +68,7 @@ export const en = {
   editMessage: 'Edit message',
   regenerate: 'Regenerate',
   continueGenerating: 'Continue',
-  followUpAnswer: 'Continue in a new turn',
-  followUpPrompt:
-    'Please continue the previous answer and avoid repeating what you already covered.',
+  suggestedQuestions: 'Suggested questions',
   changeApiKey: 'Change API Key',
   topUp: 'Top up',
   messageSearchSummary: '1 web page',
@@ -129,6 +127,12 @@ export const en = {
   settingsTtsVoice: 'Read-aloud voice',
   settingsTtsVoiceStella: 'Stella (female)',
   settingsTtsVoiceTide: 'Tide (male)',
+  settingsAppearancePage: 'Appearance',
+  settingsChatPage: 'Chat',
+  settingsVoicePage: 'Voice',
+  settingsBackToGeneral: 'Back to General settings',
+  settingsSuggestedQuestionsDescription:
+    'Uses a separate API request after a reply. Selecting a question adds it to your draft.',
   settingsChatModel: 'Chat model',
   settingsChatModelDescription:
     'V4 Pro uses its own API pricing. Attachments and web tools use Flash.',

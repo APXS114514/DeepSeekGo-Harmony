@@ -5,9 +5,10 @@ All features in the current version of Deepseek GO. For changes by version, see 
 ## Chat
 
 - Stream replies in multi-turn chats, edit earlier messages and regenerate replies, and switch between reply versions.
-- **Chat model.** Select Flash or V4 Pro in General settings. Requests with attachments or the existing web tools use Flash automatically.
-- **DeepThink.** Preview the latest few lines of reasoning. The preview collapses when the answer starts. Tap its heading to expand it. Set reasoning effort and output token limits in General settings.
-- **Web search.** Search the web with source citations. In wide windows, source cards appear alongside the chat on the right. Control link reading separately in General settings. Use **Continue in a new turn** to follow up on replies that used web tools.
+- **Chat model.** Select Flash or V4 Pro in **General → Chat**. Requests with attachments or the existing web tools use Flash automatically.
+- **DeepThink.** Preview the latest few lines of reasoning. The preview collapses when the answer starts. Tap its heading to expand it. Set reasoning effort and output token limits in **General → Chat**.
+- **Web search.** Search the web with source citations. In wide windows, source cards appear alongside the chat on the right. Control link reading separately in **General → Chat**.
+- **Suggested questions.** Enable this in **General → Chat** to generate up to three related questions through a separate API call after a new answer in the active chat. Select a question to add it to your draft, where you can edit it before sending.
 - Render Markdown, highlighted code, equations, and Mermaid diagrams. Copy replies or read them aloud.
 - **Search chat history.** Search titles or messages in the current version of each chat from the sidebar. Open a chat or jump to the matching message.
 - Attach images, PDFs, Office documents, and code files. The per-file limits are 100 MiB for PDF, Word, and PowerPoint, 64 MiB for images, and 32 MiB for plain text, spreadsheets, and ebooks.
@@ -15,13 +16,13 @@ All features in the current version of Deepseek GO. For changes by version, see 
 
 ## HarmonyOS features
 
-- **Voice input.** Hold to talk, release to add the transcript to your draft, or swipe up and release to cancel. In **Settings → General → Voice input**, choose on-device recognition (the default) or the multilingual DeepSeek API. With the API selected, releasing to confirm uploads the recording. Billing is based on audio duration.
-- **Read aloud offline.** On supported devices, choose the offline system voice or a DeepSeek API voice in **Settings → General → Read-aloud voice**.
+- **Voice input.** Hold to talk, release to add the transcript to your draft, or swipe up and release to cancel. In **General → Voice**, choose on-device recognition (the default) or the multilingual DeepSeek API. With the API selected, releasing to confirm uploads the recording. Billing is based on audio duration.
+- **Read aloud offline.** On supported devices, choose the offline system voice or a DeepSeek API voice in **General → Voice**.
 - **Share a reply or chat.** Open a preview from the reply toolbar or chat menu, then use the system share sheet to send a reply or the current chat branch as plain text, Markdown, or a long image.
 - **Recognize text in an image.** Take a photo or pick one from the gallery. The app recognizes text on your device and inserts it into the composer without uploading the image.
 - **Share to Deepseek GO.** Choose **Share → Deepseek GO** in another app. Text, links, images, and documents appear in a new chat for you to review before sending.
 - **Import and export chat history.** In **Settings → Data**, export your chats as a ZIP file or merge an archive into local history. A merge keeps existing chats with matching IDs. You can also choose to replace all local chats.
-- **Background generation and reply notifications.** Replies can keep generating in the background. Tap the completion notification to go straight to the chat. You can turn this off in **Settings → General → Reply notifications**.
+- **Background generation and reply notifications.** Replies can keep generating in the background. Tap the completion notification to go straight to the chat. Turn off reply notifications in **General → Chat**.
 - **Secure API key storage.** HarmonyOS Asset Store keeps the key in the device’s secure storage, outside web storage.
 
 On-device speech and image text recognition depend on system AI capabilities. Available controls reflect device capabilities and voice settings.
@@ -46,7 +47,7 @@ Automatic memory sends one small extra request per reply and uses a few extra to
 - The system back gesture closes the topmost menu, dialog, settings screen, search panel, or sidebar first. It leaves the app once those layers are closed.
 - Replies, messages, and the composer follow the system font size up to 1.75×.
 - On 2-in-1 devices, use `Ctrl+N` for a new chat, `Ctrl+B` to toggle the sidebar, and `Ctrl+,` for Settings. Right-click a chat to rename or delete it.
-- **Immersive lighting.** The composer uses translucency and highlights. On supported devices, the image text recognition menu also uses system materials. Turn the effect off in **Settings → General**.
+- **Immersive lighting.** The composer uses translucency and highlights. On supported devices, the image text recognition menu also uses system materials. Turn the effect off in **General → Appearance**.
 - Animations follow the system’s Reduce Motion setting. The sidebar, history search, settings, and share preview support keyboard navigation. In voice mode, use Enter or Space to start and stop recording, and Escape to cancel.
 
 ## Privacy

@@ -3,14 +3,15 @@ import clsx from 'clsx'
 import { memo } from 'react'
 import { IconRefreshOutline16, IconShareOutline16, IconWarningOutline16 } from '../base/icons.js'
 import { describeReply } from '../../services/chat/describe.js'
-import { canContinueReply, canFollowUpReply } from '../../services/chat/reply.js'
-import { continueReply, regenerateReply, sendMessage } from '../../services/chat/store.js'
+import { canContinueReply } from '../../services/chat/reply.js'
+import { continueReply, regenerateReply } from '../../services/chat/store.js'
 import { useDeviceFeatures } from '../../services/harmony.js'
+import { useSettings } from '../../services/settings.js'
 import { shareAnswer } from '../../services/chat/share.js'
 import { openShare } from '../share/ShareDialog.js'
 import { stopReadAloud } from '../../services/speech/readAloud.js'
 import type { AssistantMessage as AssistantMessageType } from '../../services/chat/types.js'
-import { ensureApiKey, openSettings } from '../settings/settingsDialogState.js'
+import { openSettings } from '../settings/settingsDialogState.js'
 import { IconButton } from '../base/IconButton.js'
 import { Button } from '../base/Button.js'
 import { Markdown } from '../markdown/Markdown.js'
@@ -37,6 +38,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   busy,
   versions,
   onSelectVersion,
+  onSelectSuggestion,
 }: {
   sessionId: string
   message: AssistantMessageType
@@ -45,9 +47,10 @@ export const AssistantMessage = memo(function AssistantMessage({
   busy: boolean
   versions: MessageVersions
   onSelectVersion: SelectMessageVersion
+  onSelectSuggestion?: (question: string) => void
 }) {
   const t = useTranslate()
-  const followUp = isLast && canFollowUpReply(message)
+  const suggestionsEnabled = useSettings((state) => state.suggestedQuestions)
   const sharing = useDeviceFeatures((state) => state.share)
   const view = useReplyView(message, streaming)
   const panelEntry = useSearchPanel((state) => state.entry)
@@ -172,7 +175,7 @@ export const AssistantMessage = memo(function AssistantMessage({
               }}
             />
           </div>
-          {followUp || (isLast && canContinueReply(message)) ? (
+          {isLast && canContinueReply(message) ? (
             <Button
               variant="outlined"
               size="s"
@@ -180,20 +183,28 @@ export const AssistantMessage = memo(function AssistantMessage({
               disabled={busy}
               onClick={() => {
                 stopReadAloud()
-                if (followUp) {
-                  if (ensureApiKey()) {
-                    sendMessage(sessionId, { replyId: message.id, text: t('followUpPrompt') })
-                  }
-                } else {
-                  continueReply(sessionId, message.id)
-                }
+                continueReply(sessionId, message.id)
               }}
             >
-              {t(followUp ? 'followUpAnswer' : 'continueGenerating')}
+              {t('continueGenerating')}
             </Button>
           ) : null}
         </div>
       )}
+      {suggestionsEnabled &&
+      isLast &&
+      !busy &&
+      onSelectSuggestion &&
+      message.suggestedQuestions?.length ? (
+        <div className={styles.suggestions} role="group" aria-label={t('suggestedQuestions')}>
+          <span aria-hidden="true">{t('suggestedQuestions')}</span>
+          {message.suggestedQuestions.map((question) => (
+            <button key={question} type="button" onClick={() => onSelectSuggestion(question)}>
+              {question}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 })

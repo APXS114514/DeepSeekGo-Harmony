@@ -16,7 +16,6 @@ import {
   clearAllDrafts,
   clearDraft,
   clearSentDraft,
-  EMPTY_DRAFT,
   getDraft,
   hasDraft,
   makeMessageDraft,
@@ -35,12 +34,12 @@ import { createLatestReminder } from './latestReminder.js'
 import {
   applyEvent,
   canContinueReply,
-  canFollowUpReply,
   getContextRounds,
   getReplyText,
   settleReply,
   toRequestMessages,
 } from './reply.js'
+import { requestSuggestedQuestions } from './suggestedQuestions.js'
 import { rememberFromTurn } from '../memory.js'
 import { buildSystemPrompt } from '../personalization.js'
 import {
@@ -712,14 +711,11 @@ export const stopReply = (sessionId: string) => getStreamController(sessionId)?.
  * 提交指定会话的最新草稿；null 表示新建会话。
  * 同步接收成功才清空草稿，附件原件由会话接管；保存失败仍通过保存入口重试。
  */
-export const sendMessage = (
-  targetSessionId: string | null,
-  followUp?: { replyId: string; text: string }
-) => {
+export const sendMessage = (targetSessionId: string | null) => {
   if (get().importingHistory || !get().ready) {
     return false
   }
-  const draft = followUp ? { ...EMPTY_DRAFT, text: followUp.text } : getDraft(targetSessionId)
+  const draft = getDraft(targetSessionId)
   const prepared = prepareDraftMessage(draft, useUploads.getState().tasks)
   if (!prepared) {
     return false
@@ -743,16 +739,6 @@ export const sendMessage = (
     return false
   }
   const history = getVisibleMessages(current)
-  if (followUp) {
-    const previous = history.at(-1)
-    if (
-      previous?.role !== 'assistant' ||
-      previous.id !== followUp.replyId ||
-      !canFollowUpReply(previous)
-    ) {
-      return false
-    }
-  }
   if (matchesRejectedDraft(draft, getContextRejection(history), useSettings.getState())) {
     return false
   }
@@ -784,10 +770,8 @@ export const sendMessage = (
     ])
   }
   persist(sessionId)
-  if (!followUp) {
-    clearSentDraft(targetSessionId)
-  }
-  void streamReply(sessionId, reply, { history, question, draft: followUp ? undefined : draft })
+  clearSentDraft(targetSessionId)
+  void streamReply(sessionId, reply, { history, question, draft })
   return true
 }
 
@@ -1135,6 +1119,76 @@ const waitForRetry = (attempt: number, signal: AbortSignal) =>
     signal.addEventListener('abort', onAbort, { once: true })
   })
 
+const suggestQuestions = (sessionId: string, question: string, reply: AssistantMessage) => {
+  const { apiKey, locale, suggestedQuestions } = useSettings.getState()
+  if (
+    !suggestedQuestions ||
+    !apiKey ||
+    reply.status !== 'done' ||
+    reply.stopReason !== 'end_turn' ||
+    reply.blocks.some((block) => block.type === 'text' && block.isTemplate) ||
+    document.visibilityState !== 'visible'
+  ) {
+    return
+  }
+  const answer = getReplyText(reply).trim()
+  if (!answer) {
+    return
+  }
+
+  const currentReply = () => {
+    const state = get()
+    const session = getSession(sessionId)
+    if (
+      state.activeId !== sessionId ||
+      state.importingHistory ||
+      getStreamController(sessionId) ||
+      !session
+    ) {
+      return undefined
+    }
+    const last = getVisibleMessages(session).at(-1)
+    return last?.role === 'assistant' && last.id === reply.id ? last : undefined
+  }
+  if (!currentReply()) {
+    return
+  }
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 20_000)
+  const stopOnSettings = useSettings.subscribe((state) => {
+    if (!state.suggestedQuestions || state.apiKey !== apiKey) {
+      controller.abort()
+    }
+  })
+  const stopOnChat = useChatStore.subscribe((state, previous) => {
+    if (
+      state.activeId !== sessionId ||
+      state.importingHistory ||
+      state.streaming[sessionId] ||
+      (state.sessionCache[sessionId] !== previous.sessionCache[sessionId] && !currentReply())
+    ) {
+      controller.abort()
+    }
+  })
+  void requestSuggestedQuestions(apiKey, locale, question, answer, controller.signal)
+    .then((questions) => {
+      const latest = currentReply()
+      if (!controller.signal.aborted && latest && questions.length > 0) {
+        updateReply(sessionId, { ...latest, suggestedQuestions: questions })
+        persist(sessionId)
+      }
+    })
+    .catch(() => {
+      // 建议生成失败不改变回答状态，也不显示聊天报错。
+    })
+    .finally(() => {
+      clearTimeout(timeout)
+      stopOnSettings()
+      stopOnChat()
+    })
+}
+
 /**
  * 请求并消费流：先补齐附件的 serverId，再发请求；流式增量按动画帧刷新内存，完成、失败或停止后落盘。
  * 补传失败时回复记为 upload 错误，可重试。
@@ -1339,6 +1393,9 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
             }
           : state
       )
+      if (!controller.signal.aborted) {
+        suggestQuestions(sessionId, request.question.content, reply)
+      }
     }
   }
 }

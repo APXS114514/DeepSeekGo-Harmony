@@ -25,7 +25,7 @@ const subscribe = (listener: () => void) => {
 }
 export const useModalOpen = () => useSyncExternalStore(subscribe, () => openModals.length > 0)
 
-/** 遮罩 + 居中卡片，Esc / 点遮罩关闭 */
+/** 遮罩 + 居中卡片，带独立返回动作的弹窗可用 Esc 返回上一层。 */
 export const Modal = ({
   title,
   children,
@@ -37,6 +37,7 @@ export const Modal = ({
   overlayRef,
   closing = false,
   onClose,
+  onBack = onClose,
 }: {
   title: ReactNode
   children?: ReactNode
@@ -50,6 +51,7 @@ export const Modal = ({
   overlayRef?: Ref<HTMLDivElement>
   closing?: boolean
   onClose: () => void
+  onBack?: () => void
 }) => {
   const t = useTranslate()
   const titleId = useId()
@@ -59,7 +61,9 @@ export const Modal = ({
   )
   const onCloseRef = useRef(onClose)
   onCloseRef.current = closing ? () => {} : onClose
-  useBackLayer(!closing, () => onCloseRef.current())
+  const onBackRef = useRef(onBack)
+  onBackRef.current = closing ? () => {} : onBack
+  useBackLayer(!closing, () => onBackRef.current())
   useLayoutEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) {
@@ -82,7 +86,7 @@ export const Modal = ({
         return
       }
       if (event.key === 'Escape') {
-        onCloseRef.current()
+        onBackRef.current()
         return
       }
       if (event.key === 'Tab') {
