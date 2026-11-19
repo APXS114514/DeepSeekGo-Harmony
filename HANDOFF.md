@@ -67,7 +67,7 @@
 - 网页进入后台时把当前进度写入会话，后台收到的增量在回到前台或结束时合并。隐藏状态下先等待最终保存，再发完成事件并同步生成结束。原生等通知发布结束再释放任务，应用已回到前台时跳过尚未发布的通知。
 - 网页发送前按原生显示上限裁剪标题和摘要，避免长回答触发消息端口的 8192 字符限制。通知使用 `SERVICE_INFORMATION` 通道和按会话区分的 WantAgent。切回页面时通过 ArkWeb `onActive` 恢复显示。重新开启通知且已申请过授权时，支持的 API 26 设备打开系统通知设置。
 - 浏览器从聊天入口复现旧版后台逐段刷新，并验证新版回前台合并增量、超过 9000 字的回答仍发送完成事件、完成事件先于结束状态、重载后可打开已保存的回复，以及通知授权重试。原生服务的模拟检查覆盖延迟释放、配额到期、会话跳转参数及前台忽略迟到通知。
-- 前端类型、Lint、格式、网页版和鸿蒙资源构建，以及 ArkTS `codelinter` 和 SDK 26.0.0 Debug 编译通过。Debug 包核对版本、最低 API 12 和 155 个网页资源。未连接真机，待实测退到后台和锁屏后通知是否送达、点击通知是否进入对话，以及回前台的实际刷新耗时。
+- 前端类型、Lint、格式、网页版和鸿蒙资源构建，以及 ArkTS `codelinter` 和 SDK 26.0.0 Debug 编译通过。Debug 包核对版本、最低 API 12 和 155 个网页资源。未连接真机，待实测退到后台和锁屏后通知是否送达、点击通知是否进入对话，以及回前台的实际刷新耗时。后台完成通知和点击回到对话已在 1.4.2 真机确认，见「验证与后续」的真机验收。
 
 ## 1.3.2 沉浸光感优化适配鸿蒙特性
 
@@ -148,6 +148,13 @@
   - `window-sizes`：五种悬浮窗和分屏尺寸下没有越界或横向滚动。
   - `motion-smoke`、`brand-sider-smoke`、`edit-regression`：1.0.x 起的键盘、动效、侧栏、Logo、Key 保存与消息编辑回归。
   - `readme-shots.mjs` 不是测试，运行 `pnpm screenshots` 会把 README 截图写到 `assets/images/screenshots/`，也可以传入其他输出目录。
+- **真机验收**：用户在 1.4.2 真机上确认以下功能正常：离线语音识别与首次麦克风授权、拍照和图库识字、各层的侧滑返回、「跟随系统」深浅色、系统字体缩放，以及后台继续生成后的完成通知和点击回到对话。设备型号和系统版本未记录。下文各版「尚未真机验证」中的这些项已关闭，其余仍待验证：
+  - 系统分享面板是否列出 Deepseek GO 及各类文件能否读取，导出到文件管理器。
+  - 平板和折叠屏：横屏挖孔避让是否左右对称，键盘弹起时左上角是否与状态栏重叠，折叠屏展开态侧栏。
+  - 2in1：相机和语音的可用性，快捷键是否与系统冲突。
+  - 1.3.2 原生识字菜单在深浅色相反、键盘弹起、分屏和悬浮窗中的表现，以及 API 12 真机的启动和网页菜单。
+  - 1.4.x：ArkWeb 双指缩放、输入栏收起展开和滚动帧率、按住说话的单指上滑取消手感，余额请求与上下文超限恢复。
+  - 覆盖安装后 localStorage 中的会话、记忆和设置是否保留。
 - 1.4.2 起回归脚本从维护者本机的 `Game-Miscellaneous/` 移入仓库，并按 1.4.x 的行为更新：补上余额接口的模拟，语音改为按住说话，不支持语音时空输入框不显示发送键。下文较早的记录里提到的 `Game-Miscellaneous/` 路径只作历史参考。`device-features` 清空输入框前等待 100ms，避开语音写入后移动光标的那一帧打断全选。
 - 前端已通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony` 和 `pnpm build`。这些命令在 `chat-demo-main/` 下执行，`pnpm build:harmony` 生成 ArkWeb 网页资源。
 - 1.0.6 浏览器模拟已验证键盘开合与失焦、Logo 完整显示、首条消息、设置和搜索面板、小窗抽屉和宽窗侧栏、减少动态效果、草稿保留、思考折叠与历史消息编辑。
@@ -155,7 +162,7 @@
 - 回归会话和设置时，从应用入口使用测试 Key、模拟 ArkWeb 消息通道和 API 回包。检查切换会话或折叠展开后草稿仍在，编辑重发后能切回原版本，以及 Key 校验成功但设备保存失败时能正确提示并重试。真机验收记录设备、系统版本和实际安装的包版本。
 - 收到生成 HAP Release 的请求后，从 `harmony/AppScope/app.json5` 读取当前版本。先构建 ArkWeb 资源，再在 `harmony/` 下用 HarmonyOS 26.0.0 SDK 执行 `hvigorw assembleHap --mode module -p product=default -p module=entry@default -p buildMode=release --no-daemon`。核对构建日志的未签名状态及包内 `module.json` 的版本、包名和最低 API。比对图标、Logo、图像授权声明和打包的网页资源，最后复制到 `HAPS/` 并记录 SHA-256。
 - 1.3.0 已通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony`、改动文件的 `oxfmt`、改动的 ArkTS 文件通过 codelinter（无错误）和 ArkTS Release 编译；包内含 `configuration` 配置。回归脚本 `Game-Miscellaneous/_verify-deepseek-go-1.3/batch-1.3.mjs` 覆盖顶栏对齐、返回手势分层、字体缩放、键盘偏移时的安全区、无痕对话的创建与丢弃以及不发记忆、生成状态与完成通知内容、通知开关和授权拒绝、点击通知打开会话、2in1 快捷键提示与右键菜单。1.1、1.2 功能回归仍通过，motion、edit、brand-sider 用 `*.v13.mjs`（关闭自动记忆、键盘安全区改为 31px）通过。
-- 1.3.0 尚未真机验证：侧滑返回在各层的实际表现、ArkWeb `darkMode(Auto)` 是否让「跟随系统」生效、系统字体缩放和原生 fp 标题的一致性、平板键盘弹起时左上角是否仍与状态栏重叠、短时任务能否让 ArkWeb 在后台继续接收流式回复、通知授权弹窗与点击回到对话、2in1 快捷键是否与系统冲突。
+- 1.3.0 尚未真机验证（侧滑返回、跟随系统、字体缩放、后台回复与通知已在 1.4.2 真机确认，见上文真机验收）：侧滑返回在各层的实际表现、ArkWeb `darkMode(Auto)` 是否让「跟随系统」生效、系统字体缩放和原生 fp 标题的一致性、平板键盘弹起时左上角是否仍与状态栏重叠、短时任务能否让 ArkWeb 在后台继续接收流式回复、通知授权弹窗与点击回到对话、2in1 快捷键是否与系统冲突。
 - 1.3.1 文案同步后通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony` 和 `Index.ets` 的 codelinter（无错误）。在 `Game-Miscellaneous/_verify-deepseek-go-1.3.1/` 下复跑 8 个浏览器脚本，全部通过。`batch-1.3.1.mjs` 覆盖默认主题色、深浅色背景和莓紫配色、开关行分隔、国家及省市选择和地名随消息发送。其余脚本覆盖 1.3、个性化、系统分享和语音、消息编辑、动效、侧栏及多种窗口尺寸。`harmony-features.mjs` 在清空语音输入前等待 100 ms，避开下一帧移动光标对全选的干扰。
 - 1.3.1 Release HAP 重新生成网页资源并通过干净的 ArkTS Release 编译，构建日志确认未签名。包内 `module.json` 显示 `com.pocketchat.deepseek`、`1.3.1`/`1000011`、最低 API 12、目标 API 26、SDK `26.0.0.105`、Release 非调试，并包含麦克风权限、系统分享技能和字体配置。包内 154 个网页文件与构建产物逐字节一致，欢迎页 Logo 与源码一致，启动器图标与 1.3.0 一致，编译后的 ArkTS 包含更新的资源加载失败提示。SHA-256 为 `0b0d8565d92cac173affa957f343aec7bef8ebc53484357824d25e9d10a69abb`。尚未在真机签名安装，待验证深色模式观感及启动页到网页首帧的颜色衔接。
 - 1.3.0 Release HAP 已清空并重新生成网页资源，通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony` 和干净的 ArkTS Release 编译，构建日志确认未签名。包内 `module.json` 显示 `com.pocketchat.deepseek`、`1.3.0`/`1000010`、最低 API 12、目标 API 26、SDK `26.0.0.105`、Release 非调试，并包含 `MICROPHONE` 权限、`sendData` 分享技能和 `$profile:configuration`。Logo 和网页资源与源码逐字节一致，启动器图标与 1.2.1 包中的相同。SHA-256 为 `b95abb662744ed5f2c1bd39759b11b93b5b13309d7979dd689a907c54fe2bcdb`，尚未在真机签名安装。
@@ -163,5 +170,5 @@
 - 1.2.1 已通过 `pnpm lint`、`pnpm build:harmony`、`WindowInsets.ets` 的 codelinter 和 ArkTS 编译。浏览器探针确认侧栏覆盖整个窗口高度，内容位置不变；1.1、1.2 功能回归以及关闭自动记忆后的 motion、edit、brand-sider 回归都通过。挖孔改算上下避让的逻辑只能在真机验证：需要确认平板横屏时左右对称，挖孔不遮挡内容，以及顶部 inset 是否因此变大。
 - 1.2.0 已通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony` 和 ArkTS 编译，原生代码未改动。浏览器回归脚本是 DSH 工作区的 `Game-Miscellaneous/_verify-deepseek-go-1.2/personalization.mjs`，在本仓库根目录用 Node 运行。它覆盖指令保存与注入、手动添加与去重、自动提炼的新增、更新和删除、敏感信息过滤、无效返回和短消息不触发、编辑与 Esc 取消、整理、撤销和整理失败、删除、开关关闭后不注入也不提炼、刷新后保留、清空确认。1.1.0 的 harmony-features 回归仍通过；motion、edit、brand-sider 在关闭自动记忆后通过。真机待验证 ArkWeb 的 localStorage 在覆盖安装后是否保留，以及长指令和长记忆列表在小屏设置页的滚动。暂未打包 1.2.0 HAP。
 - 1.1.0 已通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony`、`codelinter` 和 ArkTS 编译，包内 `module.json` 含 `MICROPHONE` 权限和分享技能。浏览器回归脚本在 DSH 工作区的 `Game-Miscellaneous/_verify-deepseek-go-1.1/harmony-features.mjs`，在本仓库根目录用 Node 运行。它用模拟端口覆盖冷启动和运行中分享、语音实时文字与自动结束、手动结束与取消、权限拒绝和识别失败、拍照与图库识字及取消、导出保存与失败，以及设备不支持时隐藏入口。1.0.6 的 motion、edit、brand-sider 回归仍通过。
-- 1.1.0 尚未真机验证：系统分享面板是否列出 Deepseek GO 及各类文件能否读取、离线语音模型在目标设备上是否可用和首次授权流程、相机 Picker 返回的 URI 可读性和识字效果、文件管理器保存，以及 2in1 上相机和语音的可用性。暂未打包 1.1.0 HAP。
+- 1.1.0 尚未真机验证（离线语音和识字已在 1.4.2 真机确认，见上文真机验收）：系统分享面板是否列出 Deepseek GO 及各类文件能否读取、离线语音模型在目标设备上是否可用和首次授权流程、相机 Picker 返回的 URI 可读性和识字效果、文件管理器保存，以及 2in1 上相机和语音的可用性。暂未打包 1.1.0 HAP。
 - 1.0.6 Release 已通过前端检查、ArkTS 编译和上述包内检查，SHA-256 为 `209246dd381e8b2a6e9f1dd9a0054a2b03817fdfcb1365786eb61f4f205aa9be`。该包尚未在真机签名安装。
