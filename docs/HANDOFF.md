@@ -38,6 +38,14 @@
 - **原生组件级配置**可通过 `systemMaterial` 等属性调整支持的组件。应用级未禁用时，组件配置优先，个别组件可通过 `uiMaterial.Material.empty` 关闭。排查时，在支持的系统上用 `uiMaterial.getMaterialInfo()` 读取应用级配置状态，用 `uiMaterial.isImmersiveMaterialSupported()` 检查设备能力，再用真机验证呈现。 [组件适配指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
 - **通用设置 → 外观 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](../chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](../chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
 
+## 前缀缓存实测（2026-11-19）
+
+- 方法：用维护者的 Key 直连 `/anthropic/v1/messages`（非流式，`max_tokens` 32），每组先发 A 预热，等 10 秒再发 B，记录 B 的 `cache_read_input_tokens`。系统提示词约 2,000 Token，首轮提问约 500 Token，每组系统提示词开头加独立编号，组间不互相命中。脚本未入库。
+- 对照：A 共 2,677 Token。原样重发命中 2,432，正常第二轮（追加回答和新提问）命中 2,560。命中以 64 Token 为单位，上一次请求末尾约 100–250 Token 不会命中。
+- 不影响命中：`tools` 加入或去掉 `deepseek_web_search`、`deepseek_read_url`，首轮带 `title: { enabled: true }`，以及 `latest_reminder`。reminder 不变时与对照相同；跨日在最新提问前追加新的一条时，前面的历史仍命中 2,560，与不带 reminder 的第三轮对照一致，说明服务端保留各条 reminder 的原位置。
+- 整段不命中：同一前缀从 Flash 换成 `deepseek-v4-pro`，命中 0；第二轮从关闭深度思考改为开启，命中 0。缓存按模型和思考模式分开。未测：思考强度变化、开启到关闭的反向切换和两种模式各自持续时的命中。
+- 对客户端的影响：会话中切换深度思考，或本轮因附件、链接、搜索自动从 Pro 换到 Flash，当轮全部历史按未命中计费；切回后只能命中原模式最后一次请求的前缀。目前没有为此改动行为。
+
 ## 1.5.3 长附件修复
 
 - 通过 HarmonyOS 26.0.0 SDK Release 构建，构建日志确认跳过签名。包内 `module.json` 为 `com.pocketchat.deepseek`、`1.5.3` / `1000021`、最低 API 12、目标 API 26、SDK `26.0.0.105`、Release 非调试，权限、分享技能和材质配置与 1.5.2 相同。155 个网页资源与构建产物逐字节一致，含本次修复的提示文案，欢迎页 Logo、图像授权声明一致，启动器图标与 1.5.2 包相同。构建前类型、Lint、鸿蒙网页构建和 10 项回归通过。
