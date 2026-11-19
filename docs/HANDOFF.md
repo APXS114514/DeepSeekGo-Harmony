@@ -36,7 +36,7 @@
 - **原生组件级配置**可通过 `systemMaterial` 等属性调整支持的组件。应用级未禁用时，组件配置优先，个别组件可通过 `uiMaterial.Material.empty` 关闭。排查时，在支持的系统上用 `uiMaterial.getMaterialInfo()` 读取应用级配置状态，用 `uiMaterial.isImmersiveMaterialSupported()` 检查设备能力，再用真机验证呈现。 [组件适配指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
 - **通用设置 → 外观 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](../chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](../chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
 
-## 1.5.1 客户端体验改善
+## 1.5.1 客户端体验优化
 
 - 无痕说明移入消息列表开头，随内容滚动，顶栏仍显示「无痕对话」。在 HOP-AL10（HarmonyOS 7.0.0.111，已安装 1.5.1 / `1000019`）用无痕测试会话复现旧提示固定占位。模拟的 390px 和 942px 窗口验证两种对话的消息视口顶边和高度一致，回到消息列表开头可见说明，向下阅读时说明随消息滚出。修订版尚待签名安装后真机复测。
 - 聊天请求省略 `safety_check`，收到 `refusal` 时继续用提示替换本轮正文。后台记忆提炼和整理独立请求 `high`。阅读链接默认开启，可独立于智能搜索关闭。关闭阅读链接时不回传历史网页的签名块，纯文本历史仍随请求发送。 [DeepSeek 模型内容安全](https://api-docs.deepseek.com/zh-cn/guides/safety/)
