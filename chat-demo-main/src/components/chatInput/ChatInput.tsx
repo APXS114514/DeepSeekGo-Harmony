@@ -258,8 +258,8 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
           )}
           placeholder={t('chatInputPlaceholderChat')}
           rows={__HARMONY_APP__ ? 1 : 2}
-          // 移动端不自动聚焦，避免一打开就弹出键盘
-          autoFocus={!isMobile}
+          // 鸿蒙宽屏也可能使用软键盘，打开已有对话时等用户主动进入输入框。
+          autoFocus={!isMobile && (!__HARMONY_APP__ || sessionId === null)}
           disabled={importingHistory}
           value={text}
           onChange={(event) => setText(event.target.value)}

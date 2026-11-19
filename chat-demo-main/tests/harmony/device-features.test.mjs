@@ -725,8 +725,56 @@ try {
     assert.equal((await searchField.boundingBox()).y, before.y, '滚动结果时搜索框应保持可见')
     assert.equal(await results.getByRole('listitem').count(), 50)
     const last = results.getByRole('listitem').last().getByRole('button')
-    await last.click()
+    const main = featurePage.getByRole('main')
+    const composer = main.getByPlaceholder('请输入消息')
+    const enableFocusTracking = () =>
+      featurePage.evaluate(() => {
+        window.composerFocusCount = 0
+        document.addEventListener('focusin', (event) => {
+          if (event.target.matches?.('main textarea')) {
+            window.composerFocusCount++
+          }
+        })
+      })
+    const focusCount = () => featurePage.evaluate(() => window.composerFocusCount)
+
+    await enableFocusTracking()
+    await last.tap()
     await search.waitFor({ state: 'hidden' })
+    await main.getByText('批量搜索测试 1', { exact: true }).waitFor()
+    assert.equal(await focusCount(), 0, `${width}px 从历史搜索进入会话时不应聚焦输入框`)
+    await composer.tap()
+    assert.equal(await composer.evaluate((element) => document.activeElement === element), true)
+    await composer.fill('切换会话时保留的草稿')
+
+    if (!(await history.isVisible())) {
+      await openSider()
+    }
+    await featurePage.evaluate(() => {
+      window.composerFocusCount = 0
+    })
+    await featurePage
+      .getByRole('navigation')
+      .getByRole('button', { name: '批量搜索测试 50', exact: true })
+      .tap()
+    await main.getByText('批量搜索测试 50', { exact: true }).waitFor()
+    assert.equal(await focusCount(), 0, `${width}px 从侧栏打开会话时不应聚焦输入框`)
+    await composer.tap()
+    assert.equal(await composer.evaluate((element) => document.activeElement === element), true)
+
+    if (!(await history.isVisible())) {
+      await openSider()
+    }
+    await featurePage.evaluate(() => {
+      window.composerFocusCount = 0
+    })
+    await featurePage
+      .getByRole('navigation')
+      .getByRole('button', { name: '批量搜索测试 1', exact: true })
+      .tap()
+    await main.getByText('批量搜索测试 1', { exact: true }).waitFor()
+    assert.equal(await focusCount(), 0)
+    assert.equal(await composer.inputValue(), '切换会话时保留的草稿')
   }
   assert.deepEqual(experience.errors, [])
   await experience.context.close()
