@@ -579,6 +579,61 @@ try {
     await context.close()
   }
 
+  // 无痕说明跟随滚动，在手机窄窗和展开宽窗都不缩小消息视口。
+  for (const size of [{}, { width: 942, height: 680 }]) {
+    const { context, page, errors } = await open({
+      ...size,
+      mockChat: () =>
+        sse(
+          Array.from({ length: 40 }, (_, i) => `阅读测试第 ${i + 1} 段`).join('\n\n'),
+          '阅读测试'
+        ),
+    })
+    const measure = () =>
+      page
+        .locator('[data-history-message]')
+        .first()
+        .evaluate((message) => {
+          let scroll = message.parentElement
+          while (scroll && getComputedStyle(scroll).overflowY !== 'auto') {
+            scroll = scroll.parentElement
+          }
+          const note = document.querySelector('main [role="note"]')
+          scroll.scrollTop = 0
+          const { top, bottom, height } = scroll.getBoundingClientRect()
+          const noteInView =
+            note &&
+            note.getBoundingClientRect().top >= top &&
+            note.getBoundingClientRect().bottom <= bottom
+          scroll.scrollTop = scroll.scrollHeight
+          return {
+            top,
+            height,
+            scrollTop: scroll.scrollTop,
+            noteInView,
+            noteScrolledOut: note && note.getBoundingClientRect().bottom <= top,
+          }
+        })
+    await send(page, '普通阅读测试', '阅读测试第 40 段')
+    await page.waitForFunction(() => window.lastWindowUi.generating === false)
+    const normal = await measure()
+    assert(normal.scrollTop > 0)
+    await page.evaluate(() => window.devicePost({ type: 'window-action', action: 'new-chat' }))
+    await page.getByText('今天想聊什么？', { exact: true }).waitFor()
+    await page.getByRole('button', { name: '无痕对话', exact: true }).click()
+    await send(page, '无痕阅读测试', '阅读测试第 40 段')
+    await page.waitForFunction(
+      () => window.lastWindowUi.title === '无痕对话' && window.lastWindowUi.generating === false
+    )
+    const incognito = await measure()
+    assert.equal(incognito.top, normal.top)
+    assert.equal(incognito.height, normal.height)
+    assert.equal(incognito.noteInView, true)
+    assert.equal(incognito.noteScrolledOut, true)
+    assert.deepEqual(errors, [])
+    await context.close()
+  }
+
   // 无痕联网请求使用服务端默认检查，仍处理流式响应结尾的拒答。
   {
     const { context, page, errors } = await open({ refuseReply: true })

@@ -12,7 +12,7 @@ All features in the current version of Deepseek GO. For changes by version, see 
 - Render Markdown, highlighted code, equations, and Mermaid diagrams. Copy replies or read them aloud.
 - **Search chat history.** Search titles or messages in the current version of each chat from the sidebar. Open a chat or jump to the matching message.
 - Attach images, PDFs, Office documents, and code files. The per-file limits are 100 MiB for PDF, Word, and PowerPoint, 64 MiB for images, and 32 MiB for plain text, spreadsheets, and ebooks.
-- **Incognito chat.** Turn it on from the new chat screen. Incognito chats skip history and memory and are discarded when you leave.
+- **Incognito chat.** Turn it on from the new chat screen. Incognito chats skip history and memory and are discarded when you leave. The privacy notice appears at the start of the message list and scrolls with it.
 
 ## HarmonyOS features
 

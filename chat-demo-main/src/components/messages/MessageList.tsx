@@ -10,6 +10,7 @@ import {
   type RefObject,
 } from 'react'
 import { useIsMobile } from '../../app/viewport.js'
+import { useTranslate } from '../../i18n/index.js'
 import {
   buildMessageVersions,
   getVisibleMessages,
@@ -61,6 +62,7 @@ export const MessageList = ({
     showComposer: () => void
   }) => ReactNode
 }) => {
+  const t = useTranslate()
   const isMobile = useIsMobile()
   const hideComposerOnScroll = useSettings((state) => state.hideComposerOnScroll)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -323,6 +325,11 @@ export const MessageList = ({
       >
         <div ref={isMobile ? scrollRef : undefined} className={styles.scroll}>
           <div ref={contentRef} className={styles.column} data-content-enter>
+            {session.ephemeral ? (
+              <p className={styles.incognitoNote} role="note">
+                {t('incognitoBanner')}
+              </p>
+            ) : null}
             {messages.map((message, index) =>
               message.role === 'user' ? (
                 <UserMessage

@@ -33,11 +33,6 @@ export const SessionView = ({
           </div>
         </div>
       )}
-      {session.ephemeral ? (
-        <div className={styles.incognitoBanner} role="note">
-          {t('incognitoBanner')}
-        </div>
-      ) : null}
       <MessageList
         key={session.id}
         session={session}
