@@ -3,7 +3,7 @@
 ## 工作区
 
 - 当前源码为 1.5.0，版本代码为 `1000018`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
-- 1.5.0 未签名 Release 测试包为 `HAPS/Deepseek-GO-1.5.0-unsigned.hap`，构建自历史会话键盘修复提交 `6f7b82e`，版本代码 `1000018`。包内确认最低 API 12、155 个网页资源、欢迎页 Logo、启动器图标和图像授权声明。SHA-256 为 `9bd35be013fc782621fc5155d383fdc4e4c30ace2c249495bdc999de4ab2a5d0`。上一包归档为 `HAPS/Deepseek-GO-1.5.0-da3e022-unsigned.hap`，SHA-256 为 `bce48ca72fc5abf45741ccc9e6d04f2915428b4f06e3db3a911c05e2b388da02`。
+- 1.5.0 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.0-unsigned.hap`，构建自提交 `902b474`，版本代码 `1000018`。维护者确认本轮测试通过，9 项鸿蒙回归与 HarmonyOS 26.0.0 SDK Release 构建通过。包内确认最低 API 12、155 个网页资源、欢迎页 Logo、启动器图标和图像授权声明。SHA-256 为 `cad85a0ab5374258c81124d645e982946cd62aa6859e10a53e53ac23a62796f5`。上一包归档为 `HAPS/Deepseek-GO-1.5.0-6f7b82e-unsigned.hap`，SHA-256 为 `9bd35be013fc782621fc5155d383fdc4e4c30ace2c249495bdc999de4ab2a5d0`。
 - 1.4.2 本地测试包是 `HAPS/Deepseek-GO-1.4.2-unsigned.hap`，版本代码为 `1000017`，对应提交 `cb3286d`。SHA-256 为 `1f1f80763a6ff192d75f1011301b408aeb391534eb0316ca7cd2496f365cf844`。上一轮测试包归档在 `HAPS/Deepseek-GO-1.4.2-ed689a4-unsigned.hap`，SHA-256 为 `6360fbf238728e2e9d5b4b4bd4b67e9c60f026f94cc24a55f91aa51c489ac774`。
 - 最近一次发布是 GitHub Releases 的 `v1.4.2`，标签指向提交 `f3908b0`。该版本已通过用户测试，远端 HAP 与上列本地测试包的 SHA-256 一致。只有用户明确要求时才打包当前源码版本。
 - 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。贡献方式见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。仓库只收源码、配置、文档和图片资源。根目录只留 README、AGENTS、许可证和图像授权声明，其他文档在 `docs/`。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`，使用鸿蒙版网页构建产物、模拟接口和设备消息通道生成。维护者的截图生成命令见本机 `AGENTS.local.md`。
@@ -39,7 +39,7 @@
 
 - 侧栏的历史搜索从 IndexedDB 逐条读取本机历史，优先展示标题命中，再分批返回当前分支的消息片段。搜索最多显示 50 条，关闭或改关键词会取消上一轮。定位消息时更新滚动位置并把焦点交给消息。无痕会话不在历史结果中。
 - 「语音输入」保存到 `chat-demo:voice-input-mode`，缺省和旧版升级都使用系统离线识别。DeepSeek API 模式复用网页录制的 16 kHz WAV，经现有 `/v1/tools/asr` 转写。ArkWeb 仅对内置 HTTPS 页面的音频收音处理麦克风权限，首次明确同意并通过系统授权后将页面同意写入原生 Preferences。之后每次录音仍查询当前系统权限，系统已有授权时跳过授权请求，权限撤销或临时授权失效时走系统流程。音频只在内存中暂存，松手确认后才上传，取消和切后台会释放录音并忽略迟到结果。
-- 在 HOP-AL10 的旧 1.5.0 包上通过按住说话观察到应用内麦克风确认，旧实现会为每次收音请求重开该弹窗。新增 `microphone-permission.test.mjs` 模拟系统权限和 Preferences，直接覆盖 ArkTS 的首次授权、连续录音、重建页面、拒绝后重试、系统权限撤销及端口重新连接。浏览器语音回归等待虚拟麦克风首帧后再结束录音。ArkTS CodeLinter 和 HarmonyOS 26.0.0 SDK Debug 构建通过，确认最低 API 12。修复待安装新包后复测连续录音。
+- 在 HOP-AL10 的旧 1.5.0 包上通过按住说话观察到应用内麦克风确认，旧实现会为每次收音请求重开该弹窗。新增 `microphone-permission.test.mjs` 模拟系统权限和 Preferences，直接覆盖 ArkTS 的首次授权、连续录音、重建页面、拒绝后重试、系统权限撤销及端口重新连接。浏览器语音回归等待虚拟麦克风首帧后再结束录音。ArkTS CodeLinter 和 HarmonyOS 26.0.0 SDK Debug 构建通过，确认最低 API 12。维护者随后确认本轮修订通过其测试。
 - 本机朗读复用回答的播放与停止状态，由 `LocalSpeech.ets` 检查系统能力并分段调用 Core Speech Kit。原有 API 音色设置继续生效，本机朗读失败时可重试或手动改用 API 音色。
 - 单条回答和当前会话分支均可预览分享正文。文字由 Share Kit 直接分享，Markdown 和 PNG 长图通过受限的二进制帧交给 `ShareOut.ets`，写入沙箱缓存后用文件 URI 打开系统分享面板。长图用 Canvas 排版正文，达到高度上限时提示改用 Markdown。下次分享文件时清理超过 24 小时的缓存。
 - 为设置标签、选择器、弹窗和侧栏补齐键盘焦点处理。语音模式下用 Enter 或空格开始、结束录音，Esc 取消。原生顶栏保留本地化无障碍名称，网页图标按钮在强制色彩模式显示焦点轮廓。
