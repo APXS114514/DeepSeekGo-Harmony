@@ -3,10 +3,10 @@
 ## 工作区
 
 - 当前源码为 1.5.1，版本代码为 `1000019`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
-- 已交付的 1.5.1 未签名测试包 `HAPS/Deepseek-GO-1.5.1-unsigned.hap` 构建自 `1f3d305`。SHA-256 为 `eeb609199e827a02c558f5b6d8dcd3247c1e578fec2c474f48854eec2f65d501`。通用设置二级页、「猜你想问」和无痕说明滚动修复是在该包之后加入的。
+- 已发布的 1.5.1 未签名 Release 包 `HAPS/Deepseek-GO-1.5.1-unsigned.hap` 构建自 `94bda5f`，SHA-256 为 `e58277edddb7c8170aff7e5cf0868dc4098a7d569499a139d10ba5bf86544695`。上一份 1.5.1 测试包构建自 `1f3d305`，归档为 `HAPS/Deepseek-GO-1.5.1-1f3d305-unsigned.hap`，SHA-256 为 `eeb609199e827a02c558f5b6d8dcd3247c1e578fec2c474f48854eec2f65d501`。
 - 1.5.0 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.0-unsigned.hap`，构建自提交 `902b474`，版本代码 `1000018`。维护者确认本轮测试通过，9 项鸿蒙回归与 HarmonyOS 26.0.0 SDK Release 构建通过。包内确认最低 API 12、155 个网页资源、欢迎页 Logo、启动器图标和图像授权声明。SHA-256 为 `cad85a0ab5374258c81124d645e982946cd62aa6859e10a53e53ac23a62796f5`。上一包归档为 `HAPS/Deepseek-GO-1.5.0-6f7b82e-unsigned.hap`，SHA-256 为 `9bd35be013fc782621fc5155d383fdc4e4c30ace2c249495bdc999de4ab2a5d0`。
 - 1.4.2 本地测试包是 `HAPS/Deepseek-GO-1.4.2-unsigned.hap`，版本代码为 `1000017`，对应提交 `cb3286d`。SHA-256 为 `1f1f80763a6ff192d75f1011301b408aeb391534eb0316ca7cd2496f365cf844`。上一轮测试包归档在 `HAPS/Deepseek-GO-1.4.2-ed689a4-unsigned.hap`，SHA-256 为 `6360fbf238728e2e9d5b4b4bd4b67e9c60f026f94cc24a55f91aa51c489ac774`。
-- 最近一次发布是 GitHub Releases 的 `v1.4.2`，标签指向提交 `f3908b0`。该版本已通过用户测试，远端 HAP 与上列本地测试包的 SHA-256 一致。只有用户明确要求时才打包当前源码版本。
+- 最近一次发布是 GitHub Releases 的 `v1.5.1`，标签指向 `94bda5f`。远端 HAP 与上列 1.5.1 Release 包逐字节一致。只有用户明确要求时才打包当前源码版本。
 - 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。贡献方式见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。仓库只收源码、配置、文档和图片资源。根目录只留 README、AGENTS、许可证和图像授权声明，其他文档在 `docs/`。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`，使用鸿蒙版网页构建产物、模拟接口和设备消息通道生成。维护者的截图生成命令见本机 `AGENTS.local.md`。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
 
@@ -38,6 +38,7 @@
 
 ## 1.5.1 客户端体验优化
 
+- 在 HOP-AL10（HarmonyOS 7.0.0.111）外屏 `1264×1848` 上，从已安装的 1.5.1 的「设置 → 通用设置 → 对话」复现。向下阅读后，返回按钮仍在 `y=662–784`，推理强度标签移到 `y=715–777`，左右也有交集。二级页改为返回栏独占一行，只有下方控件列表可以滚动。模拟 360px、768px 和 942px 窗口验证返回栏不覆盖列表，可以正常切换开关和返回。类型、Lint、鸿蒙网页构建和 9 项回归通过，修订版待签名安装后真机复测。
 - 无痕说明移入消息列表开头，随内容滚动，顶栏仍显示「无痕对话」。在 HOP-AL10（HarmonyOS 7.0.0.111，已安装 1.5.1 / `1000019`）用无痕测试会话复现旧提示固定占位。模拟的 390px 和 942px 窗口验证两种对话的消息视口顶边和高度一致，回到消息列表开头可见说明，向下阅读时说明随消息滚出。修订版尚待签名安装后真机复测。
 - 聊天请求省略 `safety_check`，收到 `refusal` 时继续用提示替换本轮正文。后台记忆提炼和整理独立请求 `high`。阅读链接默认开启，可独立于智能搜索关闭。关闭阅读链接时不回传历史网页的签名块，纯文本历史仍随请求发送。 [DeepSeek 模型内容安全](https://api-docs.deepseek.com/zh-cn/guides/safety/)
 - 「通用设置 → 对话」保存首选模型、阅读链接、推理强度和输出 Token 上限，回答保存本轮生成选项供续写和附件重试使用。当前请求含附件、启用智能搜索，或需要读新链接或保留历史网页结果时使用 Flash。Pro 首选下的其他纯文本请求使用 Pro。 [Messages API](https://api-docs.deepseek.com/zh-cn/api/create-message/) · [联网工具](https://api-docs.deepseek.com/zh-cn/guides/web_tools/)

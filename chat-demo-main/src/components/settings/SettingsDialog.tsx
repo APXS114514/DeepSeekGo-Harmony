@@ -224,7 +224,9 @@ const SettingsContent = ({
                   </button>
                   <h2>{t(generalPage.label)}</h2>
                 </header>
-                <GeneralSettingsPage page={generalPage.value} />
+                <div className={styles.subpageScroll}>
+                  <GeneralSettingsPage page={generalPage.value} />
+                </div>
               </>
             ) : (
               <>

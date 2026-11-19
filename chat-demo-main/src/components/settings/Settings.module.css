@@ -123,20 +123,27 @@
 }
 
 .subpageContent {
-  scroll-padding-top: 44px;
+  overflow: hidden;
+}
+
+.subpageScroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  margin-inline-end: -24px;
+  padding-inline-end: 24px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: none contain;
 }
 
 .subpageHeader {
-  position: sticky;
-  z-index: 1;
-  top: 0;
   display: flex;
   flex-shrink: 0;
   align-items: center;
   gap: 4px;
   min-height: 44px;
-  background-color: var(--dsw-alias-bg-layer-2);
-
   h2 {
     margin: 0;
     font-size: 16px;

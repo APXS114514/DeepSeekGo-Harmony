@@ -237,11 +237,15 @@ try {
     await page.screenshot({ path: join(out, `w${width}x${height}-chat.png`) })
     await context.close()
   }
-  // Pura X Max 展开时的桌面式设置不能因位置说明过宽而横向滚动。
-  for (const width of [768, 942]) {
+  // 折叠屏外屏和内屏设置可独立滚动，二级页的返回区与控件分开。
+  for (const [width, height] of [
+    [360, 600],
+    [768, 680],
+    [942, 680],
+  ]) {
     const { context, page } = await open({
       width,
-      height: 680,
+      height,
       scale: 1,
       storage: { ...quietMemory, 'chat-demo:sider-collapsed': 'true' },
       mobile: true,
@@ -262,20 +266,47 @@ try {
     const assertPanel = async (name) => {
       const panel = dialog.getByRole('tabpanel')
       const metrics = await panel.evaluate((node) => {
-        const width = node.clientWidth
-        const scrollWidth = node.scrollWidth
-        node.scrollLeft = 100
-        node.scrollTop = 100
-        return { overflow: scrollWidth - width, x: node.scrollLeft, y: node.scrollTop }
+        const scroll =
+          [...node.children].find((child) => getComputedStyle(child).overflowY === 'auto') ?? node
+        const header = node.querySelector('header')
+        const headerBeforeScroll = header?.getBoundingClientRect().top
+        scroll.scrollLeft = 100
+        scroll.scrollTop = 100
+        return {
+          overflow: scroll.scrollWidth - scroll.clientWidth,
+          x: scroll.scrollLeft,
+          y: scroll.scrollTop,
+          headerBeforeScroll,
+          headerTop: header?.getBoundingClientRect().top,
+          headerBottom: header?.getBoundingClientRect().bottom,
+          scrollTopEdge: scroll.getBoundingClientRect().top,
+        }
       })
       assert.equal(metrics.overflow, 0, `${width}px 下的${name}应完整显示`)
       assert.equal(metrics.x, 0)
+      if (metrics.headerBottom !== undefined) {
+        assert.equal(
+          metrics.headerTop,
+          metrics.headerBeforeScroll,
+          `${width}px 下返回栏滚动后应保持原位`
+        )
+        assert(
+          metrics.headerBottom <= metrics.scrollTopEdge + 1,
+          `${width}px 下返回栏不能覆盖可滚动区域`
+        )
+      }
       if (name === '对话') assert(metrics.y > 0, '对话二级页仍能纵向滚动')
     }
     await assertPanel('通用设置')
     for (const name of ['外观', '对话', '语音']) {
       await dialog.getByRole('button', { name, exact: true }).click()
       await assertPanel(name)
+      if (width < 768 && name === '对话') {
+        const toggle = dialog.getByRole('switch', { name: '猜你想问' })
+        await toggle.check()
+        assert(await toggle.isChecked())
+        await toggle.uncheck()
+      }
       await dialog.getByRole('button', { name: '返回通用设置' }).click()
     }
     for (const name of ['个性化', '数据管理']) {
