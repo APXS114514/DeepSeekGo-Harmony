@@ -23,6 +23,7 @@ export const Modal = ({
   footer,
   closable = false,
   className,
+  overlayClassName,
   mainClassName,
   overlayRef,
   closing = false,
@@ -34,6 +35,7 @@ export const Modal = ({
   /** 标题栏右侧显示关闭按钮 */
   closable?: boolean
   className?: string
+  overlayClassName?: string
   /** 内容区的 class */
   mainClassName?: string
   overlayRef?: Ref<HTMLDivElement>
@@ -65,7 +67,7 @@ export const Modal = ({
   return createPortal(
     <div
       ref={overlayRef}
-      className={styles.overlay}
+      className={clsx(styles.overlay, overlayClassName)}
       data-closing={closing ? '' : undefined}
       onMouseDown={(event) => event.target === event.currentTarget && onCloseRef.current()}
     >

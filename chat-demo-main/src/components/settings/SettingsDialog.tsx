@@ -35,12 +35,13 @@ import {
   setTtsVoice,
   takeReplyNotifyPrompt,
   useSettings,
+  type Locale,
   type ThemePreference,
 } from '../../services/settings.js'
 import { useTranslate, type TranslationKey, type TranslationMessage } from '../../i18n/index.js'
 import { Button } from '../base/Button.js'
 import { Modal } from '../base/Modal.js'
-import { Select } from '../base/Select.js'
+import { Select, type SelectOption } from '../base/Select.js'
 import { showToast } from '../base/toastState.js'
 import { ApiBalance } from './ApiBalance.js'
 import { ApiKeyConfirm, ApiKeyField, useApiKeyEditor } from './ApiKeyField.js'
@@ -99,6 +100,7 @@ const SettingsContent = ({
         title={t('settings')}
         closable
         className={styles.dialog}
+        overlayClassName={styles.settingsOverlay}
         mainClassName={styles.dialogMain}
         overlayRef={overlayRef}
         closing={closing}
@@ -123,7 +125,7 @@ const SettingsContent = ({
             </button>
           ))}
         </div>
-        <div role="tabpanel" className={styles.content}>
+        <div key={section} role="tabpanel" className={styles.content}>
           {section === 'general' ? (
             <>
               <ThemeSetting />
@@ -246,6 +248,21 @@ const useHistoryDelete = () => {
   }
 }
 
+const sortedRegions = new Map<Locale, SelectOption<string>[]>()
+
+const getSortedRegions = (locale: Locale) => {
+  const cached = sortedRegions.get(locale)
+  if (cached) {
+    return cached
+  }
+  const { compare } = new Intl.Collator(locale)
+  const options = regionCodes
+    .map((value) => ({ value, label: getRegionName(value, locale) }))
+    .sort((a, b) => compare(a.label, b.label))
+  sortedRegions.set(locale, options)
+  return options
+}
+
 const LocationSetting = () => {
   const t = useTranslate()
   const locale = useSettings((state) => state.locale)
@@ -269,12 +286,7 @@ const LocationSetting = () => {
             className={styles.regionSelect}
             value={location?.region ?? ''}
             placeholder={t('settingsLocationRegion')}
-            options={[
-              { value: '', label: t('settingsLocationNone') },
-              ...regionCodes
-                .map((code) => ({ value: code, label: getRegionName(code, locale) }))
-                .sort((a, b) => a.label.localeCompare(b.label, locale)),
-            ]}
+            options={[{ value: '', label: t('settingsLocationNone') }, ...getSortedRegions(locale)]}
             onChange={(value) => setLocation(value ? { region: value } : null)}
           />
           {location?.region === 'CN' ? (

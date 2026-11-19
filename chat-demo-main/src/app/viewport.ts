@@ -55,7 +55,8 @@ const preventPageScroll = (event: TouchEvent) => {
 /** 阻止移动端整页滚动，保留内部可滚动区域的滚动和双指缩放。 */
 export const usePreventPageScroll = (enabled: boolean) => {
   useEffect(() => {
-    if (!enabled) {
+    // ArkWeb 的固定视口和 CSS 滚动边界允许触摸直接在滚动层处理。
+    if (!enabled || (__HARMONY_APP__ && CSS.supports('overscroll-behavior-y', 'contain'))) {
       return
     }
     document.addEventListener('touchmove', preventPageScroll, { passive: false })

@@ -122,6 +122,9 @@ export const MessageList = ({
     const observer = new ResizeObserver(keepVisible)
     observer.observe(content)
     observer.observe(scroll)
+    if (composerRef.current) {
+      observer.observe(composerRef.current)
+    }
     if (editor) {
       observer.observe(editor)
     }
@@ -183,10 +186,13 @@ export const MessageList = ({
       scrollTopRef.current = el.scrollTop
     }
     let upwardTravel = 0
+    const isNearBottom = (top = Math.max(0, el.scrollTop)) =>
+      el.scrollHeight - top - el.clientHeight < STICKY_THRESHOLD
+    const isComposerCollapsed = () => composerRef.current?.hasAttribute('data-composer-collapsed')
     const onScroll = () => {
       const top = Math.max(0, el.scrollTop)
       const delta = top - scrollTopRef.current
-      const nearBottom = el.scrollHeight - top - el.clientHeight < STICKY_THRESHOLD
+      const nearBottom = isNearBottom(top)
       // 仅在用户向上滚动时停止跟随底部，布局或内容增高时保持跟随状态。
       if (nearBottom && (!hideComposerOnScroll || delta > 0)) {
         stickyRef.current = true
@@ -211,7 +217,7 @@ export const MessageList = ({
           composer?.contains(document.activeElement) &&
           document.activeElement?.matches('textarea, input'))
       if (
-        composer?.hidden ||
+        isComposerCollapsed() ||
         editorRef.current ||
         keyboardOpen ||
         composer?.querySelector('[data-voice-active]')
@@ -226,7 +232,46 @@ export const MessageList = ({
       }
     }
     el.addEventListener('scroll', onScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onScroll)
+    if (!hideComposerOnScroll) {
+      return () => el.removeEventListener('scroll', onScroll)
+    }
+
+    // 收起后视口变高，位置可能已被限在底部。此时向下的手势没有 scroll 事件。
+    const revealAtBottom = () => {
+      if (isComposerCollapsed() && isNearBottom()) {
+        stickyRef.current = true
+        setComposerHidden(false)
+      }
+    }
+    let touchY: number | undefined
+    let towardBottom = 0
+    const onTouchStart = (event: TouchEvent) => {
+      touchY = event.touches.length === 1 ? event.touches[0].clientY : undefined
+      towardBottom = 0
+    }
+    const onTouchMove = (event: TouchEvent) => {
+      const y = event.touches.length === 1 ? event.touches[0].clientY : undefined
+      towardBottom =
+        y !== undefined && touchY !== undefined ? Math.max(0, towardBottom + touchY - y) : 0
+      if (towardBottom >= 8) {
+        revealAtBottom()
+      }
+      touchY = y
+    }
+    const onWheel = (event: WheelEvent) => {
+      if (event.deltaY > 0 && !event.ctrlKey) {
+        revealAtBottom()
+      }
+    }
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: true })
+    el.addEventListener('wheel', onWheel, { passive: true })
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('wheel', onWheel)
+    }
   }, [hideComposerOnScroll, isMobile, scrollToBottom])
 
   const lastIndex = messages.length - 1

@@ -2,7 +2,8 @@
 
 ## 工作区
 
-- 当前源码为 1.4.0，版本代码为 `1000015`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 当前源码为 1.4.1，版本代码为 `1000016`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 最近一次本地测试包是 `HAPS/Deepseek-GO-1.4.0-unsigned.hap`，版本代码为 `1000015`，对应提交 `e54547b`。SHA-256 为 `64be1ae2330f2aa73aa21c6e9a2e6702aac138d1fda0a3a4f82b0907bba2c7c0`。
 - 最近一次交付是 `HAPS/Deepseek-GO-1.3.3-unsigned.hap`，版本代码为 `1000013`，对应 GitHub Releases 标签 `v1.3.3`。只有用户明确要求时才打包当前源码版本。
 - 上游仓库是 GitHub 上的 `APXS114514/DeepSeekGo-Harmony`，默认分支为 `main`。贡献方式见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。仓库只收源码、配置、文档和图片资源。忽略规则覆盖本机元数据（如 `.DS_Store`）、依赖、构建产物、`HAPS/`、签名材料，以及上游遗留的 `chat-demo-main/.github/` 和过期的 `*.module.css.d.ts`。README 截图在 `assets/images/screenshots/`，使用鸿蒙版网页构建产物、模拟接口和设备消息通道生成。维护者的截图生成命令见本机 `AGENTS.local.md`。
 - 保持覆盖安装所需的包名 `com.pocketchat.deepseek`。用户在手机上填写 Key，由 ArkWeb 消息通道交给系统 Asset Store。测试使用模拟 Key 和回复。
@@ -32,6 +33,13 @@
 
 - **原生组件级配置**可通过 `systemMaterial` 等属性调整支持的组件。应用级未禁用时，组件配置优先，个别组件可通过 `uiMaterial.Material.empty` 关闭。排查时，在支持的系统上用 `uiMaterial.getMaterialInfo()` 读取应用级配置状态，用 `uiMaterial.isImmersiveMaterialSupported()` 检查设备能力，再用真机验证呈现。 [组件适配指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
 - **设置 → 通用设置 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
+
+## 1.4.1 设置滚动与输入框动效
+
+- 支持 CSS 滚动边界的 ArkWeb 使用原生滚动，省去全局非被动触摸监听和每次手势的布局读取。设置分组独立重建滚动容器，避免沿用上一页的偏移。设置弹窗以半透明遮罩代替全屏模糊，国家或地区列表按语言缓存排序。
+- 阅读时输入框向下收起，和「显示输入框」交替过渡。收起阶段保留输入框 DOM，防止草稿和附件状态被释放。回到底部的触摸和滚轮手势可恢复输入框，即使收起造成的视口增高已将滚动位置限到底部。键盘、语音、历史编辑和减少动态效果偏好仍受支持。
+- 320px 窄窗用模拟鸿蒙通道从设置入口复现，两次滑动的同步样式读取由 63 次降至 0 次。复测分组归零、浅深主题、国家或地区菜单滚动和键盘避让。浏览器录取输入框收起和展开的中间高度，验证触摸和滚轮在底部恢复、键盘焦点、阅读位置、草稿附件、窄宽切换及减少动态效果。阅读、人设、编辑、后台回复、余额和上下文回归通过。
+- 前端类型、Lint、网页和鸿蒙资源构建，以及 HarmonyOS 26.0.0 SDK Debug 编译通过。包内核对 1.4.1、版本代码 `1000016`、最低 API 12 和 155 个网页资源。未连接真机，待验证 ArkWeb 的实际滚动帧率和系统键盘下的动效。
 
 ## 1.4.0 阅读、人设与 API 使用体验
 

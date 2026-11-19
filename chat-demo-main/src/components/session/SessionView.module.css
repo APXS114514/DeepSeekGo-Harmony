@@ -30,6 +30,7 @@
 }
 
 .inputContainer {
+  --composer-motion: var(--surface-motion, 180ms cubic-bezier(0.2, 0.75, 0.25, 1));
   position: sticky;
   bottom: 0;
   z-index: 10;
@@ -40,6 +41,30 @@
   width: calc(var(--message-list-max-width) - 64px);
   max-width: calc(100% - 32px);
   margin: auto auto 0;
+}
+
+.composerTrack,
+.revealTrack {
+  display: grid;
+  width: 100%;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--composer-motion);
+}
+
+.trackClip {
+  min-height: 0;
+  overflow: clip;
+  overflow-clip-margin: 16px;
+}
+
+.composerBody,
+.revealComposer {
+  transition:
+    opacity var(--composer-motion),
+    transform var(--composer-motion);
+}
+
+.composerBody {
   background: linear-gradient(
     to bottom,
     transparent 0%,
@@ -50,7 +75,7 @@
 }
 
 :global(.harmony-app) .header,
-:global(.harmony-app) .inputContainer {
+:global(.harmony-app) .composerBody {
   background: transparent;
 }
 
@@ -73,24 +98,43 @@
   bottom: auto;
   flex-shrink: 0;
   margin: 0 auto;
-  padding-bottom: var(--chat-footer-inset, env(safe-area-inset-bottom));
 }
 
 .inputContainer[hidden] {
   display: none;
 }
 
+.compactInput,
+.inputContainer[data-composer-collapsed] {
+  padding-bottom: var(--chat-footer-inset, env(safe-area-inset-bottom));
+}
+
+.inputContainer[data-composer-collapsed] .composerTrack,
+.inputContainer:not([data-composer-collapsed]) .revealTrack {
+  grid-template-rows: 0fr;
+}
+
+.inputContainer[data-composer-collapsed] .composerBody,
+.inputContainer:not([data-composer-collapsed]) .revealComposer {
+  transition-property: opacity, transform, visibility;
+  opacity: 0;
+  transform: translateY(10px);
+  visibility: hidden;
+}
+
 .revealComposer {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-  align-self: center;
-  flex-shrink: 0;
-  margin: auto auto 0;
-  padding: 4px 0 calc(4px + var(--chat-footer-inset, env(safe-area-inset-bottom)));
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
 
   button {
     background-color: var(--dsw-alias-bg-layer-2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inputContainer {
+    --composer-motion: 0s;
   }
 }
 
