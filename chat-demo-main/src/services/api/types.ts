@@ -184,7 +184,12 @@ export type CreateMessageRequest = {
 
 // ---------- 响应：流式事件 ----------
 
-export type StopReason = 'end_turn' | 'max_tokens' | 'tool_use' | 'refusal'
+export type StopReason =
+  | 'end_turn'
+  | 'max_tokens'
+  | 'tool_use'
+  | 'refusal'
+  | 'context_window_exceeded'
 
 export type StopDetails = { type: 'refusal'; category: null; explanation: null }
 

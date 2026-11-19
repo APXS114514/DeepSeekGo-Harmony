@@ -54,6 +54,21 @@ export const isRetryableApiError = (error: unknown): boolean => {
   )
 }
 
+/** 余额、附件体积与普通参数错误都不能单凭状态码归为模型上下文超限。 */
+export const isContextOverflow = (error: unknown): error is ApiError =>
+  error instanceof ApiError &&
+  (error.kind === 'stream' ||
+    error.status === 400 ||
+    error.status === 413 ||
+    error.status === 422) &&
+  (/^(?:model_)?context_(?:length|window)_exceeded$/i.test(error.code ?? '') ||
+    /\bcontext (?:length|window) (?:is )?(?:exceeded|too (?:long|large))\b/i.test(error.message) ||
+    /\bmaximum context (?:length|window)\b/i.test(error.message) ||
+    /\b(?:input|prompt|messages?)\b.{0,60}\b(?:longer than|exceeds?)\b.{0,45}\bcontext (?:length|window)\b/i.test(
+      error.message
+    ) ||
+    /\binput tokens? exceed(?:s|ed)? the limit\b/i.test(error.message))
+
 /** 服务端判定附件失效的情况：本地有原件时重新上传即可自愈 */
 export type FileErrorCode = 'fileIdMissing' | 'fileDataMissing' | 'invalidFileId'
 

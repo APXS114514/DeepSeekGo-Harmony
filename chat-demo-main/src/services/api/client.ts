@@ -34,7 +34,8 @@ export class ApiError extends Error {
   constructor(
     readonly kind: ApiErrorKind,
     message: string | TranslationMessage,
-    readonly status?: number
+    readonly status?: number,
+    readonly code?: string
   ) {
     super(typeof message === 'string' ? message : translate(message.key, message.params))
     this.name = 'ApiError'
@@ -48,22 +49,31 @@ const isErrorBody = (value: unknown): value is ApiErrorBody =>
   'error' in value &&
   typeof (value as ApiErrorBody).error?.message === 'string'
 
+const readErrorFields = (value: unknown) => {
+  const payload = isErrorBody(value) ? value.error : value
+  if (typeof payload !== 'object' || payload === null) {
+    return {}
+  }
+  const { message, code, type } = payload as Record<string, unknown>
+  return {
+    message: typeof message === 'string' ? message : undefined,
+    code: typeof code === 'string' ? code : typeof type === 'string' ? type : undefined,
+  }
+}
+
 const readErrorResponse = async (
   response: Response,
   kind: 'http' | 'protocol' = 'http',
   fallback = response.statusText
 ): Promise<ApiError> => {
   const text = await response.text().catch(() => '')
-  let message = text || fallback
   try {
-    const body: unknown = JSON.parse(text)
-    if (isErrorBody(body)) {
-      message = body.error.message
-    }
+    const { message, code } = readErrorFields(JSON.parse(text))
+    return new ApiError(kind, message ?? (text || fallback), response.status, code)
   } catch {
     // 非 JSON 响应体直接展示原文
+    return new ApiError(kind, text || fallback, response.status)
   }
-  return new ApiError(kind, message, response.status)
 }
 
 export const request = async (url: string, init: RequestInit): Promise<Response> => {
@@ -96,6 +106,51 @@ export const verifyApiKey = async (apiKey: string, signal?: AbortSignal): Promis
     headers: { Authorization: `Bearer ${apiKey}` },
     signal,
   })
+}
+
+type BalanceEntry = {
+  currency: 'CNY' | 'USD'
+  total_balance: string
+  granted_balance: string
+  topped_up_balance: string
+}
+
+export type UserBalance = { is_available: boolean; balance_infos: BalanceEntry[] }
+
+const isAmount = (value: unknown): value is string =>
+  typeof value === 'string' && /^-?\d+(?:\.\d+)?$/.test(value) && Number.isFinite(Number(value))
+
+const isBalanceEntry = (value: unknown): value is BalanceEntry => {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+  const entry = value as Partial<BalanceEntry>
+  return (
+    (entry.currency === 'CNY' || entry.currency === 'USD') &&
+    isAmount(entry.total_balance) &&
+    isAmount(entry.granted_balance) &&
+    isAmount(entry.topped_up_balance)
+  )
+}
+
+/** 账户余额独立于聊天请求，使用与 /models 相同的官方 API Key。 */
+export const getUserBalance = async (apiKey: string, signal: AbortSignal): Promise<UserBalance> => {
+  const response = await request(`${API_ORIGIN}/user/balance`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    cache: 'no-store',
+    redirect: 'error',
+    signal,
+  })
+  const value = (await response.json()) as Partial<UserBalance> | null
+  if (
+    typeof value?.is_available !== 'boolean' ||
+    !Array.isArray(value.balance_infos) ||
+    !value.balance_infos.every(isBalanceEntry)
+  ) {
+    throw new ApiError('protocol', '')
+  }
+  return { is_available: value.is_available, balance_infos: value.balance_infos }
 }
 
 /**
@@ -170,10 +225,12 @@ export async function* streamMessage(
       }
     }
     if (isErrorBody(payload)) {
-      throw new ApiError('stream', payload.error.message)
+      const { code } = readErrorFields(payload)
+      throw new ApiError('stream', payload.error.message, undefined, code)
     }
     if (eventName === 'error') {
-      throw new ApiError('stream', data)
+      const { message, code } = readErrorFields(payload)
+      throw new ApiError('stream', message ?? data, undefined, code)
     }
     const event = readMessageEvent(payload)
     if (!event) {

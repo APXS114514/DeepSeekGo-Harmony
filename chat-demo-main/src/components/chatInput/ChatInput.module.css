@@ -400,3 +400,81 @@
   --line-height: calc(24px * var(--app-font-scale, 1));
   font-size: calc(16px * var(--app-font-scale, 1));
 }
+.contextNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, #e6a73e 15%, var(--dsw-alias-bg-layer-2));
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: start;
+
+  > span {
+    flex-shrink: 0;
+    color: #a16f1e;
+    margin-top: 1px;
+
+    [data-ds-dark-theme] & {
+      color: #f3cc89;
+    }
+  }
+}
+
+.contextRejected {
+  background: color-mix(
+    in srgb,
+    var(--dsw-alias-state-error-primary) 12%,
+    var(--dsw-alias-bg-layer-2)
+  );
+
+  > span {
+    color: var(--dsw-alias-state-error-primary);
+
+    [data-ds-dark-theme] & {
+      color: var(--dsw-alias-state-error-primary);
+    }
+  }
+}
+
+.contextContent {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.contextHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 8px;
+  margin-bottom: 2px;
+}
+
+.contextAction {
+  display: block;
+  min-height: 32px;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-weight: 600;
+  text-align: start;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.contextDetails {
+  margin-top: 4px;
+  color: var(--dsw-alias-label-secondary);
+
+  summary {
+    cursor: pointer;
+  }
+}

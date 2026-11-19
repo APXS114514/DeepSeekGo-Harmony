@@ -92,9 +92,11 @@ export type AssistantMessage = MessageBranch & {
   stopDetails?: StopDetails
   /** 最近一次请求的用量，续写后更新 */
   usage?: MessageUsage
+  /** 原请求在首个推理步骤的输入用量，用于估计后续对话占用。 */
+  contextInputTokens?: number
   error?: {
     /** upload：发送前补传附件失败，请求没有发出 */
-    kind: ApiErrorKind | 'upload'
+    kind: ApiErrorKind | 'upload' | 'context'
     message: string
     status?: number
     localMessage?: TranslationMessage

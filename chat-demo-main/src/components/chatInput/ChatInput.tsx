@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { memo, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   IconGlobeLanguageOutline14,
   IconPaperclipOutline16,
@@ -9,11 +9,25 @@ import {
 } from '../base/icons.js'
 import { setSearch, setThinking, useSettings } from '../../services/settings.js'
 import { useIsMobile } from '../../app/viewport.js'
-import { sendMessage, stopReply, useChatStore } from '../../services/chat/store.js'
+import {
+  carryDraftToNewChat,
+  sendMessage,
+  stopReply,
+  useChatStore,
+} from '../../services/chat/store.js'
+import { getVisibleMessages } from '../../services/chat/branches.js'
+import {
+  CHAT_SYSTEM_PROMPT,
+  estimateContext,
+  getHistoryContext,
+  matchesRejectedDraft,
+} from '../../services/chat/context.js'
+import { buildSystemPrompt, usePersonalization } from '../../services/personalization.js'
 import {
   addDraftFiles,
   EMPTY_DRAFT,
   getDraft,
+  hasDraft,
   prepareDraftMessage,
   removeDraftAttachment,
   retryDraftAttachment,
@@ -28,6 +42,7 @@ import { DragMask, useFileDrop } from './DragMask.js'
 import { showToast } from '../base/toastState.js'
 import { ACCEPT, useUploads } from '../../services/attachments.js'
 import { DraftAttachments } from './DraftAttachments.js'
+import { ContextNotice } from './ContextNotice.js'
 import { useVoiceInput } from './useVoiceInput.js'
 import { useDeviceVoiceInput } from './useDeviceVoiceInput.js'
 import { ScanTextButton } from './ScanTextButton.js'
@@ -42,6 +57,7 @@ const useChatVoiceInput: (
 ) => ReturnType<typeof useVoiceInput> & { transcript?: string } = __HARMONY_APP__
   ? useDeviceVoiceInput
   : useVoiceInput
+const EMPTY_CONTEXT = getHistoryContext([])
 
 /** 输入框：自适应高度的文本框 + 文件 + 深度思考与智能搜索开关 + 语音输入 + 发送 / 停止 */
 export const ChatInput = memo(function ChatInput({ sessionId }: { sessionId: string | null }) {
@@ -58,10 +74,30 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   const streaming = useChatStore(
     (state) => sessionId !== null && Object.hasOwn(state.streaming, sessionId)
   )
+  const session = useChatStore((state) =>
+    sessionId !== null && !state.streaming[sessionId] ? state.sessionCache[sessionId] : undefined
+  )
+  const history = useMemo(
+    () => (session ? getHistoryContext(getVisibleMessages(session)) : EMPTY_CONTEXT),
+    [session]
+  )
+  const system = usePersonalization(() =>
+    buildSystemPrompt(CHAT_SYSTEM_PROMPT, { memory: !session?.ephemeral })
+  )
   const thinking = useSettings((state) => state.thinking)
+  const search = useSettings((state) => state.search)
+  const estimate = useMemo(
+    () => estimateContext(history, draft, system, thinking),
+    [history, draft, system, thinking]
+  )
+  const rejectedDraft = matchesRejectedDraft(draft, history.rejected, { thinking, search })
+  const showRejected = rejectedDraft || (history.rejected !== null && !hasDraft(draft))
+  const attachmentCount = hasDraft(draft)
+    ? attachments.length
+    : (history.rejected?.question.files.length ?? 0)
+  const [carrying, setCarrying] = useState(false)
   const importingHistory = useChatStore((state) => state.importingHistory)
   const isMobile = useIsMobile()
-  const search = useSettings((state) => state.search)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const togglesRef = useRef<HTMLDivElement>(null)
@@ -141,11 +177,32 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   const listening = __HARMONY_APP__ && voice.status !== 'idle'
 
   // 排队、上传中或上传失败的附件都留在输入框，全部上传成功后才能发送
-  const canSend = !importingHistory && !streaming && voice.status === 'idle' && draftReady
+  const canSend =
+    !importingHistory &&
+    !streaming &&
+    !rejectedDraft &&
+    !carrying &&
+    voice.status === 'idle' &&
+    draftReady
+
+  const carryDraft = async () => {
+    if (sessionId === null || carrying) {
+      return
+    }
+    setCarrying(true)
+    try {
+      if (!(await carryDraftToNewChat(sessionId))) {
+        showToast({ key: 'contextCarryFailed' })
+      }
+    } finally {
+      setCarrying(false)
+    }
+  }
 
   const send = () => {
     if (
       useChatStore.getState().importingHistory ||
+      carrying ||
       voice.status !== 'idle' ||
       !prepareDraftMessage(getDraft(sessionId), useUploads.getState().tasks)
     ) {
@@ -163,7 +220,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
     }
   }
 
-  return (
+  const composer = (
     <div
       className={clsx(styles.wrapper, sessionId === null ? styles.home : styles.session)}
       data-voice-active={voice.status === 'idle' ? undefined : ''}
@@ -317,5 +374,28 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
       </div>
       {dragging ? <DragMask /> : null}
     </div>
+  )
+
+  return (
+    <>
+      {!streaming && voice.status === 'idle' && (estimate.near || showRejected) ? (
+        <ContextNotice
+          estimate={estimate}
+          rejected={showRejected}
+          canCarry={
+            sessionId !== null &&
+            history.hasHistory &&
+            (estimate.over || showRejected) &&
+            (hasDraft(draft) || history.rejected !== null) &&
+            !importingHistory
+          }
+          attachmentCount={attachmentCount}
+          usage={history.lastUsage}
+          carrying={carrying}
+          onCarry={() => void carryDraft()}
+        />
+      ) : null}
+      {composer}
+    </>
   )
 }

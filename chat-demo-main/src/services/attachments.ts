@@ -161,6 +161,10 @@ const setTask = (id: string, task: UploadTask | null) =>
       : Object.fromEntries(Object.entries(state.tasks).filter(([key]) => key !== id)),
   }))
 
+/** 已保存附件恢复为草稿时，继续引用服务端已有的文件。 */
+export const reuseUploadedAttachment = (id: string, serverId: string) =>
+  setTask(id, { status: 'done', serverId })
+
 const pending = new Map<string, { promise: Promise<string>; controller: AbortController }>()
 
 /** 开始（或复用进行中的）上传，返回服务端 file_id；失败时任务记为 error 并抛出原错误 */

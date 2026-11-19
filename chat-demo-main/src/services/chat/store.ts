@@ -2,7 +2,12 @@ import { create } from 'zustand'
 import { createId } from '../../utils/id.js'
 import { ApiError, streamMessage } from '../api/client.js'
 import type { ChatModel, CreateMessageRequest } from '../api/types.js'
-import { extractFileIds, getFileErrorCode, isRetryableApiError } from '../api/errors.js'
+import {
+  extractFileIds,
+  getFileErrorCode,
+  isContextOverflow,
+  isRetryableApiError,
+} from '../api/errors.js'
 import { cancelUpload, describeUploadError, uploadAttachment, useUploads } from '../attachments.js'
 import { useSettings } from '../settings.js'
 import { appendBranch, getVisibleMessages, normalizeSession, selectVersion } from './branches.js'
@@ -12,8 +17,19 @@ import {
   clearDraft,
   clearSentDraft,
   getDraft,
+  hasDraft,
+  makeMessageDraft,
   prepareDraftMessage,
+  restoreSentDraft,
+  transferDraft,
+  type Draft,
 } from './drafts.js'
+import {
+  CHAT_SYSTEM_PROMPT,
+  getInputTokens,
+  getContextRejection,
+  matchesRejectedDraft,
+} from './context.js'
 import { createLatestReminder } from './latestReminder.js'
 import {
   applyEvent,
@@ -37,8 +53,6 @@ import {
 
 /** deepseek-flash 同时支持深度思考与图片输入 */
 const MODEL: ChatModel = 'deepseek-flash'
-/** 所有生成请求统一携带的助手身份说明 */
-const SYSTEM_PROMPT = '该助手为DeepSeek，由深度求索公司创造。'
 /** 保留最近打开的详情；当前会话、生成中及尚未成功保存的会话不淘汰。 */
 const SESSION_CACHE_LIMIT = 5
 /** 安全审核固定开启，所有请求都走扩展模式 */
@@ -504,6 +518,83 @@ export const newChat = () => {
   }
 }
 
+const createEmptySession = (now: number, incognito: boolean): Session => ({
+  id: createId(),
+  title: '',
+  createdAt: now,
+  updatedAt: now,
+  messages: [],
+  rootMessageId: null,
+  ...(incognito ? { ephemeral: true as const } : {}),
+})
+
+const openEmptySession = (session: Session) => {
+  touchSession(session.id)
+  set((state) => ({
+    sessions: session.ephemeral ? state.sessions : [toSessionSummary(session), ...state.sessions],
+    sessionCache: { ...state.sessionCache, [session.id]: session },
+    activeId: session.id,
+  }))
+}
+
+/** 将当前草稿交给空白对话。已有新对话草稿时保留它，另开一个会话接收。 */
+export const carryDraftToNewChat = async (sessionId: string): Promise<boolean> => {
+  const session = getSession(sessionId)
+  const canMove = () =>
+    get().activeId === sessionId &&
+    !get().importingHistory &&
+    !deletingSessions.has(sessionId) &&
+    !getStreamController(sessionId)
+  if (!session || !canMove()) {
+    return false
+  }
+  const source = getDraft(sessionId)
+  let draft = source
+  if (!hasDraft(source)) {
+    const question = getContextRejection(getVisibleMessages(session))?.question
+    if (!question) {
+      return false
+    }
+    const epoch = historyEpoch
+    const apiKey = useSettings.getState().apiKey
+    const files = await Promise.all(
+      question.files.map(async (metadata) => ({
+        metadata,
+        blob:
+          pendingFiles.get(sessionId)?.find(({ id }) => id === metadata.id)?.blob ??
+          (await db.loadFile(metadata.id)),
+      }))
+    ).catch(() => null)
+    if (
+      !files ||
+      !files.every((file): file is { metadata: FileAttachment; blob: Blob } => !!file.blob) ||
+      !canMove() ||
+      epoch !== historyEpoch ||
+      getDraft(sessionId) !== source ||
+      getContextRejection(getVisibleMessages(getSession(sessionId) ?? session))?.question !==
+        question ||
+      useSettings.getState().apiKey !== apiKey ||
+      (!apiKey && files.some(({ metadata }) => !metadata.serverId))
+    ) {
+      return false
+    }
+    draft = makeMessageDraft(question.content, files, apiKey ?? '')
+  }
+  const incognito = session.ephemeral === true
+  const empty = hasDraft(getDraft(null)) ? createEmptySession(Date.now(), incognito) : null
+  transferDraft(sessionId, empty?.id ?? null, draft)
+  if (empty) {
+    openEmptySession(empty)
+    persist(empty.id)
+    discardEphemeral()
+    trimSessionCache()
+  } else {
+    set({ incognito })
+    newChat()
+  }
+  return true
+}
+
 export const selectSession = (id: string) => {
   if (!get().importingHistory && get().sessions.some((session) => session.id === id)) {
     touchSession(id)
@@ -608,7 +699,8 @@ export const sendMessage = (targetSessionId: string | null) => {
   if (get().importingHistory || !get().ready) {
     return false
   }
-  const prepared = prepareDraftMessage(getDraft(targetSessionId), useUploads.getState().tasks)
+  const draft = getDraft(targetSessionId)
+  const prepared = prepareDraftMessage(draft, useUploads.getState().tasks)
   if (!prepared) {
     return false
   }
@@ -622,29 +714,18 @@ export const sendMessage = (targetSessionId: string | null) => {
     return false
   }
   if (sessionId === null) {
-    const ephemeral = get().incognito
-    const session: Session = {
-      id: createId(),
-      title: '',
-      createdAt: now,
-      updatedAt: now,
-      messages: [],
-      rootMessageId: null,
-      ...(ephemeral ? { ephemeral: true as const } : {}),
-    }
+    const session = createEmptySession(now, get().incognito)
     sessionId = session.id
-    touchSession(session.id)
-    set((state) => ({
-      sessions: ephemeral ? state.sessions : [toSessionSummary(session), ...state.sessions],
-      sessionCache: { ...state.sessionCache, [session.id]: session },
-      activeId: session.id,
-    }))
+    openEmptySession(session)
   }
   const current = getSession(sessionId)
   if (!current) {
     return false
   }
   const history = getVisibleMessages(current)
+  if (matchesRejectedDraft(draft, getContextRejection(history), useSettings.getState())) {
+    return false
+  }
   const question: UserMessage = {
     id: createId(),
     role: 'user',
@@ -674,7 +755,7 @@ export const sendMessage = (targetSessionId: string | null) => {
   }
   persist(sessionId)
   clearSentDraft(targetSessionId)
-  void streamReply(sessionId, reply, { history, question })
+  void streamReply(sessionId, reply, { history, question, draft })
   return true
 }
 
@@ -812,7 +893,12 @@ export const retryUpload = (sessionId: string, messageId: string) => {
   void streamReply(sessionId, reply, { history: path.slice(0, index - 1), question })
 }
 
-type Request = { history: Message[]; question: UserMessage; prefix?: AssistantMessage }
+type Request = {
+  history: Message[]
+  question: UserMessage
+  prefix?: AssistantMessage
+  draft?: Draft
+}
 
 /** 把补传得到的 serverId 写回会话里所有引用同一附件的消息（编辑、重新生成会共用附件） */
 const saveServerIds = (sessionId: string, serverIds: Map<string, string>) => {
@@ -1038,7 +1124,9 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
   streamFlushes.set(sessionId, flush)
 
   try {
-    const system = buildSystemPrompt(SYSTEM_PROMPT, { memory: !getSession(sessionId)?.ephemeral })
+    const system = buildSystemPrompt(CHAT_SYSTEM_PROMPT, {
+      memory: !getSession(sessionId)?.ephemeral,
+    })
     for (let attempt = 0; ; attempt += 1) {
       /** 附件补齐前出错属于上传失败，请求还没有发出 */
       let preparing = true
@@ -1089,6 +1177,12 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
             titleRequests.delete(controller)
           }
           reply = applyEvent(reply, event, Date.now(), blockIndexes)
+          if (reply.stopReason === 'context_window_exceeded') {
+            throw new ApiError('stream', '', undefined, 'context_window_exceeded')
+          }
+          if (event.type === 'message_start' && event.message.usage && !request.prefix) {
+            reply = { ...reply, contextInputTokens: getInputTokens(event.message.usage) }
+          }
           if (document.visibilityState !== 'hidden') {
             frame ||= requestAnimationFrame(flush)
           }
@@ -1122,7 +1216,13 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
           }
           continue
         }
-        if (error instanceof ApiError && error.kind === 'interrupted' && reply.stopReason) {
+        if (isContextOverflow(error)) {
+          reply = settleReply(reply, 'error', Date.now(), {
+            kind: 'context',
+            message: '',
+            status: error.status,
+          })
+        } else if (error instanceof ApiError && error.kind === 'interrupted' && reply.stopReason) {
           // 已收到 message_delta 的结束原因，只是缺了结尾的 message_stop
           reply = settleReply(reply, 'done', Date.now())
         } else if (error instanceof ApiError) {
@@ -1146,6 +1246,15 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
     streamFlushes.delete(sessionId)
     cancelAnimationFrame(frame)
     updateReply(sessionId, reply)
+    if (
+      reply.error?.kind === 'context' &&
+      request.draft &&
+      !get().importingHistory &&
+      !deletingSessions.has(sessionId) &&
+      getSession(sessionId)
+    ) {
+      restoreSentDraft(sessionId, request.draft)
+    }
     try {
       const saved = persist(sessionId)
       if (__HARMONY_APP__ && document.visibilityState === 'hidden' && saved) {

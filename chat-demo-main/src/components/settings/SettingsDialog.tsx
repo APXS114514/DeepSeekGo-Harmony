@@ -42,6 +42,7 @@ import { Button } from '../base/Button.js'
 import { Modal } from '../base/Modal.js'
 import { Select } from '../base/Select.js'
 import { showToast } from '../base/toastState.js'
+import { ApiBalance } from './ApiBalance.js'
 import { ApiKeyConfirm, ApiKeyField, useApiKeyEditor } from './ApiKeyField.js'
 import { AccentSetting } from './AccentSetting.js'
 import { PersonalizationSettings } from './PersonalizationSettings.js'
@@ -143,6 +144,7 @@ const SettingsContent = ({
           ) : (
             <>
               <ApiKeyField editor={apiKeyEditor} />
+              <ApiBalance apiKey={apiKeyEditor.apiKey} />
               <ImportHistory historyImport={historyImport} disabled={historyBusy} />
               <ExportHistory disabled={historyBusy} />
               <SettingCell

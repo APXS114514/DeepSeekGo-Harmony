@@ -5,6 +5,7 @@ import {
   cancelUpload,
   isImage,
   resolveMimeType,
+  reuseUploadedAttachment,
   uploadAttachment,
   validateFiles,
   type UploadTask,
@@ -19,7 +20,7 @@ export type DraftAttachment = {
   previewUrl: string | null
 }
 
-type Draft = { text: string; attachments: DraftAttachment[] }
+export type Draft = { text: string; attachments: DraftAttachment[] }
 
 export const EMPTY_DRAFT: Draft = { text: '', attachments: [] }
 
@@ -31,11 +32,13 @@ export const useDrafts = create<{ drafts: Map<string | null, Draft> }>(() => ({
 export const getDraft = (sessionId: string | null): Draft =>
   useDrafts.getState().drafts.get(sessionId) ?? EMPTY_DRAFT
 
+export const hasDraft = ({ text, attachments }: Draft) => text.length > 0 || attachments.length > 0
+
 const updateDraft = (sessionId: string | null, update: (draft: Draft) => Draft) =>
   useDrafts.setState((state) => {
     const draft = update(state.drafts.get(sessionId) ?? EMPTY_DRAFT)
     const drafts = new Map(state.drafts)
-    if (draft.text || draft.attachments.length > 0) {
+    if (hasDraft(draft)) {
       drafts.set(sessionId, draft)
     } else {
       drafts.delete(sessionId)
@@ -56,6 +59,54 @@ const upload = (attachment: DraftAttachment, apiKey: string) => {
     attachment.isImage
   ).catch(() => {})
 }
+
+/** 拒绝后恢复原始输入，避免覆盖生成期间新写的草稿。 */
+export const restoreSentDraft = (sessionId: string, submitted: Draft) => {
+  if (!hasDraft(getDraft(sessionId))) {
+    updateDraft(sessionId, () => ({
+      text: submitted.text,
+      attachments: submitted.attachments.map((attachment) => ({
+        ...attachment,
+        previewUrl: attachment.isImage ? URL.createObjectURL(attachment.file) : null,
+      })),
+    }))
+  }
+}
+
+/** 根据本地原件还原历史附件，通常可直接复用已上传的服务端文件。 */
+export const makeMessageDraft = (
+  text: string,
+  files: { metadata: FileAttachment; blob: Blob }[],
+  apiKey: string
+): Draft => ({
+  text,
+  attachments: files.map(({ metadata, blob }) => {
+    const file = new File([blob], metadata.name, { type: metadata.mimeType || blob.type })
+    const attachment = {
+      id: createId(),
+      file,
+      isImage: metadata.isImage,
+      previewUrl: metadata.isImage ? URL.createObjectURL(file) : null,
+    }
+    if (metadata.serverId) {
+      reuseUploadedAttachment(attachment.id, metadata.serverId)
+    } else {
+      upload(attachment, apiKey)
+    }
+    return attachment
+  }),
+})
+
+/** 同时移交草稿和预览，不触发取消上传。 */
+export const transferDraft = (source: string, destination: string | null, draft: Draft) =>
+  useDrafts.setState((state) => {
+    const drafts = new Map(state.drafts)
+    if (drafts.get(source) === draft) {
+      drafts.delete(source)
+    }
+    drafts.set(destination, draft)
+    return { drafts }
+  })
 
 /** 整批校验通过后才创建预览和开始上传。 */
 export const addDraftFiles = (

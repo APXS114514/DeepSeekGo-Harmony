@@ -208,9 +208,14 @@ export const readMessageEvent = (value: unknown): MessageStreamEvent | null => {
     case 'message_delta':
       if (
         !isRecord(value.delta) ||
-        !['end_turn', 'max_tokens', 'tool_use', 'refusal'].includes(
-          value.delta.stop_reason as string
-        )
+        ![
+          'end_turn',
+          'max_tokens',
+          'tool_use',
+          'refusal',
+          'context_window_exceeded',
+          'model_context_window_exceeded',
+        ].includes(value.delta.stop_reason as string)
       ) {
         return null
       }
@@ -218,6 +223,10 @@ export const readMessageEvent = (value: unknown): MessageStreamEvent | null => {
         ...value,
         delta: {
           ...value.delta,
+          stop_reason:
+            value.delta.stop_reason === 'model_context_window_exceeded'
+              ? 'context_window_exceeded'
+              : value.delta.stop_reason,
           title: isOptionalString(value.delta.title) ? value.delta.title : undefined,
         },
         usage: isUsage(value.usage) ? value.usage : undefined,

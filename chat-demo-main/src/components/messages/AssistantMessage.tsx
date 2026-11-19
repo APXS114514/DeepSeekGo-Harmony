@@ -150,7 +150,7 @@ export const AssistantMessage = memo(function AssistantMessage({
               icon={<IconRefreshOutline16 />}
               tooltip={t('regenerate')}
               tooltipPlacement="bottom"
-              disabled={busy || refused}
+              disabled={busy || refused || message.error?.kind === 'context'}
               onClick={() => {
                 stopReadAloud()
                 regenerateReply(sessionId, message.id)

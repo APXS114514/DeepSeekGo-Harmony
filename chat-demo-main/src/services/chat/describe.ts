@@ -28,6 +28,9 @@ export const describeReply = (reply: AssistantMessage): Notice | null => {
     if (kind === 'upload') {
       return { text: message || translate('uploadFileStatusFailed') }
     }
+    if (kind === 'context') {
+      return { text: translate('replyContextExceeded') }
+    }
     if (kind === 'network') {
       return { text: translate('commonNetworkErrorToast') }
     }
