@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { LinkedMessage, TranslationMessage } from '../i18n/index.js'
+import { resizeUploadImage } from '../utils/resizeUploadImage.js'
 import { uploadFile } from './api/client.js'
 import { classifyApiError, getUploadErrorInfo, isRetryableApiError } from './api/errors.js'
 import type { FilePurpose } from './api/types.js'
@@ -137,8 +138,11 @@ const enqueueUpload = (
         return
       }
       try {
-        const body = file instanceof File ? file : new File([file], name, { type: file.type })
-        resolve((await uploadFile(apiKey, body, getUploadPurpose(name, isImage), signal)).id)
+        const type = file.type || (isImage ? (MIME_BY_EXT[getFileExt(name)] ?? '') : '')
+        const body =
+          file instanceof File && file.type === type ? file : new File([file], name, { type })
+        const payload = isImage ? await resizeUploadImage(body, signal) : body
+        resolve((await uploadFile(apiKey, payload, getUploadPurpose(name, isImage), signal)).id)
       } catch (error) {
         reject(error)
       }
@@ -153,7 +157,7 @@ const enqueueUpload = (
  */
 export type UploadTask =
   | { status: 'uploading' }
-  | { status: 'done'; serverId: string }
+  | { status: 'done'; serverId: string; imageSizeChecked?: boolean }
   | { status: 'error'; error: TranslationMessage; retryable: boolean }
 
 type UploadState = { tasks: Record<string, UploadTask> }
@@ -168,8 +172,8 @@ const setTask = (id: string, task: UploadTask | null) =>
   }))
 
 /** 已保存附件恢复为草稿时，继续引用服务端已有的文件。 */
-export const reuseUploadedAttachment = (id: string, serverId: string) =>
-  setTask(id, { status: 'done', serverId })
+export const reuseUploadedAttachment = (id: string, serverId: string, imageSizeChecked?: boolean) =>
+  setTask(id, { status: 'done', serverId, imageSizeChecked })
 
 const pending = new Map<string, { promise: Promise<string>; controller: AbortController }>()
 
@@ -189,7 +193,7 @@ export const uploadAttachment = (
   setTask(id, { status: 'uploading' })
   const promise = enqueueUpload(apiKey, blob, name, isImage, controller.signal)
     .then((serverId) => {
-      setTask(id, { status: 'done', serverId })
+      setTask(id, { status: 'done', serverId, imageSizeChecked: isImage || undefined })
       return serverId
     })
     .catch((error: unknown) => {

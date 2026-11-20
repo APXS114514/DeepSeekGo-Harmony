@@ -1,5 +1,4 @@
-// 1.5.2 回归：开启会话标题、智能搜索或阅读链接时，最新一条用户消息超过 32,768 Token 会被服务端拒绝。
-// 客户端去掉标题、在提问不含链接时关闭阅读链接后重发一次；仍被拒时给出中文说明，不循环重发。
+// 回归聊天请求的 32K 输入限制，以及超限图片的上传、历史补传和草稿迁移。
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
@@ -50,11 +49,14 @@ const hasDocument = (message) =>
 
 const browser = await chromium.launch({ ...launchOptions, args: ['--no-sandbox'] })
 
-/** respond(body) 返回 { status, json } 或 { text, title } */
-const open = async (respond) => {
+/** respond(body) 返回 { status, message } 或 { text, title }。 */
+const open = async (respond, shouldFailUpload = () => false) => {
   const chats = []
   const uploads = []
-  const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 960, height: 720 } })
+  const context = await browser.newContext({
+    locale: 'zh-CN',
+    viewport: { width: 960, height: 720 },
+  })
   await context.addInitScript(() => {
     window.addEventListener(
       'load',
@@ -104,10 +106,23 @@ const open = async (respond) => {
       return route.fulfill({ headers, json: { data: [{ id: 'deepseek-flash' }] } })
     }
     if (path === '/anthropic/v1/files') {
-      uploads.push(path)
+      const form = await new Response(request.postDataBuffer(), {
+        headers: { 'content-type': request.headers()['content-type'] },
+      }).formData()
+      const file = form.get('file')
+      const upload = {
+        id: 'file-api-upload-' + (uploads.length + 1),
+        name: file.name,
+        purpose: form.get('purpose'),
+        bytes: Buffer.from(await file.arrayBuffer()),
+      }
+      uploads.push(upload)
+      if (shouldFailUpload(upload)) {
+        return route.fulfill({ headers, status: 503, body: 'Mock upload unavailable' })
+      }
       return route.fulfill({
         headers,
-        json: { id: 'file-api-long', size_bytes: 762454, mime_type: 'text/markdown' },
+        json: { id: upload.id, size_bytes: upload.bytes.length, mime_type: file.type },
       })
     }
     const body = request.postDataJSON()
@@ -135,7 +150,10 @@ const open = async (respond) => {
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto(origin + '/index.html')
-  await page.getByText(/今天想聊什么|无痕对话/).first().waitFor()
+  await page
+    .getByText(/今天想聊什么|无痕对话/)
+    .first()
+    .waitFor()
   return { context, page, errors, chats, uploads }
 }
 
@@ -153,6 +171,106 @@ const send = async (page, text) => {
 }
 
 const idle = (page) => page.waitForFunction(() => window.lastWindowUi?.generating === false)
+
+const imageIds = (body) =>
+  body.messages.flatMap(({ content }) =>
+    Array.isArray(content)
+      ? content.filter(({ type }) => type === 'image').map(({ source }) => source.file_id)
+      : []
+  )
+
+const pngDimensions = (bytes) => {
+  assert.equal(bytes.subarray(1, 4).toString(), 'PNG')
+  return [bytes.readUInt32BE(16), bytes.readUInt32BE(20)]
+}
+
+const attachImages = (page, images) =>
+  page.locator('input[type=file][multiple]').evaluate(async (input, images) => {
+    const transfer = new DataTransfer()
+    const originals = {}
+    for (const [name, width, height] of images) {
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext('2d')
+      context.fillStyle = '#ff0000'
+      context.fillRect(0, 0, width, height / 2)
+      context.fillStyle = '#00ff00'
+      context.fillRect(0, height / 2, width, height / 2)
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+      transfer.items.add(new File([blob], name, { type: 'image/png' }))
+      originals[name] = Array.from(new Uint8Array(await blob.arrayBuffer()))
+    }
+    input.files = transfer.files
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    return originals
+  }, images)
+
+// 模拟升级前的记录。原件仍来自实际的上传入口，只有指定图片没有本地原件。
+const seedLegacyImages = (page, title, missing = []) =>
+  page.evaluate(
+    async ({ title, missing }) => {
+      const result = (request) =>
+        new Promise((resolve, reject) => {
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+      const db = await result(indexedDB.open('chat-demo'))
+      try {
+        const tx = db.transaction(['sessions', 'files'], 'readwrite')
+        const done = new Promise((resolve, reject) => {
+          tx.oncomplete = resolve
+          tx.onabort = () => reject(tx.error)
+        })
+        const sessions = tx.objectStore('sessions')
+        const session = (await result(sessions.getAll())).find((session) => session.title === title)
+        const files = session.messages.flatMap((message) => message.files ?? [])
+        for (const file of files) {
+          file.serverId = 'file-api-legacy-' + file.name
+          delete file.imageSizeChecked
+          if (missing.includes(file.name)) tx.objectStore('files').delete(file.id)
+        }
+        sessions.put(session)
+        await done
+      } finally {
+        db.close()
+      }
+    },
+    { title, missing }
+  )
+
+const savedImages = (page, title) =>
+  page.evaluate(async (title) => {
+    const result = (request) =>
+      new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+    const db = await result(indexedDB.open('chat-demo'))
+    try {
+      const tx = db.transaction(['sessions', 'files'])
+      const [sessions, originals] = await Promise.all([
+        result(tx.objectStore('sessions').getAll()),
+        result(tx.objectStore('files').getAll()),
+      ])
+      const session = sessions.find((session) => session.title === title)
+      return Promise.all(
+        session.messages
+          .flatMap((message) => message.files ?? [])
+          .map(async (file) => {
+            const blob = originals.find(({ id }) => id === file.id)?.blob
+            return { ...file, bytes: blob && Array.from(new Uint8Array(await blob.arrayBuffer())) }
+          })
+      )
+    } finally {
+      db.close()
+    }
+  }, title)
+
+const reopen = async (page, title) => {
+  await page.reload()
+  await page.getByText(title, { exact: true }).first().click()
+}
 
 try {
   // 默认开启阅读链接，提问不含链接：去掉标题和阅读链接重发并正常回答，之后的短问题再生成标题。
@@ -231,6 +349,112 @@ try {
     assert.deepEqual(chats[0].title, { enabled: true })
     assert.equal(Object.hasOwn(chats[1], 'title'), false)
     assert.deepEqual(toolTypes(chats[1]), ['deepseek_read_url'])
+    assert.deepEqual(errors, [])
+    await context.close()
+  }
+
+  // 新图仅缩放上传副本。升级后的历史大图失败时跳过旧 ID，下轮重试并保存新 ID。
+  {
+    const title = '历史长图'
+    let rejectNextUpload = false
+    let reply = 0
+    const { context, page, errors, chats, uploads } = await open(
+      () => ({ text: '图片回答 ' + ++reply, title }),
+      () => {
+        const reject = rejectNextUpload
+        rejectNextUpload = false
+        return reject
+      }
+    )
+    const originals = await attachImages(page, [
+      ['tall.png', 320, 9000],
+      ['wide.png', 8192, 1],
+      ['boundary.png', 4096, 24],
+    ])
+    await send(page, '发送三张图片')
+    await page.getByText('图片回答 1', { exact: true }).waitFor()
+    await idle(page)
+    assert.equal(uploads.length, 3)
+    const byName = Object.fromEntries(uploads.map((upload) => [upload.name, upload]))
+    assert.deepEqual(pngDimensions(byName['tall.png'].bytes), [146, 4096])
+    assert.deepEqual(pngDimensions(byName['wide.png'].bytes), [4096, 1])
+    assert.deepEqual(byName['boundary.png'].bytes, Buffer.from(originals['boundary.png']))
+    assert(uploads.every(({ purpose }) => purpose === null))
+    assert.deepEqual(
+      imageIds(chats[0]),
+      ['tall.png', 'wide.png', 'boundary.png'].map((name) => byName[name].id)
+    )
+    await page.getByText(title, { exact: true }).first().waitFor()
+    for (const { name, bytes, imageSizeChecked } of await savedImages(page, title)) {
+      assert.deepEqual(bytes, originals[name], name + ' retains the exact original bytes')
+      assert.equal(imageSizeChecked, true)
+    }
+
+    await seedLegacyImages(page, title, ['wide.png'])
+    await reopen(page, title)
+    rejectNextUpload = true
+    await send(page, '历史补传失败后仍可回答')
+    await page.getByText('图片回答 2', { exact: true }).waitFor()
+    await idle(page)
+    assert.equal(uploads.length, 4)
+    assert.equal(uploads[3].name, 'tall.png')
+    assert.deepEqual(imageIds(chats[1]), [
+      'file-api-legacy-wide.png',
+      'file-api-legacy-boundary.png',
+    ])
+
+    await send(page, '下一轮重新补传')
+    await page.getByText('图片回答 3', { exact: true }).waitFor()
+    await idle(page)
+    assert.equal(uploads.length, 5)
+    assert.deepEqual(pngDimensions(uploads[4].bytes), [146, 4096])
+    const migratedIds = [uploads[4].id, 'file-api-legacy-wide.png', 'file-api-legacy-boundary.png']
+    assert.deepEqual(imageIds(chats[2]), migratedIds)
+    const [tall, wide, boundary] = await savedImages(page, title)
+    assert.deepEqual([tall.serverId, wide.serverId, boundary.serverId], migratedIds)
+    assert.deepEqual(
+      [tall.imageSizeChecked, wide.imageSizeChecked, boundary.imageSizeChecked],
+      [true, undefined, true]
+    )
+    assert.deepEqual(tall.bytes, originals['tall.png'])
+
+    await reopen(page, title)
+    await send(page, '刷新后复用已补传的图片')
+    await page.getByText('图片回答 4', { exact: true }).waitFor()
+    await idle(page)
+    assert.deepEqual(imageIds(chats[3]), migratedIds)
+    assert.equal(uploads.length, 5)
+    assert.deepEqual(errors, [])
+    await context.close()
+  }
+
+  // 从历史恢复上下文超限的消息时，草稿仍带着旧图的尺寸标记状态。
+  {
+    const title = '需要另开对话'
+    let rejectContext = false
+    const { context, page, errors, chats, uploads } = await open(() =>
+      rejectContext
+        ? { status: 400, message: 'This model’s maximum context length is 1048576 tokens.' }
+        : { text: '新的图片回答', title }
+    )
+    await send(page, '建立一段历史')
+    await page.getByText('新的图片回答', { exact: true }).waitFor()
+    await idle(page)
+    rejectContext = true
+    await attachImages(page, [['carry.png', 640, 8192]])
+    await send(page, '把这张长图带入新对话')
+    await page.getByText('本轮请求超出上下文上限。').waitFor()
+    await idle(page)
+    await seedLegacyImages(page, title)
+    await reopen(page, title)
+    await page.getByRole('button', { name: '带上草稿和附件开启新对话' }).click()
+    rejectContext = false
+    await page.getByRole('button', { name: '发送', exact: true }).click()
+    await page.getByText('新的图片回答', { exact: true }).waitFor()
+    await idle(page)
+    assert.equal(uploads.length, 2)
+    assert.deepEqual(pngDimensions(uploads[1].bytes), [320, 4096])
+    assert.deepEqual(imageIds(chats.at(-1)), [uploads[1].id])
     assert.deepEqual(errors, [])
     await context.close()
   }

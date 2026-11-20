@@ -89,7 +89,7 @@ export const makeMessageDraft = (
       previewUrl: metadata.isImage ? URL.createObjectURL(file) : null,
     }
     if (metadata.serverId) {
-      reuseUploadedAttachment(attachment.id, metadata.serverId)
+      reuseUploadedAttachment(attachment.id, metadata.serverId, metadata.imageSizeChecked)
     } else {
       upload(attachment, apiKey)
     }
@@ -161,6 +161,7 @@ export const prepareDraftMessage = (draft: Draft, tasks: Record<string, UploadTa
     files.push({
       id: attachment.id,
       serverId: task.serverId,
+      imageSizeChecked: task.imageSizeChecked,
       name: attachment.file.name,
       size: attachment.file.size,
       isImage: attachment.isImage,

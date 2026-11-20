@@ -55,6 +55,12 @@
 - 真机复测：维护者签名安装 1.5.3 / `1000021` 后，在 HOP-AL10（HarmonyOS 7.0.0.111）的普通新对话中保持阅读链接开启、深度思考开启、智能搜索关闭，上传同一份 464 KB EPUB 并发送，正常回答，未出现英文报错，顶栏仍为「新对话」。接着发「谢谢」后生成标题，但标题来自这句短回复（「不客气」），不反映附件内容。开启智能搜索后发送同一份附件，回复显示 3.2 万 Token 的中文说明；关闭智能搜索后点重新生成，得到正常回答。已有标题且历史含该附件的会话再次附上 EPUB 提问，也正常回答。用户最初报错所在的会话没有找到，未复测。
 - 上下文超限实测：约 1.23M Token 的合成 TXT（5.6 MB，`user_data`）不带标题和工具时返回 400，原文为 `This model's maximum context length is 1048576 tokens. However, you requested N tokens (N in the messages, 0 in the completion)…`，能被 `isContextOverflow` 识别。带标题时先触发 32K 检查。真实 API 下的鸿蒙网页先按 32K 回退，重发后显示「本轮请求超出上下文上限」，草稿和附件还原，暂停重复发送。42 页英文 PDF 用 `rich_layout_recognition` 解析为约 52K Token，用 `text_recognition` 约 51K，两者开启标题或阅读链接时都同样受 32K 限制，不开启时正常回答。
 
+## 未发布的大图附件修复
+
+- 移植 [DeepSeek Chat Demo 0.1.3 的大图修复](https://github.com/deepseek-ai/chat-demo/commit/b53b77f09f4d9d743a3bb6593e61e4716e17c356)。[上传队列](../chat-demo-main/src/services/attachments.ts)在调用 Files API 前将图片长边等比缩至 4096 px 以内，预览和历史仍用原件。超限动图的上传副本只保留一帧。4096 px 是上游为多图请求采用的统一上限。[官方图片尺寸限制](https://api-docs.deepseek.com/zh-cn/guides/vision/#限制)
+- [发送前的附件处理](../chat-demo-main/src/services/chat/store.ts)只扫描本次请求会引用的未检查旧图。超限时清掉旧 ID，通过现有流程补传并记下新 ID；读不到原件时沿用旧 ID。历史补传失败时本轮跳过该附件，下轮继续尝试。上下文超限后把旧消息恢复为新对话草稿时会携带检查状态。
+- 修复前用鸿蒙网页和模拟 API 复现了 `320 × 9000` PNG 按原尺寸上传、引用时被拒，以及刷新后纯文字追问仍使用旧 ID。修复后 `input-limit` 覆盖纵横缩放、4096 px 边界、保留原件的字节、历史补传失败后重试、缺失原件、刷新后复用新 ID 和带旧图开启新对话。真实 DeepSeek API 和 ArkWeb 真机待验证。
+
 ## 1.5.2 页面优化
 
 - 通过 HarmonyOS 26.0.0 SDK Release 构建，确认包未签名，版本为 `1.5.2` / `1000020`，最低 API 12、目标 API 26。核对包内 155 个网页资源、欢迎页 Logo、启动器图标和随包授权声明。
@@ -211,7 +217,7 @@
   - `adaptation`：顶栏对齐、返回手势分层、字体缩放、键盘偏移时的安全区、无痕对话、后台完成通知、2in1 快捷键与右键菜单、按住说话时返回只取消收音。
   - `appearance-settings`：默认主题色、深浅色背景跟随主题色、开关分隔和位置信息。
   - `window-sizes`：五种悬浮窗和分屏尺寸下没有越界或横向滚动。
-  - `input-limit`：长附件在开启标题、阅读链接或智能搜索时被服务端以 32,768 Token 拒绝后的回退、提示和后续标题。
+  - `input-limit`：32,768 Token 限制下的回退、提示和后续标题，以及大图上传、历史补传、草稿迁移和原件保留。
   - `motion-smoke`、`brand-sider-smoke`、`edit-regression`：1.0.x 起的键盘、动效、侧栏、Logo、Key 保存与消息编辑回归。
   - `readme-shots.mjs` 不是测试，运行 `pnpm screenshots` 会把 README 截图写到 `assets/images/screenshots/`，也可以传入其他输出目录。
 - **真机验收**：用户在 1.4.2 真机上确认以下功能正常：离线语音识别与首次麦克风授权、拍照和图库识字、各层的侧滑返回、「跟随系统」深浅色、系统字体缩放，以及后台继续生成后的完成通知和点击回到对话。设备型号和系统版本未记录。下文各版「尚未真机验证」中的这些项已关闭，其余仍待验证：

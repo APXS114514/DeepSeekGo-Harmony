@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { createId } from '../../utils/id.js'
+import { isUploadImageOversized } from '../../utils/resizeUploadImage.js'
 import { ApiError, streamMessage } from '../api/client.js'
 import type { ChatModel, CreateMessageRequest } from '../api/types.js'
 import {
@@ -147,6 +148,9 @@ let accessSequence = 0
 let historyEpoch = 0
 let initTask: Promise<void> | undefined
 const sessionLoads = new Map<string, { promise: Promise<void> }>()
+
+const loadAttachment = async (sessionId: string, id: string) =>
+  pendingFiles.get(sessionId)?.find((file) => file.id === id)?.blob ?? db.loadFile(id)
 
 const touchSession = (id: string) => sessionAccess.set(id, ++accessSequence)
 
@@ -577,9 +581,7 @@ export const carryDraftToNewChat = async (sessionId: string): Promise<boolean> =
     const files = await Promise.all(
       question.files.map(async (metadata) => ({
         metadata,
-        blob:
-          pendingFiles.get(sessionId)?.find(({ id }) => id === metadata.id)?.blob ??
-          (await db.loadFile(metadata.id)),
+        blob: await loadAttachment(sessionId, metadata.id),
       }))
     ).catch(() => null)
     if (
@@ -747,9 +749,10 @@ export const sendMessage = (targetSessionId: string | null) => {
     id: createId(),
     role: 'user',
     content: text,
-    files: files.map(({ id, serverId, name, size, isImage, mimeType }) => ({
+    files: files.map(({ id, serverId, imageSizeChecked, name, size, isImage, mimeType }) => ({
       id,
       serverId,
+      imageSizeChecked,
       name,
       size,
       isImage,
@@ -917,8 +920,8 @@ type Request = {
   draft?: Draft
 }
 
-/** 把补传得到的 serverId 写回会话里所有引用同一附件的消息（编辑、重新生成会共用附件） */
-const saveServerIds = (sessionId: string, serverIds: Map<string, string>) => {
+/** 将已检查或补传得到的 ID 写回同一附件的所有引用，超限旧 ID 用 null 清除。 */
+const saveServerIds = (sessionId: string, serverIds: ReadonlyMap<string, string | null>) => {
   if (serverIds.size === 0) {
     return
   }
@@ -928,9 +931,16 @@ const saveServerIds = (sessionId: string, serverIds: Map<string, string>) => {
       message.role === 'user' && message.files.some((file) => serverIds.has(file.id))
         ? {
             ...message,
-            files: message.files.map((file) =>
-              serverIds.has(file.id) ? { ...file, serverId: serverIds.get(file.id) ?? null } : file
-            ),
+            files: message.files.map((file) => {
+              const serverId = serverIds.get(file.id)
+              return serverId === undefined
+                ? file
+                : {
+                    ...file,
+                    serverId,
+                    imageSizeChecked: (file.isImage && serverId !== null) || undefined,
+                  }
+            }),
           }
         : message
     ),
@@ -938,19 +948,48 @@ const saveServerIds = (sessionId: string, serverIds: Map<string, string>) => {
   persist(sessionId)
 }
 
+/** 只检查本次进入上下文的旧图。没有可读原件时仍可复用旧 ID。 */
+const checkLegacyImageIds = async (sessionId: string, request: Request, signal: AbortSignal) => {
+  const files = [
+    ...request.question.files,
+    ...getContextRounds(request.history).flatMap(([user]) => user.files),
+  ]
+  const unchecked = new Map<string, string>()
+  for (const file of files) {
+    if (file.isImage && file.serverId && !file.imageSizeChecked) {
+      unchecked.set(file.id, file.serverId)
+    }
+  }
+  const checked = new Map<string, string | null>()
+  for (const [id, serverId] of unchecked) {
+    signal.throwIfAborted()
+    const oversized = await loadAttachment(sessionId, id)
+      .then((blob) => blob && isUploadImageOversized(blob))
+      .catch(() => undefined)
+    if (oversized !== undefined) {
+      checked.set(id, oversized ? null : serverId)
+    }
+  }
+  return checked
+}
+
 /**
  * 附件的服务端 id：已有直接用；正在上传的等待同一任务；否则读取本地原件补传。
  * 本地也没有原件（导入的文档附件只有元数据）时返回 null，该附件只展示、不进入请求。
  */
-const ensureServerId = async (apiKey: string, file: FileAttachment): Promise<string | null> => {
+const ensureServerId = async (
+  sessionId: string,
+  apiKey: string,
+  file: FileAttachment
+): Promise<string | null> => {
   if (file.serverId) {
     return file.serverId
   }
   const task = useUploads.getState().tasks[file.id]
-  if (task?.status === 'done') {
+  if (task?.status === 'done' && (!file.isImage || task.imageSizeChecked)) {
     return task.serverId
   }
-  const blob = await db.loadFile(file.id)
+  const blob = await loadAttachment(sessionId, file.id)
   if (!blob) {
     return null
   }
@@ -990,10 +1029,22 @@ const prepareFiles = async (sessionId: string, request: Request, signal: AbortSi
   const aborted = new Promise<never>((_, reject) => {
     signal.addEventListener('abort', () => reject(signal.reason), { once: true })
   })
+  const checked = await Promise.race([checkLegacyImageIds(sessionId, request, signal), aborted])
+  signal.throwIfAborted()
+  if (checked.size > 0) {
+    const tasks = useUploads.getState().tasks
+    for (const [id, serverId] of checked) {
+      if (serverId === null && tasks[id]?.status === 'done' && !tasks[id].imageSizeChecked) {
+        cancelUpload(id)
+      }
+    }
+    saveServerIds(sessionId, checked)
+    request = refreshRequest(sessionId, request)
+  }
   const uploads = Promise.allSettled(
     request.question.files.map(async (file) => {
-      const serverId = await ensureServerId(apiKey, file)
-      if (serverId) {
+      const serverId = await ensureServerId(sessionId, apiKey, file)
+      if (serverId && serverId !== file.serverId) {
         serverIds.set(file.id, serverId)
       }
     })
@@ -1020,7 +1071,7 @@ const prepareFiles = async (sessionId: string, request: Request, signal: AbortSi
   for (const file of pending.values()) {
     signal.throwIfAborted()
     try {
-      const serverId = await Promise.race([ensureServerId(apiKey, file), aborted])
+      const serverId = await Promise.race([ensureServerId(sessionId, apiKey, file), aborted])
       if (serverId) {
         serverIds.set(file.id, serverId)
         saveServerIds(sessionId, new Map([[file.id, serverId]]))
@@ -1089,7 +1140,7 @@ const reuploadInvalidatedFiles = (sessionId: string, request: Request, error: un
       }
       localIds.push(file.id)
       changed = true
-      return { ...file, serverId: null }
+      return { ...file, serverId: null, imageSizeChecked: undefined }
     })
     return changed ? { ...message, files } : message
   })
