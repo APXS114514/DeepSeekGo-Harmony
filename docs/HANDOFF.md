@@ -2,7 +2,8 @@
 
 ## 工作区
 
-- 当前源码为 1.5.3，版本代码为 `1000021`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 当前源码为 1.5.4，版本代码为 `1000022`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 1.5.4 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.4-unsigned.hap`，对应标签 `v1.5.4`。SHA-256 为 `495c1e434b21783d739e7a113e726eabeab184cf6b20aca81ac6986c0b54439b`。
 - 1.5.3 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.3-unsigned.hap`，对应标签 `v1.5.3`（指向 `1990016`，与构建源码只差交接文档）。SHA-256 为 `057defced981edb56680589ba5465db163da2021e5c295b4f36bb77efbe01631`。维护者签名安装后已在 HOP-AL10 真机复测通过。GitHub Releases 的 `v1.5.3` 附件与本地包逐字节一致。
 - 1.5.2 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.2-unsigned.hap`，对应标签 `v1.5.2`。SHA-256 为 `235375f025fab29424731279fdd1a53ef8428f356fb9d7e32f5c9262b092dcd6`。
 - 已发布的 1.5.1 未签名 Release 包 `HAPS/Deepseek-GO-1.5.1-unsigned.hap` 构建自 `94bda5f`，SHA-256 为 `e58277edddb7c8170aff7e5cf0868dc4098a7d569499a139d10ba5bf86544695`。上一份 1.5.1 测试包构建自 `1f3d305`，归档为 `HAPS/Deepseek-GO-1.5.1-1f3d305-unsigned.hap`，SHA-256 为 `eeb609199e827a02c558f5b6d8dcd3247c1e578fec2c474f48854eec2f65d501`。
@@ -55,14 +56,19 @@
 - 真机复测：维护者签名安装 1.5.3 / `1000021` 后，在 HOP-AL10（HarmonyOS 7.0.0.111）的普通新对话中保持阅读链接开启、深度思考开启、智能搜索关闭，上传同一份 464 KB EPUB 并发送，正常回答，未出现英文报错，顶栏仍为「新对话」。接着发「谢谢」后生成标题，但标题来自这句短回复（「不客气」），不反映附件内容。开启智能搜索后发送同一份附件，回复显示 3.2 万 Token 的中文说明；关闭智能搜索后点重新生成，得到正常回答。已有标题且历史含该附件的会话再次附上 EPUB 提问，也正常回答。用户最初报错所在的会话没有找到，未复测。
 - 上下文超限实测：约 1.23M Token 的合成 TXT（5.6 MB，`user_data`）不带标题和工具时返回 400，原文为 `This model's maximum context length is 1048576 tokens. However, you requested N tokens (N in the messages, 0 in the completion)…`，能被 `isContextOverflow` 识别。带标题时先触发 32K 检查。真实 API 下的鸿蒙网页先按 32K 回退，重发后显示「本轮请求超出上下文上限」，草稿和附件还原，暂停重复发送。42 页英文 PDF 用 `rich_layout_recognition` 解析为约 52K Token，用 `text_recognition` 约 51K，两者开启标题或阅读链接时都同样受 32K 限制，不开启时正常回答。
 
-## 未发布的启动器图标修复
+## 1.5.4 发布验证
+
+- 类型、Lint 和鸿蒙网页构建通过。浏览器回归首轮通过 9 项，`adaptation` 的草稿选区断言失败后单独复跑通过。
+- HarmonyOS 26.0.0 SDK Release 构建通过，验签工具确认 HAP 无签名块。包内确认版本为 1.5.4 / `1000022`、最低 API 12、目标 API 26，并核对权限、分享技能和沉浸光感配置。155 个网页资源与构建产物逐字节一致，含欢迎页 Logo、上游许可证和图像授权声明。启动器两个 1024 × 1024 图层与源资源逐字节一致，冷启动 PNG 保留。真机发送长图、历史补传、启动器裁切和华为上架自检待复测。
+
+## 1.5.4 启动器图标修复
 
 - 华为上架自检在 Mate 60 Pro 和 Mate X6 报告图标缺少分层。解包复现旧版只有一张 512 × 512 的启动器图标。应用和 EntryAbility 改用同一个分层描述文件，前景保留原图的角色和字标，背景为不透明的全画布纯蓝。冷启动继续使用原 PNG。
 - HarmonyOS 26.0.0 的资源工具会在传入纹理压缩配置时将图标降到 512 × 512，即使配置关闭了纹理压缩。Entry 的 Hvigor 任务在资源编译前移除这份未启用的配置。两次 Release 构建均通过，包内两个图层都是 1024 × 1024，与源资源逐字节一致。
 - 前端类型检查、Lint 和鸿蒙网页构建通过。浏览器回归首轮通过 9 项，`adaptation` 用例的草稿选区断言失败后单独复跑通过。包内核对了应用包名、1.5.3 / `1000021`、最低 API 12、权限及 155 个网页资源，网页资源只有图像授权声明有变化。
 - 已签名邀测包为 `harmony/build/outputs/default/Deepseek-GO-1.5.3-layered-icon-signed.app`，HarmonyOS SDK 验签通过，SHA-256 为 `a3cc3d2d7e0aeed041b8824ec90685e38f3b16998989910ee802675b5bb5469a`。同目录的 `Deepseek-GO-1.5.3-appgallery-icon.png` 由两层合成，用于应用市场图标素材。当前无已连接真机，实际启动器裁切和华为上架自检结果待复测。
 
-## 未发布的大图附件修复
+## 1.5.4 大图附件修复
 
 - 移植 [DeepSeek Chat Demo 0.1.3 的大图修复](https://github.com/deepseek-ai/chat-demo/commit/b53b77f09f4d9d743a3bb6593e61e4716e17c356)。[上传队列](../chat-demo-main/src/services/attachments.ts)在调用 Files API 前将图片长边等比缩至 4096 px 以内，预览和历史仍用原件。超限动图的上传副本只保留一帧。4096 px 是上游为多图请求采用的统一上限。[官方图片尺寸限制](https://api-docs.deepseek.com/zh-cn/guides/vision/#限制)
 - [发送前的附件处理](../chat-demo-main/src/services/chat/store.ts)只扫描本次请求会引用的未检查旧图。超限时清掉旧 ID，通过现有流程补传并记下新 ID；读不到原件时沿用旧 ID。历史补传失败时本轮跳过该附件，下轮继续尝试。上下文超限后把旧消息恢复为新对话草稿时会携带检查状态。
