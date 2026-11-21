@@ -43,6 +43,13 @@ const newContext = async (features, initialShare) => {
       window.deviceLog = []
       window.voiceStartStatus = 0
       window.scanReply = { status: 0, value: '' }
+      window.scanSourceReply = { status: 0, value: 'camera' }
+      window.foldBounds = null
+      window.privacyStatus = 0
+      window.windowPrivacy =
+        typeof features.windowPrivacy === 'boolean'
+          ? sessionStorage.getItem('native-window-privacy') === 'true'
+          : null
       window.saveStatus = 0
       window.shareStatus = 0
       window.speechStatus = 0
@@ -110,6 +117,7 @@ const newContext = async (features, initialShare) => {
                 type: 'window-layout',
                 insets: { top: 0, right: 0, bottom: 0, left: 0 },
                 nativeHeader: false,
+                foldBounds: window.foldBounds,
               })
               return
             }
@@ -119,9 +127,17 @@ const newContext = async (features, initialShare) => {
             if (operation === 'voice' && value === 'start')
               post({ id, status: window.voiceStartStatus, value: '' })
             if (operation === 'scan') post({ id, ...window.scanReply })
+            if (operation === 'scan-source') post({ id, ...window.scanSourceReply })
+            if (operation === 'window-privacy') {
+              if (window.privacyStatus === 0) {
+                window.windowPrivacy = value === 'true'
+                sessionStorage.setItem('native-window-privacy', value)
+              }
+              post({ id, status: window.privacyStatus, value: String(window.windowPrivacy) })
+            }
           }
           window.postMessage('pocket-chat-device-port', window.location.origin, [port2])
-          post({ type: 'device-features', ...features })
+          post({ type: 'device-features', ...features, windowPrivacy: window.windowPrivacy })
           // 冷启动分享：端口刚连上就发，网页需要等 Key 读出后再处理。
           if (initialShare) post(initialShare)
         },
@@ -481,6 +497,146 @@ try {
   await settings.getByText('保存失败，请重新选择位置').waitFor()
   assert.deepEqual(errors, [])
   await context.close()
+
+  // 1.6.0 原生菜单、窗口隐私、拖拽和悬停从应用入口验证。
+  const platform = await newContext({ scan: true, immersiveScanMenu: true, windowPrivacy: false })
+  const devicePage = platform.page
+  await devicePage.goto(origin + '/index.html')
+  const input = devicePage.locator('textarea')
+  const scanSource = devicePage.getByRole('button', { name: '识别图片文字', exact: true })
+  await devicePage.evaluate(() => {
+    window.scanReply = { status: 0, value: '来自原生相机' }
+  })
+  await scanSource.click()
+  await devicePage.waitForFunction(
+    () => document.querySelector('textarea').value === '来自原生相机'
+  )
+  const scanRequest = (await log(devicePage)).find((entry) => entry.operation === 'scan-source')
+  assert.deepEqual(JSON.parse(scanRequest.value), {
+    title: '识别图片文字',
+    camera: '拍照识字',
+    album: '从图库识字',
+    cancel: '取消',
+  })
+  await devicePage.evaluate(() => {
+    window.scanSourceReply = { status: 1, value: '' }
+  })
+  await scanSource.click()
+  await scanSource.waitFor({ state: 'visible' })
+  await devicePage.waitForFunction(
+    () => !document.querySelector('[aria-label="识别图片文字"]').disabled
+  )
+  assert.equal(await devicePage.getByRole('menu').count(), 0)
+  assert.equal((await log(devicePage)).filter((entry) => entry.operation === 'scan').length, 1)
+  await devicePage.evaluate(() => {
+    window.scanSourceReply = { status: -1, value: '' }
+  })
+  await scanSource.click()
+  const albumOption = devicePage.getByRole('menuitem', { name: '从图库识字' })
+  await albumOption.waitFor()
+  assert.equal(await albumOption.locator('svg').count(), 1)
+  await devicePage.keyboard.press('Escape')
+
+  const openPrivacy = async () => {
+    await devicePage.evaluate(() => window.mockWindowAction('sidebar'))
+    await devicePage.getByRole('button', { name: '设置', exact: true }).click()
+    const dialog = devicePage.getByRole('dialog', { name: '设置' })
+    await dialog.getByRole('tab', { name: '隐私' }).click()
+    return dialog.getByRole('switch', { name: '防截屏和录屏' })
+  }
+  const privacy = await openPrivacy()
+  assert.equal(await privacy.isChecked(), false)
+  await devicePage.evaluate(() => {
+    window.privacyStatus = -1
+  })
+  await privacy.click()
+  await toast(devicePage, '无法更改截屏保护，请重试。')
+  assert.equal(await privacy.isChecked(), false)
+  await devicePage.evaluate(() => {
+    window.privacyStatus = 0
+  })
+  await privacy.click()
+  await devicePage.waitForFunction(
+    () => document.querySelector('[aria-label="防截屏和录屏"]').checked
+  )
+  await devicePage.reload()
+  const restoredPrivacy = await openPrivacy()
+  assert.equal(await restoredPrivacy.isChecked(), true)
+  await restoredPrivacy.click()
+  await devicePage.waitForFunction(
+    () => !document.querySelector('[aria-label="防截屏和录屏"]').checked
+  )
+  await devicePage.keyboard.press('Escape')
+  await devicePage.getByRole('dialog', { name: '设置' }).waitFor({ state: 'hidden' })
+  if (await devicePage.getByRole('button', { name: '设置', exact: true }).isVisible()) {
+    await devicePage.evaluate(() => window.mockWindowAction('back'))
+  }
+
+  await input.fill('左右')
+  await input.evaluate((node) => node.setSelectionRange(1, 1))
+  await input.evaluate((node) => {
+    const dataTransfer = new DataTransfer()
+    dataTransfer.setData('text/plain', '拖进来的文字')
+    node.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }))
+  })
+  await devicePage.waitForFunction(
+    () => document.querySelector('textarea').value === '左拖进来的文字右'
+  )
+  await input.evaluate((node) => {
+    const dataTransfer = new DataTransfer()
+    dataTransfer.items.add(new File(['hello'], 'dragged-note.txt', { type: 'text/plain' }))
+    node.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }))
+  })
+  await devicePage.getByText('dragged-note.txt', { exact: true }).waitFor()
+  await devicePage.getByRole('button', { name: '发送', exact: true }).click()
+  const answer = devicePage.getByText('收到。', { exact: true })
+  await answer.waitFor()
+  const dragAnswer = devicePage
+    .locator('[data-history-message]')
+    .filter({ has: answer })
+    .getByRole('button', { name: '复制', exact: true })
+  assert.deepEqual(
+    await dragAnswer.evaluate((button) => {
+      const dataTransfer = new DataTransfer()
+      button.dispatchEvent(
+        new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer })
+      )
+      return { types: dataTransfer.types, text: dataTransfer.getData('text/plain') }
+    }),
+    { types: ['text/plain'], text: '收到。' }
+  )
+
+  await devicePage.setViewportSize({ width: 844, height: 780 })
+  await input.fill('保持当前会话和草稿')
+  const sendFoldBounds = (bounds) =>
+    devicePage.evaluate((foldBounds) => {
+      window.foldBounds = foldBounds
+      window.devicePost({
+        type: 'window-layout',
+        insets: { top: 30, right: 0, bottom: 20, left: 0 },
+        foldBounds,
+      })
+    }, bounds)
+  await sendFoldBounds({ upper: 374, lower: 399 })
+  await devicePage.locator('body[data-fold-hover]').waitFor({ state: 'attached' })
+  const list = devicePage.locator('[class*="hover-"] [class*="scroll-"]').filter({ has: answer })
+  const box = await list.boundingBox()
+  assert.ok(Math.abs(box.y + box.height - 374) <= 2, JSON.stringify(box))
+  assert.ok((await input.boundingBox()).y >= 399)
+  await devicePage.setViewportSize({ width: 844, height: 465 })
+  await devicePage.locator('body[data-fold-hover]').waitFor({ state: 'detached' })
+  await devicePage.waitForFunction(() => {
+    const bounds = document.querySelector('textarea').getBoundingClientRect()
+    return bounds.bottom <= 465 && bounds.top >= 0
+  })
+  await devicePage.setViewportSize({ width: 844, height: 780 })
+  await devicePage.locator('body[data-fold-hover]').waitFor({ state: 'attached' })
+  await sendFoldBounds(null)
+  await devicePage.locator('body[data-fold-hover]').waitFor({ state: 'detached' })
+  assert.equal(await input.inputValue(), '保持当前会话和草稿')
+  await answer.waitFor()
+  assert.deepEqual(platform.errors, [])
+  await platform.context.close()
 
   // 1.5.0 搜索、分享与双语音路径从真实界面入口验证。
   const experience = await newContext({ voice: true, apiVoice: true, readAloud: true, share: true })

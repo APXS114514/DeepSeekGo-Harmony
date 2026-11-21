@@ -67,7 +67,7 @@ export const ScanTextButton = ({
 
   const choose = async () => {
     setChoosing(true)
-    const source = await chooseDeviceScanSource({ title, camera, album })
+    const source = await chooseDeviceScanSource({ title, camera, album, cancel: t('cancel') })
     if (!active.current) {
       return
     }

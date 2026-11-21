@@ -178,6 +178,13 @@ export const en = {
   apiKeyTemporaryStorage: 'This API Key is temporary. Enter it again when you reopen the app.',
   harmonyAppName: 'Deepseek GO',
   historyNavigation: 'Chat history',
+  settingsPrivacy: 'Privacy',
+  screenCaptureProtection: 'Screen capture protection',
+  screenCaptureDescription:
+    'Hides the chat window in screenshots, recordings, screen sharing, and recent apps.',
+  screenCaptureUnavailable: 'Screen capture protection is unavailable for this window.',
+  screenCaptureFailed: 'Could not change screen capture protection. Try again.',
+  dragAnswer: 'Drag to another app',
   immersiveLightTitle: 'Immersive lighting',
   immersiveLightDescription:
     'Add translucency and highlights to the composer and use system materials in the text recognition menu on supported devices.',

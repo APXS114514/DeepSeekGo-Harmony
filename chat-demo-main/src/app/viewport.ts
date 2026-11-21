@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react'
-import { getHorizontalInsets } from '../services/harmony.js'
+import { getFoldBounds, getHorizontalInsets } from '../services/harmony.js'
 
 const query = window.matchMedia('not all and (min-width: 768px)')
 const KEYBOARD_RESIZE_THRESHOLD = 48
@@ -35,6 +35,34 @@ const readLayout = () => {
 
 export const useResponsiveLayout = () => useSyncExternalStore(subscribe, readLayout)
 export const useIsMobile = () => useSyncExternalStore(subscribe, () => readLayout() === 'compact')
+
+const subscribeToHoverLayout = (onChange: () => void) => {
+  window.addEventListener('pocket-chat-hover-layout', onChange)
+  return () => window.removeEventListener('pocket-chat-hover-layout', onChange)
+}
+
+const readHoverLayout = () => document.body.hasAttribute('data-fold-hover')
+
+export const useFoldHover = () => useSyncExternalStore(subscribeToHoverLayout, readHoverLayout)
+
+const applyFoldLayout = (top: number, height: number, zoomed: boolean) => {
+  const fold = getFoldBounds()
+  // If the keyboard or viewport pan leaves insufficient room below the crease,
+  // the regular layout keeps the composer visible until that pane is usable again.
+  const split = !zoomed && fold && fold.upper - top >= 128 && top + height - fold.lower >= 96
+  const changed = readHoverLayout() !== Boolean(split)
+  if (split) {
+    document.body.style.setProperty('--fold-upper', `${fold.upper - top}px`)
+    document.body.style.setProperty('--fold-gap', `${fold.lower - fold.upper}px`)
+  } else {
+    document.body.style.removeProperty('--fold-upper')
+    document.body.style.removeProperty('--fold-gap')
+  }
+  document.body.toggleAttribute('data-fold-hover', Boolean(split))
+  if (changed) {
+    window.dispatchEvent(new Event('pocket-chat-hover-layout'))
+  }
+}
 
 const preventPageScroll = (event: TouchEvent) => {
   if (event.touches.length !== 1) {
@@ -98,6 +126,7 @@ export const useMobileViewport = (enabled: boolean) => {
         document.body.removeAttribute('data-page-zoom')
         document.body.removeAttribute('data-viewport-transition')
         document.body.removeAttribute('data-soft-keyboard')
+        applyFoldLayout(0, 0, false)
       }
     }
     const update = () => {
@@ -139,6 +168,7 @@ export const useMobileViewport = (enabled: boolean) => {
         const obscured = Math.max(0, window.innerHeight - visualHeight - (zoomed ? 0 : top))
         style.setProperty('--app-viewport-obscured-bottom', `${obscured}px`)
         document.body.toggleAttribute('data-page-zoom', zoomed)
+        applyFoldLayout(top, height, zoomed)
         if (zoomed) {
           style.setProperty('--app-page-scale', String(scale))
           style.setProperty('--app-viewport-left', `${viewport.offsetLeft}px`)
@@ -175,6 +205,7 @@ export const useMobileViewport = (enabled: boolean) => {
     viewport?.addEventListener('resize', schedule)
     viewport?.addEventListener('scroll', schedule)
     window.addEventListener('resize', schedule)
+    window.addEventListener('pocket-chat-fold', schedule)
     document.addEventListener('focusin', onFocusIn)
     // 等点击和焦点切换完成，避免按钮移动、或切换输入框时短暂恢复全高。
     document.addEventListener('focusout', scheduleFrame)
@@ -183,6 +214,7 @@ export const useMobileViewport = (enabled: boolean) => {
       viewport?.removeEventListener('resize', schedule)
       viewport?.removeEventListener('scroll', schedule)
       window.removeEventListener('resize', schedule)
+      window.removeEventListener('pocket-chat-fold', schedule)
       document.removeEventListener('focusin', onFocusIn)
       document.removeEventListener('focusout', scheduleFrame)
       reset()

@@ -1,3 +1,5 @@
+import { CommonModifier } from '@kit.ArkUI';
+
 export const CHAT_HEADER_HEIGHT = 60;
 
 @Component
@@ -7,6 +9,9 @@ export struct ChatHeader {
   @Prop newChatLabel: string;
   @Prop showNewChat: boolean;
   @Prop dark: boolean;
+  @Prop material: CommonModifier | null = null;
+  @Prop titleOptions: NavigationTitleOptions = {};
+  private readonly plainMaterial: CommonModifier = new CommonModifier();
   onMenu: () => void = () => {};
   onNewChat: () => void = () => {};
 
@@ -23,11 +28,13 @@ export struct ChatHeader {
     .width(44)
     .height(44)
     .backgroundColor(Color.Transparent)
+    .attributeModifier(this.material ?? this.plainMaterial)
     .accessibilityText(label)
     .onClick(action)
   }
 
-  build() {
+  @Builder
+  headerContent() {
     Row({ space: 8 }) {
       this.actionButton($r('sys.symbol.line_3_horizontal'), this.menuLabel, this.onMenu)
       Text(this.title)
@@ -45,5 +52,22 @@ export struct ChatHeader {
     .width('100%')
     .height(CHAT_HEADER_HEIGHT)
     .padding({ left: 10, right: 10 })
+  }
+
+  build() {
+    if (this.material) {
+      Navigation() {
+      }
+      .width('100%')
+      .height(CHAT_HEADER_HEIGHT)
+      .mode(NavigationMode.Stack)
+      .hideBackButton(true)
+      .hideToolBar(true)
+      .backgroundColor(Color.Transparent)
+      .ignoreLayoutSafeArea([], [])
+      .title({ builder: this.headerContent, height: CHAT_HEADER_HEIGHT }, this.titleOptions)
+    } else {
+      this.headerContent()
+    }
   }
 }

@@ -505,6 +505,12 @@
     }
   }
 
+  :global(.harmony-app) .navItem {
+    min-width: 0;
+    gap: 6px;
+    padding-inline: 8px;
+  }
+
   .content {
     padding-top: 24px;
     padding-left: 0;

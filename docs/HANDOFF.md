@@ -2,7 +2,7 @@
 
 ## 工作区
 
-- 当前源码为 1.5.4，版本代码为 `1000022`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 当前源码为 1.6.0，版本代码为 `1000023`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
 - 1.5.4 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.4-unsigned.hap`，对应标签 `v1.5.4`。SHA-256 为 `495c1e434b21783d739e7a113e726eabeab184cf6b20aca81ac6986c0b54439b`。
 - 1.5.3 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.3-unsigned.hap`，对应标签 `v1.5.3`（指向 `1990016`，与构建源码只差交接文档）。SHA-256 为 `057defced981edb56680589ba5465db163da2021e5c295b4f36bb77efbe01631`。维护者签名安装后已在 HOP-AL10 真机复测通过。GitHub Releases 的 `v1.5.3` 附件与本地包逐字节一致。
 - 1.5.2 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.2-unsigned.hap`，对应标签 `v1.5.2`。SHA-256 为 `235375f025fab29424731279fdd1a53ef8428f356fb9d7e32f5c9262b092dcd6`。
@@ -37,7 +37,16 @@
   | `disable` | 在应用级禁用系统材质，组件级开启也不生效。 |
 
 - **原生组件级配置**可通过 `systemMaterial` 等属性调整支持的组件。应用级未禁用时，组件配置优先，个别组件可通过 `uiMaterial.Material.empty` 关闭。排查时，在支持的系统上用 `uiMaterial.getMaterialInfo()` 读取应用级配置状态，用 `uiMaterial.isImmersiveMaterialSupported()` 检查设备能力，再用真机验证呈现。 [组件适配指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
-- **通用设置 → 外观 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](../chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](../chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会在「识别图片文字」中打开 ArkUI 操作菜单。
+- **通用设置 → 外观 → 沉浸光感**默认开启，保存在本地的 `chat-demo:immersive-light`。[`App.tsx`](../chat-demo-main/src/app/App.tsx) 据此更新 `data-immersive-light`，由 [`ChatInput.module.css`](../chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、背景模糊和高光。支持原生材质的设备还会给窄屏原生顶栏的操作按钮应用薄材质，并在「识别图片文字」中打开带系统图标的 ArkUI 弹窗。
+
+## 1.6.0 鸿蒙交互
+
+- **原生光感**。API 26.0.0 并支持系统材质时，窄屏顶栏在透明的 `Navigation.title` 中为两侧操作按钮应用 `THIN` 材质。识字弹窗使用 `ComponentContent` 和 `ULTRA_THICK` 材质，通过 `SymbolGlyph` 绘制相机和图库图标。关闭光感或设备不支持时走普通顶栏及网页菜单，原生弹窗显示失败时也可从网页选择来源。
+- **拖拽**。ArkWeb 里的文字和链接填入草稿，图片与文件沿用附件入口。回答工具栏的复制按钮可拖出纯文字，普通点击仍复制原文。原生拖拽读不到文件时的处理需以目标设备上的 ArkWeb 实测为依据。
+- **截屏保护**。设置页经受限消息通道调用 `Window.setWindowPrivacyMode`，以原生确认状态更新开关。原生 Preferences 保存设置，创建窗口后在加载网页前恢复。失败会提示重试。
+- **折叠屏悬停**。`FoldSplitContainer` 读取全屏悬停下上下区域的位置，原生发送折痕范围给同一个 ArkWeb。网页让消息和输入分居折痕两侧。键盘或缩放使下方空间不足时恢复普通布局，会话和草稿继续复用。
+- 类型、Lint、鸿蒙网页构建、10 项浏览器回归和 HarmonyOS 26.0.0 SDK Debug 编译通过。浏览器覆盖原生识字消息的成功、取消与回退，防截屏的失败重试和重载状态，文本及文件拖入、纯文本拖出，以及悬停切换时的布局和草稿保留。CodeLinter 无错误，有两条建议用 Builder 的组件警告。Debug 包内核对 1.6.0 / `1000023`、最低 API 12、目标 API 26、隐私权限、光感配置及 155 个网页资源。
+- 真机待验证：原生菜单显示、返回、光感分层、截屏/录屏/投屏、平板分屏与 2in1 的跨应用拖拽，以及折叠屏全屏悬停和键盘。也需在 API 12 设备上复测普通顶栏和网页识字菜单。
 
 ## 前缀缓存实测（2026-11-19）
 
@@ -240,11 +249,6 @@
   - 1.3.2 原生识字菜单在深浅色相反、键盘弹起、分屏和悬浮窗中的表现，以及 API 12 真机的启动和网页菜单。
   - 1.4.x：ArkWeb 双指缩放、输入栏收起展开和滚动帧率、按住说话的单指上滑取消手感，余额请求与上下文超限恢复。
   - 覆盖安装后 localStorage 中的会话、记忆和设置是否保留。
-- **后续规划**：[`ROADMAP.md`](ROADMAP.md) 和英文版 [`ROADMAP.en.md`](ROADMAP.en.md) 列出用户可见的顺序。以下均不依赖 AppGallery Connect，用户自签的未签名包可用：
-  - 服务卡片用 FormExtensionAbility。卡片不能放输入框，快速提问只能打开新对话并聚焦输入或进入按住说话。最近对话需要网页经消息通道把标题交给原生保存。
-  - 拖拽先用 ArkWeb 的网页拖放，拖入文件读不到时由原生接住，用 UDMF 读取后转给网页。
-  - 折叠屏悬停由原生读取折叠状态和折痕区域，通知网页切换上下布局，需要支持悬停的折叠屏实测。
-  - 跨设备接续要求两端包名一致、最好同一开发者账号签名、同一华为账号，并授权多设备协同。长对话超出接续参数上限，需另走分布式数据或文件。API Key 不跨设备传递。
 - 1.4.2 起回归脚本从维护者本机的 `Game-Miscellaneous/` 移入仓库，并按 1.4.x 的行为更新：补上余额接口的模拟，语音改为按住说话，不支持语音时空输入框不显示发送键。下文较早的记录里提到的 `Game-Miscellaneous/` 路径只作历史参考。`device-features` 清空输入框前等待 100ms，避开语音写入后移动光标的那一帧打断全选。
 - 前端已通过 `pnpm type`、`pnpm lint`、`pnpm build:harmony` 和 `pnpm build`。这些命令在 `chat-demo-main/` 下执行，`pnpm build:harmony` 生成 ArkWeb 网页资源。
 - 1.0.6 浏览器模拟已验证键盘开合与失焦、Logo 完整显示、首条消息、设置和搜索面板、小窗抽屉和宽窗侧栏、减少动态效果、草稿保留、思考折叠与历史消息编辑。

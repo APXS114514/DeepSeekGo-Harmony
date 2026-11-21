@@ -15,6 +15,7 @@ type WindowUi = {
   covered: boolean
   dark: boolean
   themePreference: ThemePreference
+  immersiveLight: boolean
   title: string
   menuLabel: string
   newChatLabel: string
@@ -46,6 +47,8 @@ export const useDeviceFeatures = create(() => ({
   scan: false,
   immersiveScanMenu: false,
   save: false,
+  windowPrivacy: null as boolean | null,
+  updatingWindowPrivacy: false,
   /** 2in1 设备，按钮提示里附带键盘快捷键 */
   keyboard: false,
 }))
@@ -84,6 +87,25 @@ const readShare = (message: { items?: unknown; skipped?: unknown }): SharedConte
   const skipped = Number.isSafeInteger(message.skipped) ? (message.skipped as number) : 0
   return { items, skipped }
 }
+type FoldBounds = { upper: number; lower: number }
+let foldBounds: FoldBounds | null = null
+export const getFoldBounds = () => foldBounds
+
+const readFoldBounds = (bounds: Partial<FoldBounds> | null | undefined) => {
+  if (
+    bounds &&
+    typeof bounds.upper === 'number' &&
+    typeof bounds.lower === 'number' &&
+    Number.isFinite(bounds.upper) &&
+    Number.isFinite(bounds.lower) &&
+    bounds.upper > 0 &&
+    bounds.lower >= bounds.upper
+  ) {
+    return { upper: bounds.upper, lower: bounds.lower }
+  }
+  return null
+}
+
 const edges = ['top', 'right', 'bottom', 'left'] as const
 let horizontalInsets = 0
 export const getHorizontalInsets = () => horizontalInsets
@@ -115,6 +137,7 @@ const onWindowMessage = (event: MessageEvent<string>) => {
         scan: message.scan === true,
         immersiveScanMenu: message.immersiveScanMenu === true,
         save: message.save === true,
+        windowPrivacy: typeof message.windowPrivacy === 'boolean' ? message.windowPrivacy : null,
         keyboard: message.deviceType === '2in1',
       })
     } else if (message?.type === 'read-aloud') {
@@ -144,6 +167,11 @@ const onWindowMessage = (event: MessageEvent<string>) => {
         }
       }
     } else if (message?.type === 'window-layout') {
+      const bounds = readFoldBounds(message.foldBounds)
+      if (bounds?.upper !== foldBounds?.upper || bounds?.lower !== foldBounds?.lower) {
+        foldBounds = bounds
+        window.dispatchEvent(new Event('pocket-chat-fold'))
+      }
       const body = document.body
       body.toggleAttribute('data-native-chat-header', message.nativeHeader === true)
       for (const edge of edges) {
@@ -226,6 +254,7 @@ type DeviceOperation =
   | 'scan-source'
   | 'reply-done'
   | 'notify-permission'
+  | 'window-privacy'
 
 const requestDevice = (
   operation: DeviceOperation,
@@ -350,6 +379,7 @@ export const chooseDeviceScanSource = async (labels: {
   title: string
   camera: string
   album: string
+  cancel: string
 }): Promise<ScanSource | 'cancelled' | 'unavailable'> => {
   try {
     const { status, value } = await requestDevice(
@@ -367,6 +397,25 @@ export const chooseDeviceScanSource = async (labels: {
     // 端口或原生菜单失效时仍可从网页菜单选择来源。
   }
   return 'unavailable'
+}
+
+/** 以原生窗口返回的实际状态为准，跨设置页重挂载仍只允许一个请求。 */
+export const setDeviceWindowPrivacy = async (enabled: boolean): Promise<boolean> => {
+  if (useDeviceFeatures.getState().updatingWindowPrivacy) {
+    return false
+  }
+  useDeviceFeatures.setState({ updatingWindowPrivacy: true })
+  try {
+    const { status, value } = await requestDevice('window-privacy', String(enabled))
+    if (value === 'true' || value === 'false') {
+      useDeviceFeatures.setState({ windowPrivacy: value === 'true' })
+    }
+    return status === DeviceStatus.ok
+  } catch {
+    return false
+  } finally {
+    useDeviceFeatures.setState({ updatingWindowPrivacy: false })
+  }
 }
 
 /** 用系统相机或图库取图，在本机识别文字。 */

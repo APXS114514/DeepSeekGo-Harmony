@@ -19,7 +19,7 @@ All features in the current version of Deepseek GO. For changes by version, see 
 - **Voice input.** Hold to talk, release to add the transcript to your draft, or swipe up and release to cancel. In **General → Voice**, choose on-device recognition (the default) or the multilingual DeepSeek API. With the API selected, releasing to confirm uploads the recording. Billing is based on audio duration.
 - **Read aloud offline.** On supported devices, choose the offline system voice or a DeepSeek API voice in **General → Voice**.
 - **Share a reply or chat.** Open a preview from the reply toolbar or chat menu, then use the system share sheet to send a reply or the current chat branch as plain text, Markdown, or a long image.
-- **Recognize text in an image.** Take a photo or pick one from the gallery. The app recognizes text on your device and inserts it into the composer without uploading the image.
+- **Recognize text in an image.** Take a photo or pick one from the gallery. The app recognizes text on your device and inserts it into the composer without uploading the image. The native menu uses system icons for the camera and gallery.
 - **Share to Deepseek GO.** Choose **Share → Deepseek GO** in another app. Text, links, images, and documents appear in a new chat for you to review before sending.
 - **Import and export chat history.** In **Settings → Data**, export your chats as a ZIP file or merge an archive into local history. A merge keeps existing chats with matching IDs. You can also choose to replace all local chats.
 - **Background generation and reply notifications.** Replies can keep generating in the background. Tap the completion notification to go straight to the chat. Turn off reply notifications in **General → Chat**.
@@ -47,11 +47,14 @@ Automatic memory sends one small extra request per reply and uses a few extra to
 - The system back gesture closes the topmost menu, dialog, settings screen, search panel, or sidebar first. It leaves the app once those layers are closed.
 - Replies, messages, and the composer follow the system font size up to 1.75×.
 - On 2-in-1 devices, use `Ctrl+N` for a new chat, `Ctrl+B` to toggle the sidebar, and `Ctrl+,` for Settings. Right-click a chat to rename or delete it.
-- **Immersive lighting.** The composer uses translucency and highlights. On supported devices, the image text recognition menu also uses system materials. Turn the effect off in **General → Appearance**.
+- **Immersive lighting.** The composer uses translucency and highlights. On supported devices, the narrow-window header buttons and image text recognition menu also use system materials. Turn the effect off in **General → Appearance**.
+- **Drag and drop.** Drop text, links, images, or files into the composer. Drag a reply’s Copy button into another app to drop the reply as plain text.
+- **Foldable hover mode.** On supported devices in full-screen hover mode, the chat stays above the fold and the composer below it. Unfolding keeps the current chat and draft.
 - Animations follow the system’s Reduce Motion setting. The sidebar, history search, settings, and share preview support keyboard navigation. In voice mode, use Enter or Space to start and stop recording, and Escape to cancel.
 
 ## Privacy
 
+- **Screen capture protection.** Turn it on in **Settings → Privacy** to hide the chat window in screenshots, recordings, screen sharing, and recent apps.
 - Chats, drafts, instructions, and memories are stored locally.
 - The chat connects to `api.deepseek.com`. The bundled page uses a strict content security policy and opens external links in the system browser.
 - API keys are kept out of source code, app packages, and logs.

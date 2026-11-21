@@ -147,3 +147,28 @@
   font: 400 13px/20px var(--dsw-font-family);
   color: var(--dsw-alias-label-tertiary);
 }
+
+:global(.harmony-app[data-fold-hover]) .container {
+  flex-direction: column;
+
+  .welcome {
+    flex: 1;
+    min-height: 0;
+    justify-content: flex-end;
+    margin: 0 auto;
+    padding-bottom: 0;
+  }
+
+  .greeting {
+    --fold-header-height: 0px;
+    flex: 0 1 auto;
+    overflow-y: auto;
+    width: 100%;
+    height: max(0px, calc(var(--fold-upper) - var(--frame-safe-top) - var(--fold-header-height)));
+    margin: 0 0 auto;
+  }
+
+  &.compact .greeting {
+    --fold-header-height: 60px;
+  }
+}

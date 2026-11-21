@@ -11,6 +11,8 @@ import { FileSaver } from './FileSaver';
 import { LocalSpeech } from './LocalSpeech';
 import { ShareOut } from './ShareOut';
 import { TextScanner } from './TextScanner';
+import type { ScanSourceLabels, ScanSourcePicker } from './ScanSourceMenu';
+import { WindowPrivacy } from '../window/WindowPrivacy';
 import { VoiceInput } from './VoiceInput';
 
 interface DeviceRequest {
@@ -34,16 +36,9 @@ interface DeviceFeatures {
   scan: boolean;
   immersiveScanMenu: boolean;
   save: boolean;
+  windowPrivacy: boolean | null;
   deviceType: string;
 }
-
-interface ScanSourceLabels {
-  title: string;
-  camera: string;
-  album: string;
-}
-
-type ScanSourcePicker = (title: string, camera: string, album: string) => Promise<string | null>;
 
 /** 二进制消息：4 字节小端头长度 + JSON 头 + 文件内容。 */
 const MAX_FRAME_HEADER = 4096;
@@ -59,9 +54,11 @@ export class DeviceBridge {
   private readonly shareOut: ShareOut;
   private readonly background: BackgroundReply;
   private readonly ui: UIContext;
+  private readonly privacy: WindowPrivacy;
   private scanMenuOpen: boolean = false;
 
-  constructor(context: common.UIAbilityContext, ui: UIContext, emit: (message: string) => void) {
+  constructor(context: common.UIAbilityContext, ui: UIContext, privacy: WindowPrivacy, emit: (message: string) => void) {
+    this.privacy = privacy;
     this.context = context;
     this.ui = ui;
     this.voice = new VoiceInput(context, emit);
@@ -72,40 +69,37 @@ export class DeviceBridge {
     this.background = BackgroundReply.forAbility(context);
   }
 
-  async features(): Promise<string> {
+  features(): Promise<string> {
     const scan = TextScanner.supported();
-    const features: DeviceFeatures = {
-      type: 'device-features',
-      voice: VoiceInput.supported(),
-      apiVoice: canIUse('SystemCapability.Multimedia.Audio.Capturer'),
-      readAloud: LocalSpeech.supported(),
-      share: ShareOut.supported(),
-      scan: scan,
-      immersiveScanMenu: scan && (await this.loadScanSourcePicker()) !== null,
-      save: true,
-      deviceType: deviceInfo.deviceType
-    };
-    return JSON.stringify(features);
+    const picker = scan ? this.loadScanSourcePicker() : Promise.resolve(null);
+    return picker.then((pick) => {
+      const features: DeviceFeatures = {
+        type: 'device-features',
+        voice: VoiceInput.supported(),
+        apiVoice: canIUse('SystemCapability.Multimedia.Audio.Capturer'),
+        readAloud: LocalSpeech.supported(),
+        share: ShareOut.supported(),
+        scan: scan,
+        immersiveScanMenu: pick !== null,
+        save: true,
+        windowPrivacy: this.privacy.current,
+        deviceType: deviceInfo.deviceType
+      };
+      return JSON.stringify(features);
+    });
   }
 
-  private async loadScanSourcePicker(): Promise<ScanSourcePicker | null> {
+  private loadScanSourcePicker(): Promise<ScanSourcePicker | null> {
     // Older runtimes never load the API 26 material module.
-    try {
-      if (deviceInfo.sdkApiVersion >= 26) {
-        if (deviceInfo.apiAvailable('26.0.0')) {
-          return await import('./ScanSourceMenu').then((menu): ScanSourcePicker | null => {
-            if (menu.supportsImmersiveScanMenu()) {
-              return (title: string, camera: string, album: string): Promise<string | null> =>
-                menu.chooseScanSource(this.ui, title, camera, album);
-            }
-            return null;
-          });
-        }
+    if (deviceInfo.sdkApiVersion >= 26) {
+      if (deviceInfo.apiAvailable('26.0.0')) {
+        return import('./ScanSourceMenu').then((menu) => menu.createScanSourcePicker(this.ui)).catch(() => {
+          hilog.warn(0x0000, 'PocketChat', 'Cannot load immersive scan menu');
+          return null;
+        });
       }
-    } catch {
-      hilog.warn(0x0000, 'PocketChat', 'Cannot query immersive scan menu support');
     }
-    return null;
+    return Promise.resolve(null);
   }
 
   /** 页面隐藏或端口重连时中断进行中的收音。 */
@@ -169,6 +163,13 @@ export class DeviceBridge {
             this.reply(port, { id: request.id, status: status, value: '' });
           });
           return;
+        case 'window-privacy':
+          if (request.value === 'true' || request.value === 'false') {
+            this.privacy.set(request.value === 'true').then((status) => {
+              this.reply(port, { id: request.id, status: status, value: String(this.privacy.current) });
+            });
+          }
+          return;
         case 'scan':
           this.scanner.scan(request.value ?? '').then((result) => {
             this.reply(port, { id: request.id, status: result.status, value: result.text });
@@ -204,11 +205,11 @@ export class DeviceBridge {
       }
       const labels = JSON.parse(request.value ?? 'null') as ScanSourceLabels;
       if (typeof labels?.title !== 'string' || typeof labels.camera !== 'string' ||
-        typeof labels.album !== 'string' || labels.title.length > 120 ||
-        labels.camera.length > 120 || labels.album.length > 120) {
+        typeof labels.album !== 'string' || typeof labels.cancel !== 'string' || labels.title.length > 120 ||
+        labels.camera.length > 120 || labels.album.length > 120 || labels.cancel.length > 120) {
         return reply;
       }
-      return pickSource(labels.title, labels.camera, labels.album).then((source) => {
+      return pickSource(labels).then((source) => {
         if (source !== null) {
           reply.status = source ? DeviceStatus.OK : DeviceStatus.CANCELLED;
           reply.value = source;

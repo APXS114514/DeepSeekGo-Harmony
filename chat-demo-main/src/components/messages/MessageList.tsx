@@ -9,7 +9,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
-import { useIsMobile } from '../../app/viewport.js'
+import { useFoldHover, useIsMobile } from '../../app/viewport.js'
 import { useTranslate } from '../../i18n/index.js'
 import {
   buildMessageVersions,
@@ -64,7 +64,9 @@ export const MessageList = ({
 }) => {
   const t = useTranslate()
   const isMobile = useIsMobile()
-  const hideComposerOnScroll = useSettings((state) => state.hideComposerOnScroll)
+  const hover = useFoldHover()
+  const separateScroll = isMobile || hover
+  const hideComposerOnScroll = useSettings((state) => state.hideComposerOnScroll) && !hover
   const scrollRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -134,7 +136,7 @@ export const MessageList = ({
       observer.observe(editor)
     }
     return () => observer.disconnect()
-  }, [activeEditor, isMobile, scrollToBottom])
+  }, [activeEditor, separateScroll, scrollToBottom])
 
   // 切换版本后将选择器留在原位置，避免回答长短变化导致操作区跳出视口。
   useLayoutEffect(() => {
@@ -296,7 +298,7 @@ export const MessageList = ({
       el.removeEventListener('touchmove', onTouchMove)
       el.removeEventListener('wheel', onWheel)
     }
-  }, [hideComposerOnScroll, isMobile, scrollToBottom])
+  }, [hideComposerOnScroll, isMobile, separateScroll, scrollToBottom])
 
   const lastIndex = messages.length - 1
   const uploadRetryId = getUploadRetryId(messages, streaming)
@@ -320,10 +322,10 @@ export const MessageList = ({
   return (
     <ScrollToBottomContext.Provider value={scrollToBottom}>
       <div
-        ref={isMobile ? undefined : scrollRef}
-        className={clsx(styles.container, isMobile && styles.compact)}
+        ref={separateScroll ? undefined : scrollRef}
+        className={clsx(styles.container, separateScroll && styles.compact, hover && styles.hover)}
       >
-        <div ref={isMobile ? scrollRef : undefined} className={styles.scroll}>
+        <div ref={separateScroll ? scrollRef : undefined} className={styles.scroll}>
           <div ref={contentRef} className={styles.column} data-content-enter>
             {session.ephemeral ? (
               <p className={styles.incognitoNote} role="note">

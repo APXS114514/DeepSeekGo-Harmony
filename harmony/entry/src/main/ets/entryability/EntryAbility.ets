@@ -5,6 +5,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BackgroundReply, OPEN_SESSION_KEY, OPEN_SESSION_PARAM } from '../services/BackgroundReply';
 import { ShareInbox } from '../services/ShareInbox';
 import { FONT_SCALE_KEY } from '../window/FontScale';
+import { WindowPrivacy } from '../window/WindowPrivacy';
 import { systemBarProperties } from '../window/WindowInsets';
 
 export default class EntryAbility extends UIAbility {
@@ -51,6 +52,7 @@ export default class EntryAbility extends UIAbility {
   async onWindowStageCreate(windowStage: window.WindowStage): Promise<void> {
     try {
       const mainWindow = windowStage.getMainWindowSync();
+      await WindowPrivacy.instance.attach(this.context, mainWindow);
       if (deviceInfo.deviceType === 'phone' || deviceInfo.deviceType === 'tablet') {
         mainWindow.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
           .catch((error: BusinessError) => {

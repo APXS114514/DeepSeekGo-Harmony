@@ -1,5 +1,5 @@
 import { common, ConfigurationConstant } from '@kit.AbilityKit';
-import { window } from '@kit.ArkUI';
+import { CommonModifier, display, window } from '@kit.ArkUI';
 import { webview } from '@kit.ArkWeb';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
@@ -9,6 +9,8 @@ import { OPEN_SESSION_KEY } from '../services/BackgroundReply';
 import { ShareInbox } from '../services/ShareInbox';
 import { clampFontScale, FONT_SCALE_KEY } from '../window/FontScale';
 import { ChatHeader } from '../window/ChatHeader';
+import { FoldBounds, FoldHover } from '../window/FoldHover';
+import { WindowPrivacy } from '../window/WindowPrivacy';
 import { EMPTY_INSETS, readWindowInsets, systemBarProperties, WindowInsets } from '../window/WindowInsets';
 
 const APP_HOST = 'deepseek.local.invalid';
@@ -34,6 +36,7 @@ interface WebWindowUi {
   covered: boolean;
   dark: boolean;
   themePreference?: string;
+  immersiveLight?: boolean;
   title: string;
   menuLabel: string;
   newChatLabel: string;
@@ -54,6 +57,10 @@ struct Index {
   private hasWindowUi: boolean = false;
   private insetsRevision: number = 0;
   private nativeColorMode?: ConfigurationConstant.ColorMode;
+  private foldBounds: FoldBounds | null = null;
+  private observeFold: boolean = false;
+  @State private headerMaterial: CommonModifier | null = null;
+  private glassTitleOptions: NavigationTitleOptions = {};
   @State private insets: WindowInsets = EMPTY_INSETS;
   @State private pageZoomed: boolean = false;
   @StorageProp(FONT_SCALE_KEY) @Watch('sendFontScale') private fontScale: number = 1;
@@ -70,7 +77,13 @@ struct Index {
     const context = ui.getHostContext() as common.UIAbilityContext;
     const dark = context.config.colorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
     this.windowUi.dark = dark;
-    this.bridge = new DeviceBridge(context, ui, (message) => this.sendWebMessage(message));
+    try {
+      this.observeFold = canIUse('SystemCapability.ArkUI.ArkUI.Full') && display.isFoldable();
+    } catch {
+      this.observeFold = false;
+    }
+    void this.loadHeaderMaterial();
+    this.bridge = new DeviceBridge(context, ui, WindowPrivacy.instance, (message) => this.sendWebMessage(message));
     this.webMicrophone = new WebMicrophonePermission(context, APP_ORIGIN, () => this.confirmWebMicrophone());
     ShareInbox.subscribe(this.flushShares);
     window.getLastWindow(context).then((mainWindow) => {
@@ -86,6 +99,33 @@ struct Index {
     }).catch((error: BusinessError) => {
       hilog.warn(0x0000, 'PocketChat', 'Unable to observe window: %{public}d', error.code);
     });
+  }
+
+  private async loadHeaderMaterial(): Promise<void> {
+    try {
+      if (deviceInfo.sdkApiVersion < 26) {
+        return;
+      }
+      if (deviceInfo.apiAvailable('26.0.0')) {
+        const material = await import('../window/ImmersiveMaterial');
+        if (!this.disposed) {
+          const modifier = material.createHeaderMaterial();
+          if (modifier) {
+            this.glassTitleOptions = material.transparentTitleBar();
+            this.headerMaterial = modifier;
+          }
+        }
+      }
+    } catch {
+      hilog.warn(0x0000, 'PocketChat', 'Cannot prepare immersive chat header');
+    }
+  }
+
+  private updateFoldBounds(bounds: FoldBounds | null): void {
+    if (bounds?.upper !== this.foldBounds?.upper || bounds?.lower !== this.foldBounds?.lower) {
+      this.foldBounds = bounds;
+      this.sendWindowLayout();
+    }
   }
 
   private updateInsets = (): void => {
@@ -256,6 +296,7 @@ struct Index {
     this.sendWebMessage(JSON.stringify({
       type: 'window-layout',
       insets: this.insets,
+      foldBounds: this.pageZoomed ? null : this.foldBounds,
       nativeHeader: this.windowUi.mobile && !this.windowUi.covered && !this.pageZoomed
     }));
   }
@@ -393,6 +434,9 @@ struct Index {
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
+      if (this.observeFold) {
+        FoldHover({ onChange: (bounds: FoldBounds | null) => this.updateFoldBounds(bounds) })
+      }
       Web({ src: APP_PAGE, controller: this.controller })
         .width('100%')
         .height('100%')
@@ -430,6 +474,8 @@ struct Index {
             newChatLabel: this.windowUi.newChatLabel,
             showNewChat: this.windowUi.showNewChat,
             dark: this.windowUi.dark,
+            material: this.windowUi.immersiveLight === true ? this.headerMaterial : null,
+            titleOptions: this.glassTitleOptions,
             onMenu: () => this.sendWebMessage('{"type":"window-action","action":"sidebar"}'),
             onNewChat: () => this.sendWebMessage('{"type":"window-action","action":"new-chat"}')
           })

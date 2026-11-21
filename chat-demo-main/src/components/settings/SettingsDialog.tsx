@@ -7,6 +7,7 @@ import {
   IconDownloadOutline16,
   IconFollowsystemOutline16,
   IconLightOutline16,
+  IconIncognitoOutline16,
   IconPersonalOutline16,
   IconSettingsOutline16,
   IconUploadOutline14,
@@ -25,6 +26,7 @@ import {
   DeviceStatus,
   requestNotificationPermission,
   saveDeviceFile,
+  setDeviceWindowPrivacy,
   useDeviceFeatures,
 } from '../../services/harmony.js'
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
@@ -77,6 +79,15 @@ const sections: { value: SettingsSection; label: TranslationKey; icon: ReactNode
   },
   { value: 'personal', label: 'personalSectionLabel', icon: <IconPersonalOutline16 /> },
   { value: 'data', label: 'settingDialogAsideDataOptionLabel', icon: <IconDataOutline16 /> },
+  ...(__HARMONY_APP__
+    ? [
+        {
+          value: 'privacy' as const,
+          label: 'settingsPrivacy' as const,
+          icon: <IconIncognitoOutline16 />,
+        },
+      ]
+    : []),
 ]
 
 const generalPages = [
@@ -254,6 +265,8 @@ const SettingsContent = ({
             )
           ) : section === 'personal' ? (
             <PersonalizationSettings />
+          ) : section === 'privacy' ? (
+            <PrivacySetting />
           ) : (
             <>
               <ApiKeyField editor={apiKeyEditor} />
@@ -731,6 +744,28 @@ const ImmersiveLightSetting = () => {
       description={t('immersiveLightDescription')}
       checked={immersiveLight}
       onChange={setImmersiveLight}
+    />
+  )
+}
+
+const PrivacySetting = () => {
+  const t = useTranslate()
+  const enabled = useDeviceFeatures((state) => state.windowPrivacy)
+  const updating = useDeviceFeatures((state) => state.updatingWindowPrivacy)
+  return (
+    <SettingsSwitch
+      className={styles.cell}
+      label={t('screenCaptureProtection')}
+      description={t(enabled === null ? 'screenCaptureUnavailable' : 'screenCaptureDescription')}
+      checked={enabled === true}
+      disabled={enabled === null || updating}
+      onChange={(next) => {
+        void setDeviceWindowPrivacy(next).then((ok) => {
+          if (!ok) {
+            showToast({ key: 'screenCaptureFailed' })
+          }
+        })
+      }}
     />
   )
 }

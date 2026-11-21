@@ -108,6 +108,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   const isMobile = useIsMobile()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const draggingSelection = useRef(false)
   const togglesRef = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
@@ -249,6 +250,42 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
     <div
       className={clsx(styles.wrapper, sessionId === null ? styles.home : styles.session)}
       data-voice-active={voice.status === 'idle' ? undefined : ''}
+      onDragOver={
+        __HARMONY_APP__
+          ? (event) => {
+              const types = event.dataTransfer.types
+              if (
+                !types.includes('Files') &&
+                (types.includes('text/plain') || types.includes('text/uri-list'))
+              ) {
+                event.preventDefault()
+              }
+            }
+          : undefined
+      }
+      onDrop={
+        __HARMONY_APP__
+          ? (event) => {
+              const data = event.dataTransfer
+              if (draggingSelection.current || data.types.includes('Files')) {
+                return
+              }
+              const value =
+                data.getData('text/plain') ||
+                data
+                  .getData('text/uri-list')
+                  .split(/\r?\n/)
+                  .filter((line) => line && !line.startsWith('#'))
+                  .join('\n')
+              if (value) {
+                event.preventDefault()
+                if (!useChatStore.getState().importingHistory && voice.status === 'idle') {
+                  insertText(value)
+                }
+              }
+            }
+          : undefined
+      }
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           textareaRef.current?.focus({ preventScroll: true })
@@ -270,6 +307,20 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
           disabled={importingHistory}
           value={text}
           onChange={(event) => setText(event.target.value)}
+          onDragStart={
+            __HARMONY_APP__
+              ? () => {
+                  draggingSelection.current = true
+                }
+              : undefined
+          }
+          onDragEnd={
+            __HARMONY_APP__
+              ? () => {
+                  draggingSelection.current = false
+                }
+              : undefined
+          }
           onMouseDown={(event) => {
             // 首次点击时手动聚焦，避免 Safari 把整个页面滚到输入框位置。
             if (isMobile && event.button === 0 && document.activeElement !== event.currentTarget) {

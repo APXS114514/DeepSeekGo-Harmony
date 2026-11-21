@@ -169,6 +169,12 @@ export const zh = {
   apiKeyTemporaryStorage: '当前 API Key 仅本次使用，重新打开应用后需再输入。',
   harmonyAppName: 'Deepseek GO',
   historyNavigation: '对话历史',
+  settingsPrivacy: '隐私',
+  screenCaptureProtection: '防截屏和录屏',
+  screenCaptureDescription: '隐藏截屏、录屏、投屏和多任务预览中的聊天窗口内容。',
+  screenCaptureUnavailable: '当前窗口无法启用截屏保护。',
+  screenCaptureFailed: '无法更改截屏保护，请重试。',
+  dragAnswer: '也可拖到其他应用',
   immersiveLightTitle: '沉浸光感',
   immersiveLightDescription:
     '为聊天输入区启用半透明和高光，支持的设备也会在识字菜单中使用系统材质。',

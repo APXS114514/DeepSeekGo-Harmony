@@ -141,3 +141,15 @@
     --composer-motion: 0s;
   }
 }
+
+:global(.harmony-app[data-fold-hover]) .view {
+  --fold-content-upper: max(0px, calc(var(--fold-upper) - var(--frame-safe-top) - 60px));
+}
+
+:global(.harmony-app[data-fold-hover]) .inputContainer {
+  position: relative;
+  bottom: auto;
+  max-height: 100%;
+  overflow-y: auto;
+  padding-bottom: 0;
+}
