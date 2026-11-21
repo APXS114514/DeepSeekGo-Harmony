@@ -3,6 +3,7 @@
 ## 工作区
 
 - 当前源码为 1.6.0，版本代码为 `1000023`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
+- 1.6.0 识字弹窗修订测试包为 `HAPS/Deepseek-GO-1.6.0-unsigned.hap`，SHA-256 为 `04acd485966b29f107ea36b9bb5503c2c9c71ad98f618fb8f206772b9ef7a92b`。原测试包归档为 `HAPS/Deepseek-GO-1.6.0-04a6164-unsigned.hap`，SHA-256 为 `ea38ccfc4dc7c6ac2bf278555db8c0f08deddc7d7b2fde22fa058e14a0c80ab3`。
 - 1.5.4 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.4-unsigned.hap`，对应标签 `v1.5.4`。SHA-256 为 `495c1e434b21783d739e7a113e726eabeab184cf6b20aca81ac6986c0b54439b`。
 - 1.5.3 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.3-unsigned.hap`，对应标签 `v1.5.3`（指向 `1990016`，与构建源码只差交接文档）。SHA-256 为 `057defced981edb56680589ba5465db163da2021e5c295b4f36bb77efbe01631`。维护者签名安装后已在 HOP-AL10 真机复测通过。GitHub Releases 的 `v1.5.3` 附件与本地包逐字节一致。
 - 1.5.2 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.2-unsigned.hap`，对应标签 `v1.5.2`。SHA-256 为 `235375f025fab29424731279fdd1a53ef8428f356fb9d7e32f5c9262b092dcd6`。
@@ -41,7 +42,10 @@
 
 ## 1.6.0 鸿蒙交互
 
-- **原生光感**。API 26.0.0 并支持系统材质时，窄屏顶栏在透明的 `Navigation.title` 中为两侧操作按钮应用 `THIN` 材质。识字弹窗使用 `ComponentContent` 和 `ULTRA_THICK` 材质，通过 `SymbolGlyph` 绘制相机和图库图标。关闭光感或设备不支持时走普通顶栏及网页菜单，原生弹窗显示失败时也可从网页选择来源。
+- **原生光感**。API 26.0.0 并支持系统材质时，窄屏顶栏在透明的 `Navigation.title` 中为两侧操作按钮应用 `THIN` 材质。识字弹窗使用 `CustomDialogController` 的系统背板和默认 `ULTRA_THICK` 材质，通过 `SymbolGlyph` 绘制相机和图库图标。关闭光感或设备不支持时走普通顶栏及网页菜单，原生弹窗显示失败时也可从网页选择来源。
+- **识字弹窗背板修复**。在 HOP-AL10（HarmonyOS 7.0.0.111）已安装的 1.6.0 / `1000023` 上打开「识别图片文字」，深色主题下截图可见相机和图库图标，但弹窗背景透明，文字叠在欢迎页上。原用的 `openCustomDialog(ComponentContent)` 自定义背板不支持系统沉浸材质。改为 `CustomDialogController` 的系统背板，弹窗未显示时回退网页菜单。 [华为光感常见问题](https://developer.huawei.com/consumer/cn/doc/HarmonyOS-Guides/arkts-immersive-light-sense-faq/)
+- **修订包验证**。HarmonyOS 26.0.0 SDK Debug、Release 和 CodeLinter 通过，验签工具确认修订包无签名块。版本代码、权限和 155 个网页资源与原包一致。浏览器覆盖拍照、取消、显示失败后的菜单回退与再次打开选择图库。全套首轮 9 项通过，`adaptation` 的草稿选区断言单独复跑通过。
+- **HOP-AL10 设置复测**。原 1.6.0 包上对四个页签、三个二级页及连续点按做了 49 次导航操作，首份控件树均为预期页面。第一组快速截图 16 次中 7 次仍可见旧页签高亮，第二组 12 次截图的页面内容和高亮均已切换，工具耗时无法区分触摸转发与动画，设置的偶发短延迟仍待复现。防截屏开启时系统截图遮蔽窗口，复测后恢复原设置。识字弹窗可取消、重新打开并用系统返回关闭，图库和相机均可打开系统选择器。
 - **拖拽**。ArkWeb 里的文字和链接填入草稿，图片与文件沿用附件入口。回答工具栏的复制按钮可拖出纯文字，普通点击仍复制原文。原生拖拽读不到文件时的处理需以目标设备上的 ArkWeb 实测为依据。
 - **截屏保护**。设置页经受限消息通道调用 `Window.setWindowPrivacyMode`，以原生确认状态更新开关。原生 Preferences 保存设置，创建窗口后在加载网页前恢复。失败会提示重试。
 - **折叠屏悬停**。`FoldSplitContainer` 读取全屏悬停下上下区域的位置，原生发送折痕范围给同一个 ArkWeb。网页让消息和输入分居折痕两侧。键盘或缩放使下方空间不足时恢复普通布局，会话和草稿继续复用。

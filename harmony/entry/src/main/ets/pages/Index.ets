@@ -7,6 +7,7 @@ import { DeviceBridge } from '../services/DeviceBridge';
 import { WebMicrophonePermission } from '../services/Microphone';
 import { OPEN_SESSION_KEY } from '../services/BackgroundReply';
 import { ShareInbox } from '../services/ShareInbox';
+import { ScanSourceDialog, ScanSourceLabels } from '../services/ScanSourceMenu';
 import { clampFontScale, FONT_SCALE_KEY } from '../window/FontScale';
 import { ChatHeader } from '../window/ChatHeader';
 import { FoldBounds, FoldHover } from '../window/FoldHover';
@@ -57,6 +58,7 @@ struct Index {
   private hasWindowUi: boolean = false;
   private insetsRevision: number = 0;
   private nativeColorMode?: ConfigurationConstant.ColorMode;
+  private scanSourceDialog?: CustomDialogController;
   private foldBounds: FoldBounds | null = null;
   private observeFold: boolean = false;
   @State private headerMaterial: CommonModifier | null = null;
@@ -83,7 +85,8 @@ struct Index {
       this.observeFold = false;
     }
     void this.loadHeaderMaterial();
-    this.bridge = new DeviceBridge(context, ui, WindowPrivacy.instance, (message) => this.sendWebMessage(message));
+    this.bridge = new DeviceBridge(context, WindowPrivacy.instance,
+      (labels) => this.presentScanSource(labels), (message) => this.sendWebMessage(message));
     this.webMicrophone = new WebMicrophonePermission(context, APP_ORIGIN, () => this.confirmWebMicrophone());
     ShareInbox.subscribe(this.flushShares);
     window.getLastWindow(context).then((mainWindow) => {
@@ -360,6 +363,7 @@ struct Index {
 
   aboutToDisappear(): void {
     this.disposed = true;
+    this.scanSourceDialog?.close();
     this.closeDevicePort();
     ShareInbox.unsubscribe(this.flushShares);
     this.bridge?.dispose();
@@ -417,6 +421,47 @@ struct Index {
     this.webMicrophone.authorize(request, () => this.devicePort === port).catch((error: BusinessError) => {
       hilog.warn(0x0000, 'PocketChat', 'Cannot authorize web microphone: %{public}d', error.code);
       request.deny();
+    });
+  }
+
+  private presentScanSource(labels: ScanSourceLabels): Promise<string | null> {
+    return new Promise<string | null>((resolve) => {
+      let selected = '';
+      let appeared = false;
+      let finished = false;
+      let timer: number = -1;
+      const finish = (result: string | null): void => {
+        if (!finished) {
+          finished = true;
+          clearTimeout(timer);
+          this.scanSourceDialog = undefined;
+          resolve(result);
+        }
+      };
+      try {
+        this.scanSourceDialog = new CustomDialogController({
+          builder: ScanSourceDialog({
+            labels: labels,
+            onSelect: (source: string) => { selected = source; }
+          }),
+          alignment: DialogAlignment.Center,
+          autoCancel: true,
+          // The standard backplate gets the default ULTRA_THICK material from module metadata.
+          customStyle: false,
+          onWillAppear: () => {
+            appeared = true;
+            clearTimeout(timer);
+          },
+          onDidDisappear: () => finish(appeared ? selected : null)
+        });
+        timer = setTimeout(() => {
+          this.scanSourceDialog?.close();
+          finish(null);
+        }, 2000);
+        this.getUIContext().runScopedTask(() => this.scanSourceDialog?.open());
+      } catch {
+        finish(null);
+      }
     });
   }
 

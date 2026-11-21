@@ -536,6 +536,21 @@ try {
   await albumOption.waitFor()
   assert.equal(await albumOption.locator('svg').count(), 1)
   await devicePage.keyboard.press('Escape')
+  await albumOption.waitFor({ state: 'hidden' })
+  await devicePage.evaluate(() => {
+    window.scanSourceReply = { status: 0, value: 'album' }
+    window.scanReply = { status: 0, value: '来自原生图库' }
+  })
+  await scanSource.click()
+  await devicePage.waitForFunction(() =>
+    document.querySelector('textarea').value.includes('来自原生图库')
+  )
+  assert.deepEqual(
+    (await log(devicePage))
+      .filter((entry) => entry.operation === 'scan')
+      .map((entry) => entry.value),
+    ['camera', 'album']
+  )
 
   const openPrivacy = async () => {
     await devicePage.evaluate(() => window.mockWindowAction('sidebar'))

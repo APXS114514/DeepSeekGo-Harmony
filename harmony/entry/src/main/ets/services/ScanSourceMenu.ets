@@ -1,7 +1,3 @@
-import { ComponentContent, promptAction, uiMaterial, UIContext } from '@kit.ArkUI';
-import { Available } from '@kit.BasicServicesKit';
-import { supportsImmersiveMaterial } from '../window/ImmersiveMaterial';
-
 export interface ScanSourceLabels {
   title: string;
   camera: string;
@@ -10,16 +6,6 @@ export interface ScanSourceLabels {
 }
 
 export type ScanSourcePicker = (labels: ScanSourceLabels) => Promise<string | null>;
-
-class ScanSourceDialogParams {
-  labels: ScanSourceLabels;
-  select: (source: string) => void;
-
-  constructor(labels: ScanSourceLabels, select: (source: string) => void) {
-    this.labels = labels;
-    this.select = select;
-  }
-}
 
 @Builder
 function scanSourceRow(icon: Resource, label: string, action: () => void) {
@@ -43,70 +29,34 @@ function scanSourceRow(icon: Resource, label: string, action: () => void) {
   .onClick(action)
 }
 
-@Builder
-function scanSourceDialog(params: ScanSourceDialogParams) {
-  Column({ space: 4 }) {
-    Text(params.labels.title)
-      .fontSize(20)
-      .fontWeight(FontWeight.Bold)
-      .fontColor($r('sys.color.ohos_id_color_text_primary'))
-      .textAlign(TextAlign.Center)
-      .padding({ left: 12, right: 12, top: 8, bottom: 12 })
-    scanSourceRow($r('sys.symbol.camera'), params.labels.camera, () => params.select('camera'))
-    scanSourceRow($r('sys.symbol.picture'), params.labels.album, () => params.select('album'))
-    Button(params.labels.cancel, { type: ButtonType.Normal, buttonStyle: ButtonStyleMode.TEXTUAL })
-      .width('100%')
-      .constraintSize({ minHeight: 48 })
-      .backgroundColor(Color.Transparent)
-      .onClick(() => params.select(''))
-  }
-  .width('100%')
-  .padding(12)
-}
+@CustomDialog
+export struct ScanSourceDialog {
+  controller?: CustomDialogController;
+  labels: ScanSourceLabels = { title: '', camera: '', album: '', cancel: '' };
+  onSelect: (source: string) => void = () => {};
 
-/** Only loaded after the bridge checks the API version. */
-@Available({ minApiVersion: '26.0.0' })
-function chooseScanSource(ui: UIContext, labels: ScanSourceLabels): Promise<string | null> {
-  const prompt = ui.getPromptAction();
-  return new Promise<string | null>((resolve) => {
-    let selected: string = '';
-    let closing = false;
-    let appeared = false;
-    let finished = false;
-    const select = (source: string): void => {
-      if (closing) {
-        return;
-      }
-      closing = true;
-      selected = source;
-      prompt.closeCustomDialog(content).catch(() => {
-        closing = false;
-        selected = '';
-      });
-    };
-    const content = new ComponentContent(ui, wrapBuilder(scanSourceDialog), new ScanSourceDialogParams(labels, select));
-    const finish = (result: string | null): void => {
-      if (!finished) {
-        finished = true;
-        content.dispose();
-        resolve(result);
-      }
-    };
-    const options: promptAction.BaseDialogOptions = {
-      alignment: DialogAlignment.Center,
-      autoCancel: true,
-      systemMaterial: new uiMaterial.ImmersiveMaterial({ style: uiMaterial.ImmersiveStyle.ULTRA_THICK }),
-      onWillAppear: () => { appeared = true; },
-      onDidDisappear: () => finish(selected)
-    };
-    prompt.openCustomDialog(content, options).catch(() => finish(appeared ? '' : null));
-  });
-}
-
-@Available({ minApiVersion: '26.0.0' })
-export function createScanSourcePicker(ui: UIContext): ScanSourcePicker | null {
-  if (!supportsImmersiveMaterial()) {
-    return null;
+  private select(source: string): void {
+    this.onSelect(source);
+    this.controller?.close();
   }
-  return (labels: ScanSourceLabels): Promise<string | null> => chooseScanSource(ui, labels);
+
+  build() {
+    Column({ space: 4 }) {
+      Text(this.labels.title)
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r('sys.color.ohos_id_color_text_primary'))
+        .textAlign(TextAlign.Center)
+        .padding({ left: 12, right: 12, top: 8, bottom: 12 })
+      scanSourceRow($r('sys.symbol.camera'), this.labels.camera, () => this.select('camera'))
+      scanSourceRow($r('sys.symbol.picture'), this.labels.album, () => this.select('album'))
+      Button(this.labels.cancel, { type: ButtonType.Normal, buttonStyle: ButtonStyleMode.TEXTUAL })
+        .width('100%')
+        .constraintSize({ minHeight: 48 })
+        .backgroundColor(Color.Transparent)
+        .onClick(() => this.select(''))
+    }
+    .width('100%')
+    .padding(12)
+  }
 }

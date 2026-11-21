@@ -1,5 +1,4 @@
 import { common } from '@kit.AbilityKit';
-import { UIContext } from '@kit.ArkUI';
 import { webview } from '@kit.ArkWeb';
 import { util } from '@kit.ArkTS';
 import { asset } from '@kit.AssetStoreKit';
@@ -53,14 +52,15 @@ export class DeviceBridge {
   private readonly speech: LocalSpeech;
   private readonly shareOut: ShareOut;
   private readonly background: BackgroundReply;
-  private readonly ui: UIContext;
+  private readonly presentScanSource: ScanSourcePicker;
   private readonly privacy: WindowPrivacy;
   private scanMenuOpen: boolean = false;
 
-  constructor(context: common.UIAbilityContext, ui: UIContext, privacy: WindowPrivacy, emit: (message: string) => void) {
+  constructor(context: common.UIAbilityContext, privacy: WindowPrivacy, presentScanSource: ScanSourcePicker,
+    emit: (message: string) => void) {
     this.privacy = privacy;
     this.context = context;
-    this.ui = ui;
+    this.presentScanSource = presentScanSource;
     this.voice = new VoiceInput(context, emit);
     this.scanner = new TextScanner(context);
     this.saver = new FileSaver(context);
@@ -93,7 +93,9 @@ export class DeviceBridge {
     // Older runtimes never load the API 26 material module.
     if (deviceInfo.sdkApiVersion >= 26) {
       if (deviceInfo.apiAvailable('26.0.0')) {
-        return import('./ScanSourceMenu').then((menu) => menu.createScanSourcePicker(this.ui)).catch(() => {
+        return import('../window/ImmersiveMaterial').then((material): ScanSourcePicker | null => {
+          return material.supportsImmersiveMaterial() ? this.presentScanSource : null;
+        }).catch(() => {
           hilog.warn(0x0000, 'PocketChat', 'Cannot load immersive scan menu');
           return null;
         });
