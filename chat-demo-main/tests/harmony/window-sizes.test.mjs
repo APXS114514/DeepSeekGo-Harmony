@@ -104,13 +104,21 @@ const sse = (answer, index) => {
 
 const browser = await chromium.launch(launchOptions)
 
-const open = async ({ width, height, scale, storage = {}, mobile = true }) => {
+const open = async ({
+  width,
+  height,
+  scale,
+  storage = {},
+  mobile = true,
+  colorScheme = 'light',
+}) => {
   const context = await browser.newContext({
     locale: 'zh-CN',
     viewport: { width, height },
     deviceScaleFactor: scale,
     isMobile: mobile,
     hasTouch: mobile,
+    colorScheme,
   })
   await context.addInitScript((storage) => {
     if (!sessionStorage.getItem('seeded')) {
@@ -249,6 +257,7 @@ try {
       scale: 1,
       storage: { ...quietMemory, 'chat-demo:sider-collapsed': 'true' },
       mobile: true,
+      colorScheme: width < 768 ? 'dark' : 'light',
     })
     const welcome = page.getByText('今天想聊什么？', { exact: true })
     await page.evaluate(() =>
@@ -338,9 +347,65 @@ try {
       await dialog.getByRole('button', { name: '返回通用设置' }).click()
       assert.equal(await panel.evaluate((node) => node.getAnimations({ subtree: true }).length), 0)
     }
-    for (const name of ['个性化', '数据管理']) {
-      await dialog.getByRole('tab', { name, exact: true }).click()
+    const tablist = dialog.getByRole('tablist')
+    // 在选中状态提交时记录底色，避免点击后的等待掩盖残留。
+    await tablist.evaluate((list) => {
+      const tabs = [...list.querySelectorAll('[role=tab]')]
+      const selected = tabs.find((tab) => tab.ariaSelected === 'true')
+      const selectedColor = getComputedStyle(selected).backgroundColor
+      window.settingsTabChanges = []
+      new MutationObserver(() => {
+        const active = tabs.filter((tab) => tab.ariaSelected === 'true')
+        const [current] = active
+        const panel = document.getElementById(current?.getAttribute('aria-controls'))
+        window.settingsTabChanges.push({
+          names: active.map((tab) => tab.textContent.trim()),
+          panelMatches: panel && panel.getAttribute('aria-labelledby') === current.id,
+          panelText: panel?.textContent,
+          tabStopsMatch: tabs.every((tab) => tab.tabIndex === (tab === current ? 0 : -1)),
+          selectedColor,
+          currentColor: current && getComputedStyle(current).backgroundColor,
+          inactiveColors: tabs
+            .filter((tab) => tab !== current)
+            .map((tab) => getComputedStyle(tab).backgroundColor),
+        })
+      }).observe(list, { subtree: true, attributes: true, attributeFilter: ['aria-selected'] })
+    })
+    const tabVisits = [
+      ['个性化', '自定义指令'],
+      ['数据管理', 'API Key'],
+      ['隐私', '防截屏'],
+      ['通用设置', '位置信息'],
+    ]
+    // 从二级页进入其它页签，再连续点按四个页签。
+    await dialog.getByRole('button', { name: '外观', exact: true }).tap()
+    for (const [name] of tabVisits) {
+      await tablist.getByRole('tab', { name, exact: true }).tap()
       await assertPanel(name)
+    }
+    // 触摸停在「通用设置」时用方向键切换，旧页签也应立即清除底色。
+    const generalTab = tablist.getByRole('tab', { name: '通用设置' })
+    await generalTab.press(width < 768 ? 'ArrowRight' : 'ArrowDown')
+    assert(
+      await tablist
+        .getByRole('tab', { name: '个性化' })
+        .evaluate((tab) => tab === document.activeElement)
+    )
+    const changes = await page.evaluate(() => window.settingsTabChanges)
+    const expected = [...tabVisits, tabVisits[0]]
+    assert.equal(changes.length, expected.length)
+    for (const [index, [name, content]] of expected.entries()) {
+      const change = changes[index]
+      assert.deepEqual(change.names, [name])
+      assert(change.panelMatches && change.panelText.includes(content), `${name}应立即显示对应面板`)
+      assert(change.tabStopsMatch, `${name}应成为唯一的 Tab 键停靠点`)
+      assert.notEqual(change.selectedColor, 'rgba(0, 0, 0, 0)')
+      assert.deepEqual(
+        change.inactiveColors,
+        Array(3).fill('rgba(0, 0, 0, 0)'),
+        `${name}切换后旧页签底色应立即清除`
+      )
+      assert.equal(change.currentColor, change.selectedColor, `${name}应立即显示选中底色`)
     }
     await context.close()
   }

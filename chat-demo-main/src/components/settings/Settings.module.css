@@ -48,15 +48,19 @@
   cursor: pointer;
   user-select: none;
   outline: none;
-  transition: background-color var(--ds-transition-duration) var(--ds-ease-in-out);
 
   svg {
     flex-shrink: 0;
   }
 
-  &:hover,
+  @media (hover: hover) {
+    &:hover {
+      background-color: var(--dsw-alias-interactive-bg-hover);
+    }
+  }
+
   &.navItemActive {
-    background-color: var(--dsw-alias-interactive-bg-hover);
+    background-color: var(--dsw-alias-interactive-bg-active);
   }
 
   &:focus-visible {
