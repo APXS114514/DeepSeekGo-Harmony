@@ -3,7 +3,8 @@
 ## 工作区
 
 - 当前源码为 1.6.0，版本代码为 `1000023`。接手时用 `git status --short` 和 `git log -1 --oneline` 查看源码状态。
-- 1.6.0 识字弹窗修订测试包为 `HAPS/Deepseek-GO-1.6.0-unsigned.hap`，SHA-256 为 `04acd485966b29f107ea36b9bb5503c2c9c71ad98f618fb8f206772b9ef7a92b`。原测试包归档为 `HAPS/Deepseek-GO-1.6.0-04a6164-unsigned.hap`，SHA-256 为 `ea38ccfc4dc7c6ac2bf278555db8c0f08deddc7d7b2fde22fa058e14a0c80ab3`。
+- 1.6.0 未签名 Release 包为 `HAPS/Deepseek-GO-1.6.0-unsigned.hap`，对应标签 `v1.6.0`。构建自 `5e3e32f`，标签提交另含本次发布记录。SHA-256 为 `9981364c6a49e644196bb03979e13bdf2d1d7513823bdb7b36338f609ba8413a`。
+- 1.6.0 识字弹窗修订测试包归档为 `HAPS/Deepseek-GO-1.6.0-88b1f52-unsigned.hap`，SHA-256 为 `04acd485966b29f107ea36b9bb5503c2c9c71ad98f618fb8f206772b9ef7a92b`。原测试包归档为 `HAPS/Deepseek-GO-1.6.0-04a6164-unsigned.hap`，SHA-256 为 `ea38ccfc4dc7c6ac2bf278555db8c0f08deddc7d7b2fde22fa058e14a0c80ab3`。
 - 1.5.4 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.4-unsigned.hap`，对应标签 `v1.5.4`。SHA-256 为 `495c1e434b21783d739e7a113e726eabeab184cf6b20aca81ac6986c0b54439b`。
 - 1.5.3 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.3-unsigned.hap`，对应标签 `v1.5.3`（指向 `1990016`，与构建源码只差交接文档）。SHA-256 为 `057defced981edb56680589ba5465db163da2021e5c295b4f36bb77efbe01631`。维护者签名安装后已在 HOP-AL10 真机复测通过。GitHub Releases 的 `v1.5.3` 附件与本地包逐字节一致。
 - 1.5.2 未签名 Release 包为 `HAPS/Deepseek-GO-1.5.2-unsigned.hap`，对应标签 `v1.5.2`。SHA-256 为 `235375f025fab29424731279fdd1a53ef8428f356fb9d7e32f5c9262b092dcd6`。
@@ -48,6 +49,7 @@
 - **HOP-AL10 设置复测**。原 1.6.0 包上对四个页签、三个二级页及连续点按做了 49 次导航操作，首份控件树均为预期页面。第一组快速截图 16 次中 7 次仍可见旧页签高亮，第二组 12 次截图的页面内容和高亮均已切换。受工具耗时影响，当时无法区分触摸转发与动画。防截屏开启时系统截图遮蔽窗口，复测后恢复原设置。识字弹窗可取消、重新打开并用系统返回关闭，图库和相机均可打开系统选择器。
 - **设置页签高亮修复**。在 Chrome 加载原 1.6.0 包的鸿蒙网页资源，复现了 `aria-selected` 与内容面板已经切换、旧页签底色仍在 200 ms 过渡中淡出的情况，切换约 70 ms 后仍能采到旧底色。移除页签底色过渡，选中态使用现有的按下态配色变量，悬停样式限于主指针支持悬停的设备。通用设置二级页继续按「减少动态效果」偏好播放进出动效。`window-sizes` 回归在 360px、768px 和 942px 模拟窗口覆盖深浅主题、从二级页切出、连续点按四个页签、方向键焦点及减少动态效果，并在选中状态提交时检查面板、选中底色和旧底色清除。HOP-AL10 的 ArkWeb 真机复测待签名安装修订版后进行。
 - **设置修复验证**。新增首帧断言在修复前捕捉到旧页签底色残留，修复后通过。`pnpm type`、`pnpm lint` 和 `pnpm build:harmony` 通过。`pnpm test:harmony` 首轮通过 9/10 项，`adaptation` 的草稿选区断言失败，单独复跑通过。
+- **Release 包验证**。从干净的源码副本通过类型检查、Lint、鸿蒙网页构建和 HarmonyOS 26.0.0 SDK Release 构建，`device-features` 和 `window-sizes` 复跑通过。验签工具确认包内无签名块，核对 1.6.0 / `1000023`、最低 API 12、目标 API 26、权限、分享技能和光感配置。155 个网页资源与构建输出逐字节一致，含设置页签修复、欢迎页 Logo、上游许可证和图像授权声明。启动器两图层为 1024 × 1024，与源码一致。
 - **拖拽**。ArkWeb 里的文字和链接填入草稿，图片与文件沿用附件入口。回答工具栏的复制按钮可拖出纯文字，普通点击仍复制原文。原生拖拽读不到文件时的处理需以目标设备上的 ArkWeb 实测为依据。
 - **截屏保护**。设置页经受限消息通道调用 `Window.setWindowPrivacyMode`，以原生确认状态更新开关。原生 Preferences 保存设置，创建窗口后在加载网页前恢复。失败会提示重试。
 - **折叠屏悬停**。`FoldSplitContainer` 读取全屏悬停下上下区域的位置，原生发送折痕范围给同一个 ArkWeb。网页让消息和输入分居折痕两侧。键盘或缩放使下方空间不足时恢复普通布局，会话和草稿继续复用。
