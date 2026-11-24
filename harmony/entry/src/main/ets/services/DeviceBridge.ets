@@ -7,6 +7,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BackgroundReply, ReplyDone } from './BackgroundReply';
 import { DeviceStatus } from './DeviceStatus';
 import { FileSaver } from './FileSaver';
+import { Haptics } from './Haptics';
 import { LocalSpeech } from './LocalSpeech';
 import { LocationService } from './LocationService';
 import { ShareOut } from './ShareOut';
@@ -37,6 +38,7 @@ interface DeviceFeatures {
   immersiveScanMenu: boolean;
   save: boolean;
   location: boolean;
+  haptics: boolean;
   windowPrivacy: boolean | null;
   deviceType: string;
 }
@@ -58,6 +60,7 @@ export class DeviceBridge {
   private readonly saver: FileSaver;
   private readonly speech: LocalSpeech;
   private readonly location: LocationService;
+  private readonly haptics: Haptics;
   private readonly shareOut: ShareOut;
   private readonly background: BackgroundReply;
   private readonly presentScanSource: ScanSourcePicker;
@@ -74,6 +77,7 @@ export class DeviceBridge {
     this.saver = new FileSaver(context);
     this.speech = new LocalSpeech(emit);
     this.location = new LocationService(context);
+    this.haptics = new Haptics();
     this.shareOut = new ShareOut(context);
     this.background = BackgroundReply.forAbility(context);
   }
@@ -92,6 +96,7 @@ export class DeviceBridge {
         immersiveScanMenu: pick !== null,
         save: true,
         location: LocationService.supported(),
+        haptics: Haptics.supported(),
         windowPrivacy: this.privacy.current,
         deviceType: deviceInfo.deviceType
       };
@@ -122,6 +127,7 @@ export class DeviceBridge {
 
   setForeground(active: boolean): void {
     this.location.setForeground(active);
+    this.haptics.setForeground(active);
   }
 
   setGenerating(generating: boolean): void {
@@ -196,6 +202,11 @@ export class DeviceBridge {
           return;
         case 'location':
           this.handleLocation(request, port);
+          return;
+        case 'haptic':
+          if (typeof request.value === 'string') {
+            this.haptics.trigger(request.value);
+          }
           return;
         default:
           return;

@@ -10,6 +10,7 @@ import {
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition, useDismiss } from './anchored.js'
 import { useBackLayer } from '../../services/backStack.js'
+import { triggerDeviceHaptic } from '../../services/harmony.js'
 import styles from './Menu.module.css'
 
 export type MenuOption = {
@@ -52,6 +53,7 @@ export const Menu = ({
 
   useLayoutEffect(() => {
     if (entry) {
+      triggerDeviceHaptic('menu')
       const items = floatingRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
       const index = entry === 'last' ? (items?.length ?? 0) - 1 : 0
       items?.[index]?.focus({ preventScroll: true })

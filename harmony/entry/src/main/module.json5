@@ -36,6 +36,7 @@
     "requestPermissions": [
       { "name": "ohos.permission.INTERNET" },
       { "name": "ohos.permission.PRIVACY_WINDOW" },
+      { "name": "ohos.permission.VIBRATE" },
       {
         "name": "ohos.permission.MICROPHONE",
         "reason": "$string:microphone_reason",

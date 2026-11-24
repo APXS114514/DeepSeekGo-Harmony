@@ -1,7 +1,10 @@
+import { triggerDeviceHaptic } from '../services/harmony.js'
+
 export const copyText = async (text: string): Promise<boolean> => {
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text)
+      triggerDeviceHaptic('copy')
       return true
     }
   } catch {
@@ -19,7 +22,11 @@ export const copyText = async (text: string): Promise<boolean> => {
     textarea.focus({ preventScroll: true })
     textarea.select()
     textarea.setSelectionRange(0, textarea.value.length)
-    return document.execCommand('copy')
+    const ok = document.execCommand('copy')
+    if (ok) {
+      triggerDeviceHaptic('copy')
+    }
+    return ok
   } catch {
     return false
   } finally {

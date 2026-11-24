@@ -48,6 +48,7 @@ export const useDeviceFeatures = create(() => ({
   immersiveScanMenu: false,
   save: false,
   location: false,
+  haptics: false,
   windowPrivacy: null as boolean | null,
   updatingWindowPrivacy: false,
   /** 2in1 设备，按钮提示里附带键盘快捷键 */
@@ -150,6 +151,7 @@ const onWindowMessage = (event: MessageEvent<string>) => {
         immersiveScanMenu: message.immersiveScanMenu === true,
         save: message.save === true,
         location: message.location === true,
+        haptics: message.haptics === true,
         windowPrivacy: typeof message.windowPrivacy === 'boolean' ? message.windowPrivacy : null,
         keyboard: message.deviceType === '2in1',
       })
@@ -272,6 +274,7 @@ type DeviceOperation =
   | 'scan'
   | 'scan-source'
   | 'location'
+  | 'haptic'
   | 'reply-done'
   | 'notify-permission'
   | 'window-privacy'
@@ -368,6 +371,26 @@ const postDevice = (operation: DeviceOperation, value: string) => {
   void waitForPort()
     .then((port) => port.postMessage(message))
     .catch(() => {})
+}
+
+export type HapticKind =
+  | 'voice-start'
+  | 'voice-cancel'
+  | 'reply-first-token'
+  | 'thinking-done'
+  | 'copy'
+  | 'menu'
+
+/** 触发系统预置触感反馈；仅在前台且设备支持时生效，由原生按系统触感设置控制。 */
+export const triggerDeviceHaptic = (kind: HapticKind) => {
+  if (
+    !__HARMONY_APP__ ||
+    !useDeviceFeatures.getState().haptics ||
+    document.visibilityState !== 'visible'
+  ) {
+    return
+  }
+  postDevice('haptic', kind)
 }
 
 /** 开始系统离线语音识别，返回 DeviceStatus；结果经 bindDeviceVoice 的监听器送达。 */

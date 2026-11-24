@@ -12,7 +12,7 @@ import {
   isUserInputTooLong,
 } from '../api/errors.js'
 import { cancelUpload, describeUploadError, uploadAttachment, useUploads } from '../attachments.js'
-import { useDeviceFeatures } from '../harmony.js'
+import { triggerDeviceHaptic, useDeviceFeatures } from '../harmony.js'
 import {
   getProactiveChartSystemPrompt,
   prepareTurnLocalContext,
@@ -1559,8 +1559,29 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
           controller.signal
         )
         const blockIndexes = new Map<number, number>()
+        let firstTextHapticSent = false
+        const activeThinkingBlocks = new Set<number>()
         for await (const event of events) {
           receivedContent ||= event.type === 'content_block_start'
+          if (event.type === 'content_block_delta') {
+            if (event.delta.type === 'thinking_delta' && event.delta.thinking) {
+              activeThinkingBlocks.add(event.index)
+            } else if (
+              !firstTextHapticSent &&
+              event.delta.type === 'text_delta' &&
+              event.delta.text &&
+              get().activeId === sessionId
+            ) {
+              firstTextHapticSent = true
+              triggerDeviceHaptic('reply-first-token')
+            }
+          } else if (
+            event.type === 'content_block_stop' &&
+            activeThinkingBlocks.delete(event.index) &&
+            get().activeId === sessionId
+          ) {
+            triggerDeviceHaptic('thinking-done')
+          }
           if (
             event.type === 'message_delta' &&
             (event.delta.stop_reason === 'end_turn' || event.delta.stop_reason === 'max_tokens') &&

@@ -4,6 +4,7 @@ import {
   chooseDeviceScanSource,
   DeviceStatus,
   scanDeviceText,
+  triggerDeviceHaptic,
   useDeviceFeatures,
   type ScanSource,
 } from '../../services/harmony.js'
@@ -67,6 +68,7 @@ export const ScanTextButton = ({
 
   const choose = async () => {
     setChoosing(true)
+    triggerDeviceHaptic('menu')
     const source = await chooseDeviceScanSource({ title, camera, album, cancel: t('cancel') })
     if (!active.current) {
       return

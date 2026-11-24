@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
+import { triggerDeviceHaptic } from '../../services/harmony.js'
 import type { VoiceInputStatus } from './useVoiceInput.js'
 import styles from './ChatInput.module.css'
 
 const SWIPE_CANCEL_DISTANCE = 56
-type PointerHold = { key: number; startY: number; scale: number }
+type PointerHold = { key: number; startY: number; scale: number; cancelling: boolean }
 
 const shouldCancelSwipe = (hold: PointerHold, clientY: number) =>
   (hold.startY - clientY) * hold.scale >= SWIPE_CANCEL_DISTANCE
@@ -76,15 +77,22 @@ export const HoldToSpeak = ({
             key: event.pointerId,
             startY: event.clientY,
             scale: window.visualViewport?.scale ?? 1,
+            cancelling: false,
           }
           setPointerPhase('holding')
+          triggerDeviceHaptic('voice-start')
           start()
         }
       }}
       onPointerMove={(event) => {
         const hold = held.current
         if (hold?.key === event.pointerId) {
-          setPointerPhase(shouldCancelSwipe(hold, event.clientY) ? 'cancelling' : 'holding')
+          const cancelling = shouldCancelSwipe(hold, event.clientY)
+          if (cancelling && !hold.cancelling) {
+            triggerDeviceHaptic('voice-cancel')
+          }
+          hold.cancelling = cancelling
+          setPointerPhase(cancelling ? 'cancelling' : 'holding')
         }
       }}
       onPointerUp={(event) => {
