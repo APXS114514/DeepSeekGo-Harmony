@@ -8,11 +8,18 @@ import { repoRoot } from './support.mjs'
 
 const entry = join(repoRoot, 'harmony/entry/src/main')
 const ability = await readFile(join(entry, 'ets/entryability/EntryAbility.ets'), 'utf8')
+const page = await readFile(join(entry, 'ets/pages/Index.ets'), 'utf8')
+const fold = await readFile(join(entry, 'ets/window/FoldHover.ets'), 'utf8')
+// FoldSplitContainer 强制将内屏切到不受系统锁定约束的 AUTO_ROTATION。
+assert.doesNotMatch(page + fold, /\bFoldSplitContainer\b/)
 const work = await mkdtemp(join(tmpdir(), 'deepseek-orientation-test-'))
 let outputText
+let foldOutput
 try {
   const input = join(work, 'entry-ability.cts')
+  const foldInput = join(work, 'fold-hover.cts')
   await writeFile(input, ability.replace(/^import .*;\r?\n/gm, ''))
+  await writeFile(foldInput, fold.replace(/^import .*;\r?\n/gm, ''))
   execFileSync(process.execPath, [
     join(repoRoot, 'chat-demo-main/node_modules/typescript/bin/tsc'),
     '--ignoreConfig',
@@ -22,8 +29,10 @@ try {
     '--module',
     'NodeNext',
     input,
+    foldInput,
   ])
   outputText = await readFile(join(work, 'entry-ability.cjs'), 'utf8')
+  foldOutput = await readFile(join(work, 'fold-hover.cjs'), 'utf8')
 } finally {
   await rm(work, { recursive: true, force: true })
 }
@@ -88,3 +97,64 @@ assert.deepEqual(unavailable.warnings, [1400003])
 const desktop = await startWindow('2in1', () => assert.fail('2in1 queried foldability'))
 assert.deepEqual(desktop.events, ['system-bars', 'pages/Index'])
 assert.deepEqual(desktop.warnings, [])
+
+const foldExports = {}
+const screen = { id: 0, width: 1600, height: 1000, rotation: 1 }
+const windowRect = { width: 1600, height: 1000 }
+const nativeDevice = { sdkApiVersion: 26 }
+const nativeDisplay = {
+  FoldStatus: { FOLD_STATUS_HALF_FOLDED: 'half' },
+  getFoldStatus: () => 'half',
+  getDisplayByIdSync: (id) => {
+    assert.equal(id, screen.id)
+    return screen
+  },
+  getCurrentFoldCreaseRegion: () => ({
+    displayId: screen.id,
+    creaseRects: [{ left: 450, top: 0, width: 40, height: 1600 }],
+  }),
+}
+runInNewContext(foldOutput, {
+  exports: foldExports,
+  display: nativeDisplay,
+  window: { WindowStatusType: { FULL_SCREEN: 'full' } },
+  deviceInfo: nativeDevice,
+  canIUse: () => true,
+})
+const hoverWindow = {
+  getWindowStatus: () => 'full',
+  getWindowProperties: () => ({ windowRect, displayId: 0 }),
+}
+const readFold = () => {
+  const bounds = foldExports.readFoldBounds(hoverWindow, { px2vp: (px) => px / 2 })
+  return bounds ? { upper: bounds.upper, lower: bounds.lower } : null
+}
+screen.getLiveCreaseRegion = () => ({
+  displayId: screen.id,
+  creaseRects: [{ left: 0, top: 460, width: 1600, height: 40 }],
+})
+assert.deepEqual(readFold(), { upper: 230, lower: 250 })
+hoverWindow.getWindowStatus = () => 'floating'
+assert.equal(readFold(), null)
+hoverWindow.getWindowStatus = () => 'full'
+nativeDisplay.getFoldStatus = () => 'expanded'
+assert.equal(readFold(), null)
+nativeDisplay.getFoldStatus = () => 'half'
+windowRect.height = 800
+assert.equal(readFold(), null)
+windowRect.height = 1000
+
+nativeDevice.sdkApiVersion = 12
+screen.getLiveCreaseRegion = () => assert.fail('API 12 queried live crease geometry')
+assert.deepEqual(readFold(), { upper: 225, lower: 245 })
+screen.rotation = 3
+assert.deepEqual(readFold(), { upper: 255, lower: 275 })
+screen.rotation = 0
+assert.equal(readFold(), null)
+
+nativeDevice.sdkApiVersion = 26
+screen.rotation = 1
+screen.getLiveCreaseRegion = () => {
+  throw new Error('Live crease unavailable')
+}
+assert.deepEqual(readFold(), { upper: 225, lower: 245 })

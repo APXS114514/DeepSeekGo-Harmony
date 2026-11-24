@@ -10,7 +10,7 @@ import { ShareInbox } from '../services/ShareInbox';
 import { ScanSourceDialog, ScanSourceLabels } from '../services/ScanSourceMenu';
 import { clampFontScale, FONT_SCALE_KEY } from '../window/FontScale';
 import { ChatHeader } from '../window/ChatHeader';
-import { FoldBounds, FoldHover } from '../window/FoldHover';
+import { FoldBounds, readFoldBounds } from '../window/FoldHover';
 import { WindowPrivacy } from '../window/WindowPrivacy';
 import { EMPTY_INSETS, readWindowInsets, systemBarProperties, WindowInsets } from '../window/WindowInsets';
 
@@ -80,7 +80,7 @@ struct Index {
     const dark = context.config.colorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
     this.windowUi.dark = dark;
     try {
-      this.observeFold = canIUse('SystemCapability.ArkUI.ArkUI.Full') && display.isFoldable();
+      this.observeFold = canIUse('SystemCapability.Window.SessionManager') && display.isFoldable();
     } catch {
       this.observeFold = false;
     }
@@ -89,6 +89,14 @@ struct Index {
       (labels) => this.presentScanSource(labels), (message) => this.sendWebMessage(message));
     this.webMicrophone = new WebMicrophonePermission(context, APP_ORIGIN, () => this.confirmWebMicrophone());
     ShareInbox.subscribe(this.flushShares);
+    if (this.observeFold) {
+      try {
+        display.on('foldStatusChange', this.updateFoldBounds);
+        display.on('change', this.updateFoldBounds);
+      } catch (error) {
+        hilog.warn(0x0000, 'PocketChat', 'Unable to observe fold geometry: %{public}d', (error as BusinessError).code);
+      }
+    }
     window.getLastWindow(context).then((mainWindow) => {
       if (this.disposed) {
         return;
@@ -124,18 +132,23 @@ struct Index {
     }
   }
 
-  private updateFoldBounds(bounds: FoldBounds | null): void {
+  private updateFoldBounds = (): void => {
+    if (this.disposed || !this.observeFold || !this.mainWindow) {
+      return;
+    }
+    const bounds = readFoldBounds(this.mainWindow, this.getUIContext());
     if (bounds?.upper !== this.foldBounds?.upper || bounds?.lower !== this.foldBounds?.lower) {
       this.foldBounds = bounds;
       this.sendWindowLayout();
     }
-  }
+  };
 
   private updateInsets = (): void => {
     const mainWindow = this.mainWindow;
     if (!mainWindow) {
       return;
     }
+    this.updateFoldBounds();
     const revision = ++this.insetsRevision;
     const ui = this.getUIContext();
     try {
@@ -188,6 +201,7 @@ struct Index {
   }
 
   onPageShow(): void {
+    this.updateFoldBounds();
     this.updateWebActivity(true);
   }
 
@@ -369,6 +383,15 @@ struct Index {
     this.bridge?.dispose();
     this.bridge = null;
     this.webMicrophone = null;
+    if (this.observeFold) {
+      try {
+        display.off('foldStatusChange', this.updateFoldBounds);
+        display.off('change', this.updateFoldBounds);
+      } catch (error) {
+        hilog.warn(0x0000, 'PocketChat', 'Unable to stop observing fold geometry: %{public}d', (error as BusinessError).code);
+      }
+    }
+    this.foldBounds = null;
     try {
       this.mainWindow?.off('avoidAreaChange', this.updateInsets);
       this.mainWindow?.off('windowSizeChange', this.updateInsets);
@@ -479,9 +502,6 @@ struct Index {
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
-      if (this.observeFold) {
-        FoldHover({ onChange: (bounds: FoldBounds | null) => this.updateFoldBounds(bounds) })
-      }
       Web({ src: APP_PAGE, controller: this.controller })
         .width('100%')
         .height('100%')

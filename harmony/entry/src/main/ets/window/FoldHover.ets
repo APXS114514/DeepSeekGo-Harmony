@@ -1,60 +1,67 @@
-import { FoldSplitContainer, HoverModeStatus, window } from '@kit.ArkUI';
+import { display, UIContext, window } from '@kit.ArkUI';
+import { deviceInfo } from '@kit.BasicServicesKit';
 
 export interface FoldBounds {
   upper: number;
   lower: number;
 }
 
-@Component
-export struct FoldHover {
-  onChange: (bounds: FoldBounds | null) => void = () => {};
-  private hovering: boolean = false;
-  private originY: number = 0;
-  private upperEnd: number = 0;
-  private lowerStart: number = 0;
-
-  private update(): void {
-    const upper = this.upperEnd - this.originY;
-    const lower = this.lowerStart - this.originY;
-    this.onChange(this.hovering && lower >= upper && upper > 0 ? { upper, lower } : null);
-  }
-
-  @Builder
-  region(upper: boolean) {
-    Column()
-      .width('100%')
-      .height('100%')
-      .onAreaChange((_previous: Area, area: Area) => {
-        const top = Number(area.globalPosition.y);
-        if (upper) {
-          this.upperEnd = top + Number(area.height);
-        } else {
-          this.lowerStart = top;
-        }
-        this.update();
-      })
-  }
-
-  build() {
-    // Read the actual hinge from the system layout while keeping a single full-window ArkWeb.
-    Stack() {
-      FoldSplitContainer({
-        primary: () => { this.region(true); },
-        secondary: () => { this.region(false); },
-        animationOptions: null,
-        onHoverStatusChange: (status: HoverModeStatus) => {
-          this.hovering = status.isHoverMode && status.windowStatusType === window.WindowStatusType.FULL_SCREEN;
-          this.update();
-        }
-      })
+/** 读取横向折痕的窗口坐标，不改变窗口的旋转策略。 */
+export function readFoldBounds(mainWindow: window.Window, ui: UIContext): FoldBounds | null {
+  try {
+    if (display.getFoldStatus() !== display.FoldStatus.FOLD_STATUS_HALF_FOLDED ||
+      mainWindow.getWindowStatus() !== window.WindowStatusType.FULL_SCREEN) {
+      return null;
     }
-    .width('100%')
-    .height('100%')
-    .onAreaChange((_previous: Area, area: Area) => {
-      this.originY = Number(area.globalPosition.y);
-      this.update();
-    })
-    .hitTestBehavior(HitTestMode.None)
-    .accessibilityLevel('no-hide-descendants')
+    const properties = mainWindow.getWindowProperties();
+    const frame = properties.windowRect;
+    const screen = properties.displayId === undefined
+      ? display.getDefaultDisplaySync()
+      : display.getDisplayByIdSync(properties.displayId);
+    if (frame.width !== screen.width || frame.height !== screen.height) {
+      return null;
+    }
+    const crease = horizontalCrease(screen);
+    if (!crease || crease.top <= 0 || crease.top + crease.height >= frame.height) {
+      return null;
+    }
+    return { upper: ui.px2vp(crease.top), lower: ui.px2vp(crease.top + crease.height) };
+  } catch {
+    // 折叠切屏期间屏幕和折痕可能尚未就绪，下一次窗口或显示变化时再读取。
+    return null;
+  }
+}
+
+function horizontalCrease(screen: display.Display): display.Rect | undefined {
+  if (deviceInfo.sdkApiVersion >= 20 && canIUse('SystemCapability.Window.SessionManager')) {
+    try {
+      return screen.getLiveCreaseRegion()?.creaseRects.find(isHorizontal);
+    } catch {
+      // 设备缺少实时折痕接口时读取自然方向下的折痕。
+    }
+  }
+  const region = display.getCurrentFoldCreaseRegion();
+  if (region?.displayId !== screen.id) {
+    return undefined;
+  }
+  return region.creaseRects.map((rect) => rotateCrease(rect, screen)).find(isHorizontal);
+}
+
+function isHorizontal(rect: display.Rect): boolean {
+  return rect.width > rect.height && rect.height > 0;
+}
+
+/** 旧版接口返回自然方向的坐标，换算到当前显示方向。 */
+function rotateCrease(rect: display.Rect, screen: display.Display): display.Rect {
+  switch (screen.rotation) {
+    case 1:
+      return { left: screen.width - rect.top - rect.height, top: rect.left, width: rect.height, height: rect.width };
+    case 2:
+      return { left: screen.width - rect.left - rect.width, top: screen.height - rect.top - rect.height,
+        width: rect.width, height: rect.height };
+    case 3:
+      return { left: rect.top, top: screen.height - rect.left - rect.width, width: rect.height, height: rect.width };
+    default:
+      return rect;
   }
 }

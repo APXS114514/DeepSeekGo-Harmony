@@ -43,8 +43,9 @@
 
 ## 1.6.0 鸿蒙交互
 
-- **折叠屏旋转锁定**。用户在 Pura X Max 内屏开启系统旋转锁定后仍观察到应用随设备转动。HDC 核对 HOP-AL10（HarmonyOS 7.0.0.111）安装的 1.6.0 / `1000023`，其启动方向为默认值。原 `EntryAbility` 对折叠屏也调用 `AUTO_ROTATION_RESTRICTED`。按华为适配指南在 `module.json5` 声明 `follow_desktop`，折叠屏始终采用该策略，直板手机和平板沿用受系统锁定约束的自动旋转。无法读取折叠能力时沿用模块配置。 [华为 Pura X Max 适配指南](https://developer.huawei.com/consumer/cn/doc/best-practices/bpta-purax-guide/)
-- `window-orientation` 回归在旧代码上复现窗口方向被覆盖，修订后验证折叠屏、直板手机、平板、2in1 和折叠能力查询失败。前端类型、Lint、鸿蒙网页构建、ArkTS CodeLinter 和 HarmonyOS 26.0.0 SDK Debug 编译通过。包内确认 `follow_desktop`、版本 `1.6.0` / `1000023` 和最低 API 12。全量回归首轮 10/11，`device-features` 的悬停布局断言单独复跑通过。修订版仍需签名后在 Pura X Max 内屏实测开启及关闭系统旋转锁定，并复测折叠切屏后会话和草稿。
+- **折叠屏旋转锁定**。Pura X Max（HOP-AL10，HarmonyOS 7.0.0.111）安装声明 `follow_desktop` 的第一份修订后，用户在内屏控制中心点亮旋转锁定，回到全屏对话后转动设备。显示服务记录了三次旋转，前台应用窗口的旋转策略为 `5`（`AUTO_ROTATION`）。`FoldSplitContainer` 在挂载和折叠状态变化时调用 `setPreferredOrientation`，展开时覆盖为不受系统锁定控制的 `AUTO_ROTATION`。 [ArkUI 组件源码](https://github.com/openharmony/arkui_ace_engine/blob/master/advanced_ui_component/foldsplitcontainer/interfaces/foldsplitcontainer.js) · [华为 Pura X Max 适配指南](https://developer.huawei.com/consumer/cn/doc/best-practices/bpta-purax-guide/)
+- **悬停折痕读取**。移除用于测量折痕的 `FoldSplitContainer`，保持 `module.json5` 的 `follow_desktop`。在半折叠且窗口全屏时从显示服务读取横向折痕，从窗口尺寸和屏幕状态事件刷新折痕，并继续把折痕上下边界传给同一个 ArkWeb。API 20 及以上优先用实时折痕接口，旧版使用折痕坐标和屏幕旋转角度换算。窗口和折痕数据暂未就绪时恢复普通布局。 [鸿蒙显示接口](https://developer.huawei.com/consumer/cn/doc/HarmonyOS-references/js-apis-display/)
+- **旋转修订验证**。11 项鸿蒙回归、前端类型检查、Lint 和 HarmonyOS 26.0.0 SDK Debug 编译通过。回归覆盖旋转策略、实时和旧版折痕坐标、非全屏回退、悬停切换与草稿保留。包内确认最低 API 12、`follow_desktop`，运行代码已移除 `FoldSplitContainer`。CodeLinter 通过 `FoldHover.ets`，`Index.ets` 的动态导入诊断在修改前也出现。HOP-AL10 待覆盖安装后复测锁定开关和悬停。
 - **原生光感**。API 26.0.0 并支持系统材质时，窄屏顶栏在透明的 `Navigation.title` 中为两侧操作按钮应用 `THIN` 材质。识字弹窗使用 `CustomDialogController` 的系统背板和默认 `ULTRA_THICK` 材质，通过 `SymbolGlyph` 绘制相机和图库图标。关闭光感或设备不支持时走普通顶栏及网页菜单，原生弹窗显示失败时也可从网页选择来源。
 - **识字弹窗背板修复**。在 HOP-AL10（HarmonyOS 7.0.0.111）已安装的 1.6.0 / `1000023` 上打开「识别图片文字」，深色主题下截图可见相机和图库图标，但弹窗背景透明，文字叠在欢迎页上。原用的 `openCustomDialog(ComponentContent)` 自定义背板不支持系统沉浸材质。改为 `CustomDialogController` 的系统背板，弹窗未显示时回退网页菜单。 [华为光感常见问题](https://developer.huawei.com/consumer/cn/doc/HarmonyOS-Guides/arkts-immersive-light-sense-faq/)
 - **修订包验证**。HarmonyOS 26.0.0 SDK Debug、Release 和 CodeLinter 通过，验签工具确认修订包无签名块。版本代码、权限和 155 个网页资源与原包一致。浏览器覆盖拍照、取消、显示失败后的菜单回退与再次打开选择图库。全套首轮 9 项通过，`adaptation` 的草稿选区断言单独复跑通过。
@@ -54,7 +55,7 @@
 - **Release 包验证**。从干净的源码副本通过类型检查、Lint、鸿蒙网页构建和 HarmonyOS 26.0.0 SDK Release 构建，`device-features` 和 `window-sizes` 复跑通过。验签工具确认包内无签名块，核对 1.6.0 / `1000023`、最低 API 12、目标 API 26、权限、分享技能和光感配置。155 个网页资源与构建输出逐字节一致，含设置页签修复、欢迎页 Logo、上游许可证和图像授权声明。启动器两图层为 1024 × 1024，与源码一致。
 - **拖拽**。ArkWeb 里的文字和链接填入草稿，图片与文件沿用附件入口。回答工具栏的复制按钮可拖出纯文字，普通点击仍复制原文。原生拖拽读不到文件时的处理需以目标设备上的 ArkWeb 实测为依据。
 - **截屏保护**。设置页经受限消息通道调用 `Window.setWindowPrivacyMode`，以原生确认状态更新开关。原生 Preferences 保存设置，创建窗口后在加载网页前恢复。失败会提示重试。
-- **折叠屏悬停**。`FoldSplitContainer` 读取全屏悬停下上下区域的位置，原生发送折痕范围给同一个 ArkWeb。网页让消息和输入分居折痕两侧。键盘或缩放使下方空间不足时恢复普通布局，会话和草稿继续复用。
+- **折叠屏悬停**。网页让消息和输入分居折痕两侧。键盘或缩放使下方空间不足时恢复普通布局，会话和草稿继续复用。
 - 类型、Lint、鸿蒙网页构建、10 项浏览器回归和 HarmonyOS 26.0.0 SDK Debug 编译通过。浏览器覆盖原生识字消息的成功、取消与回退，防截屏的失败重试和重载状态，文本及文件拖入、纯文本拖出，以及悬停切换时的布局和草稿保留。CodeLinter 无错误，有两条建议用 Builder 的组件警告。Debug 包内核对 1.6.0 / `1000023`、最低 API 12、目标 API 26、隐私权限、光感配置及 155 个网页资源。
 - 真机待验证：原生菜单显示、返回、光感分层、截屏/录屏/投屏、平板分屏与 2in1 的跨应用拖拽，以及折叠屏全屏悬停和键盘。也需在 API 12 设备上复测普通顶栏和网页识字菜单。
 
