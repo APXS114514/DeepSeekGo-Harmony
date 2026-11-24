@@ -20,7 +20,13 @@ const periodKey = {
   unknown: 'apiBillingUnknown',
 } as const satisfies Record<BillingPeriod, string>
 
-export const ApiBalance = ({ apiKey }: { apiKey: string | null }) => {
+export const ApiBalance = ({
+  apiKey,
+  active = true,
+}: {
+  apiKey: string | null
+  active?: boolean
+}) => {
   const t = useTranslate()
   const locale = useSettings((state) => state.locale)
   const [balance, setBalance] = useState<BalanceState | null>(null)
@@ -41,6 +47,15 @@ export const ApiBalance = ({ apiKey }: { apiKey: string | null }) => {
   })
 
   useEffect(() => {
+    if (active) {
+      setNow(Date.now())
+    }
+  }, [active])
+
+  useEffect(() => {
+    if (!active) {
+      return
+    }
     const update = () => setNow(Date.now())
     const boundary = next?.at ?? now + 60_000
     const timer = window.setTimeout(
@@ -52,15 +67,18 @@ export const ApiBalance = ({ apiKey }: { apiKey: string | null }) => {
       window.clearTimeout(timer)
       document.removeEventListener('visibilitychange', update)
     }
-  }, [next?.at, now])
+  }, [active, next?.at, now])
 
   useEffect(() => {
     if (!apiKey) {
       setBalance(null)
       return
     }
+    if (!active) {
+      return
+    }
     const controller = new AbortController()
-    let active = true
+    let current = true
     setBalance((previous) => ({
       key: apiKey,
       value: previous?.key === apiKey ? previous.value : null,
@@ -70,12 +88,12 @@ export const ApiBalance = ({ apiKey }: { apiKey: string | null }) => {
     const timer = window.setTimeout(() => controller.abort(), 10_000)
     void getUserBalance(apiKey, controller.signal)
       .then((value) => {
-        if (active) {
+        if (current) {
           setBalance({ key: apiKey, value, updatedAt: Date.now(), phase: 'done' })
         }
       })
       .catch(() => {
-        if (active) {
+        if (current) {
           setBalance((previous) =>
             previous?.key === apiKey ? { ...previous, phase: 'error' } : previous
           )
@@ -83,11 +101,11 @@ export const ApiBalance = ({ apiKey }: { apiKey: string | null }) => {
       })
       .finally(() => window.clearTimeout(timer))
     return () => {
-      active = false
+      current = false
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [apiKey, refresh])
+  }, [active, apiKey, refresh])
 
   return (
     <section className={styles.apiBalance} aria-label={t('apiBalanceTitle')}>

@@ -1,5 +1,14 @@
 import clsx from 'clsx'
-import { useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react'
 import {
   IconChevronRightOutline14,
   IconDarkOutline16,
@@ -113,11 +122,20 @@ const generalPages = [
 
 type GeneralPage = (typeof generalPages)[number]
 
+const scheduleIdle = (callback: () => void) => {
+  if (typeof window.requestIdleCallback === 'function') {
+    const id = window.requestIdleCallback(callback, { timeout: 300 })
+    return () => window.cancelIdleCallback(id)
+  }
+  const id = window.setTimeout(callback, 32)
+  return () => window.clearTimeout(id)
+}
+
 const SettingsContent = ({
   overlayRef,
   closing,
 }: {
-  overlayRef: Ref<HTMLDivElement>
+  overlayRef: RefObject<HTMLDivElement>
   closing: boolean
 }) => {
   const t = useTranslate()
@@ -126,42 +144,183 @@ const SettingsContent = ({
   const tabsId = useId()
   const requestedSection = useSettingsDialog((state) => state.section)
   const [section, setSection] = useState(requestedSection)
+  const sectionRef = useRef(section)
+  sectionRef.current = section
+  const [mountedSections, setMountedSections] = useState<SettingsSection[]>(() => [
+    requestedSection,
+  ])
+  const [preparedSections, setPreparedSections] = useState<SettingsSection[]>(() => [
+    requestedSection,
+  ])
+  const [enteringSection, setEnteringSection] = useState<SettingsSection | null>(null)
+  const [openSettled, setOpenSettled] = useState(false)
   const [generalView, setGeneralView] = useState<GeneralPage | 'returning' | null>(null)
   const generalPage = generalView === 'returning' ? null : generalView
-  const contentRef = useRef<HTMLDivElement>(null)
+  const panelRefs = useRef<Partial<Record<SettingsSection, HTMLDivElement | null>>>({})
   const backButton = useRef<HTMLButtonElement>(null)
   const previousPage = useRef<{ value: GeneralPage['value']; scrollTop: number } | null>(null)
+  const switchFrameRef = useRef<number | null>(null)
 
-  const selectSection = (value: SettingsSection) => {
+  const selectSection = useCallback((value: SettingsSection, options?: { animate?: boolean }) => {
+    const previous = sectionRef.current
     previousPage.current = null
     setGeneralView(null)
-    setSection(value)
-  }
+    setMountedSections((current) => (current.includes(value) ? current : [...current, value]))
+    setPreparedSections((current) => (current.includes(value) ? current : [...current, value]))
+    if (previous !== value) {
+      sectionRef.current = value
+      setSection(value)
+      if (options?.animate) {
+        setEnteringSection(value)
+        const start = performance.now()
+        if (switchFrameRef.current !== null) {
+          cancelAnimationFrame(switchFrameRef.current)
+        }
+        switchFrameRef.current = requestAnimationFrame(() => {
+          switchFrameRef.current = null
+          try {
+            performance.measure('settings-tab-switch', {
+              start,
+              detail: { from: previous, to: value },
+            })
+          } catch {
+            // 忽略不支持 measure detail 的运行环境
+          }
+        })
+      } else {
+        setEnteringSection(null)
+      }
+    }
+  }, [])
+
+  useEffect(
+    () => () => {
+      if (switchFrameRef.current !== null) {
+        cancelAnimationFrame(switchFrameRef.current)
+      }
+    },
+    []
+  )
 
   useLayoutEffect(() => {
     if (!closing) {
       selectSection(requestedSection)
     }
-  }, [closing, requestedSection])
+  }, [closing, requestedSection, selectSection])
+
+  // 等弹窗打开动画结束后再开启分批空闲预渲染，避免拖慢首帧入场。
+  useEffect(() => {
+    if (closing) {
+      return
+    }
+    let active = true
+    const overlay = overlayRef.current
+    const dialog = overlay?.firstElementChild
+    const enterAnimations = [
+      ...(overlay?.getAnimations?.() ?? []),
+      ...(dialog?.getAnimations?.() ?? []),
+    ].filter((animation) => animation.playState === 'running')
+
+    if (enterAnimations.length === 0) {
+      const frame = requestAnimationFrame(() => {
+        if (active) {
+          setOpenSettled(true)
+        }
+      })
+      return () => {
+        active = false
+        cancelAnimationFrame(frame)
+      }
+    }
+
+    const fallback = window.setTimeout(() => {
+      if (active) {
+        setOpenSettled(true)
+      }
+    }, 320)
+    void Promise.allSettled(enterAnimations.map((animation) => animation.finished)).then(() => {
+      window.clearTimeout(fallback)
+      if (active) {
+        setOpenSettled(true)
+      }
+    })
+    return () => {
+      active = false
+      window.clearTimeout(fallback)
+    }
+  }, [closing, overlayRef])
+
+  // 空闲时每次只预渲染一个未挂载页签；等其排版一帧后再继续下一个。
+  useEffect(() => {
+    if (!openSettled || closing) {
+      return
+    }
+    if (mountedSections.some((value) => !preparedSections.includes(value))) {
+      return
+    }
+    const next = sections.find((item) => !mountedSections.includes(item.value))
+    if (!next) {
+      return
+    }
+    return scheduleIdle(() => {
+      setMountedSections((current) =>
+        current.includes(next.value) ? current : [...current, next.value]
+      )
+    })
+  }, [closing, mountedSections, openSettled, preparedSections])
+
+  // 新挂载的后台页签先以 visibility: hidden 排版一帧，再切到 content-visibility: hidden 缓存排版。
+  useEffect(() => {
+    const pending = mountedSections.filter((value) => !preparedSections.includes(value))
+    if (pending.length === 0) {
+      return
+    }
+    const frame = requestAnimationFrame(() => {
+      setPreparedSections((current) => {
+        const added = pending.filter((value) => !current.includes(value))
+        return added.length > 0 ? [...current, ...added] : current
+      })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [mountedSections, preparedSections])
 
   useLayoutEffect(() => {
-    if (generalPage) {
+    for (const item of sections) {
+      const panel = panelRefs.current[item.value]
+      if (panel) {
+        panel.inert = item.value !== section
+      }
+    }
+  }, [mountedSections, section])
+
+  useLayoutEffect(() => {
+    const activePanel = panelRefs.current[section]
+    if (section === 'general' && generalPage) {
       backButton.current?.focus({ preventScroll: true })
-    } else if (section === 'general' && previousPage.current && contentRef.current) {
+    } else if (section === 'general' && previousPage.current && activePanel) {
       const { value, scrollTop } = previousPage.current
-      contentRef.current
+      activePanel
         .querySelector<HTMLButtonElement>(`[data-settings-page="${value}"]`)
         ?.focus({ preventScroll: true })
-      contentRef.current.scrollTop = scrollTop
+      activePanel.scrollTop = scrollTop
       previousPage.current = null
+    } else if (activePanel && generalView === null) {
+      activePanel.scrollTop = 0
     }
-  }, [section, generalPage])
+  }, [section, generalPage, generalView])
 
   const openGeneralPage = (page: GeneralPage) => {
-    previousPage.current = { value: page.value, scrollTop: contentRef.current?.scrollTop ?? 0 }
+    previousPage.current = {
+      value: page.value,
+      scrollTop: panelRefs.current.general?.scrollTop ?? 0,
+    }
+    setEnteringSection(null)
     setGeneralView(page)
   }
-  const backToGeneral = () => setGeneralView('returning')
+  const backToGeneral = () => {
+    setEnteringSection(null)
+    setGeneralView('returning')
+  }
   // 切换分组不丢失正在输入的 API Key 与导入状态
   const apiKeyEditor = useApiKeyEditor()
   const historyImport = useHistoryImport()
@@ -207,7 +366,7 @@ const SettingsContent = ({
                       : -1
             if (next >= 0) {
               event.preventDefault()
-              selectSection(sections[next].value)
+              selectSection(sections[next].value, { animate: true })
               event.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]')[next]?.focus()
             }
           }}
@@ -218,94 +377,120 @@ const SettingsContent = ({
               type="button"
               role="tab"
               id={`${tabsId}-${item.value}`}
-              aria-controls={`${tabsId}-panel`}
+              aria-controls={`${tabsId}-panel-${item.value}`}
               aria-selected={section === item.value}
               tabIndex={section === item.value ? 0 : -1}
               className={clsx(styles.navItem, section === item.value && styles.navItemActive)}
-              onClick={() => selectSection(item.value)}
+              onClick={() => selectSection(item.value, { animate: true })}
             >
               {item.icon}
               {t(item.label)}
             </button>
           ))}
         </div>
-        <div
-          key={generalPage?.value ?? section}
-          ref={contentRef}
-          role="tabpanel"
-          id={`${tabsId}-panel`}
-          aria-labelledby={`${tabsId}-${section}`}
-          className={clsx(
-            styles.content,
-            generalPage && styles.subpageContent,
-            generalView === 'returning' && styles.returningContent
-          )}
-        >
-          {section === 'general' ? (
-            generalPage ? (
-              <>
-                <header className={styles.subpageHeader}>
-                  <button
-                    ref={backButton}
-                    type="button"
-                    className={styles.subpageBack}
-                    aria-label={t('settingsBackToGeneral')}
-                    onClick={backToGeneral}
-                  >
-                    <IconChevronRightOutline14 />
-                  </button>
-                  <h2>{t(generalPage.label)}</h2>
-                </header>
-                <div className={styles.subpageScroll}>
-                  <GeneralSettingsPage page={generalPage.value} />
-                </div>
-              </>
-            ) : (
-              <>
-                {generalPages.map((page) => (
-                  <button
-                    key={page.value}
-                    type="button"
-                    data-settings-page={page.value}
-                    className={clsx(styles.cell, styles.pageLink)}
-                    onClick={() => openGeneralPage(page)}
-                  >
-                    {t(page.label)}
-                    <IconChevronRightOutline14 />
-                  </button>
-                ))}
-                <LocaleSetting />
-                {!__HARMONY_APP__ ? <LocationSetting /> : null}
-              </>
+        <div className={styles.panels}>
+          {sections.map((item) => {
+            if (!mountedSections.includes(item.value)) {
+              return null
+            }
+            const isActive = section === item.value
+            const isPrepared = preparedSections.includes(item.value)
+            const isGeneral = item.value === 'general'
+            return (
+              <div
+                key={item.value}
+                ref={(node) => {
+                  panelRefs.current[item.value] = node
+                  if (node) {
+                    node.inert = !isActive
+                  }
+                }}
+                role="tabpanel"
+                id={`${tabsId}-panel-${item.value}`}
+                aria-labelledby={`${tabsId}-${item.value}`}
+                aria-hidden={!isActive || undefined}
+                data-settings-section={item.value}
+                className={clsx(
+                  styles.content,
+                  !isActive && (isPrepared ? styles.panelHidden : styles.panelPreparing),
+                  isActive && enteringSection === item.value && styles.tabEntering,
+                  isGeneral && generalPage && styles.subpageContent,
+                  isGeneral && generalView === 'returning' && styles.returningContent
+                )}
+                onAnimationEnd={(event) => {
+                  if (event.target === event.currentTarget && enteringSection === item.value) {
+                    setEnteringSection(null)
+                  }
+                }}
+              >
+                {item.value === 'general' ? (
+                  generalPage ? (
+                    <>
+                      <header className={styles.subpageHeader}>
+                        <button
+                          ref={backButton}
+                          type="button"
+                          className={styles.subpageBack}
+                          aria-label={t('settingsBackToGeneral')}
+                          onClick={backToGeneral}
+                        >
+                          <IconChevronRightOutline14 />
+                        </button>
+                        <h2>{t(generalPage.label)}</h2>
+                      </header>
+                      <div className={styles.subpageScroll}>
+                        <GeneralSettingsPage page={generalPage.value} />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {generalPages.map((page) => (
+                        <button
+                          key={page.value}
+                          type="button"
+                          data-settings-page={page.value}
+                          className={clsx(styles.cell, styles.pageLink)}
+                          onClick={() => openGeneralPage(page)}
+                        >
+                          {t(page.label)}
+                          <IconChevronRightOutline14 />
+                        </button>
+                      ))}
+                      <LocaleSetting />
+                      {!__HARMONY_APP__ ? <LocationSetting /> : null}
+                    </>
+                  )
+                ) : item.value === 'personal' ? (
+                  <PersonalizationSettings />
+                ) : item.value === 'privacy' ? (
+                  <PrivacySetting />
+                ) : (
+                  <>
+                    <ApiKeyField editor={apiKeyEditor} active={isActive} />
+                    <ApiBalance apiKey={apiKeyEditor.apiKey} active={isActive} />
+                    <ImportHistory historyImport={historyImport} disabled={historyBusy} />
+                    <ExportHistory disabled={historyBusy} />
+                    <SettingCell
+                      label={t('deleteAllSessions')}
+                      status={null}
+                      action={
+                        <Button
+                          variant="dangerOutlined"
+                          size="m"
+                          className={styles.cellButton}
+                          disabled={historyBusy}
+                          onClick={historyDelete.open}
+                        >
+                          {t('delete')}
+                        </Button>
+                      }
+                    />
+                    {isMobile ? <ApiKeyConfirm editor={apiKeyEditor} /> : null}
+                  </>
+                )}
+              </div>
             )
-          ) : section === 'personal' ? (
-            <PersonalizationSettings />
-          ) : section === 'privacy' ? (
-            <PrivacySetting />
-          ) : (
-            <>
-              <ApiKeyField editor={apiKeyEditor} />
-              <ApiBalance apiKey={apiKeyEditor.apiKey} />
-              <ImportHistory historyImport={historyImport} disabled={historyBusy} />
-              <ExportHistory disabled={historyBusy} />
-              <SettingCell
-                label={t('deleteAllSessions')}
-                status={null}
-                action={
-                  <Button
-                    variant="dangerOutlined"
-                    size="m"
-                    className={styles.cellButton}
-                    disabled={historyBusy}
-                    onClick={historyDelete.open}
-                  >
-                    {t('delete')}
-                  </Button>
-                }
-              />
-              {isMobile ? <ApiKeyConfirm editor={apiKeyEditor} /> : null}
-            </>
-          )}
+          })}
         </div>
       </Modal>
       {!closing && historyImport.file ? <ImportConfirm historyImport={historyImport} /> : null}

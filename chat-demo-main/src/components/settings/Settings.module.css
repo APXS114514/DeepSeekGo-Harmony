@@ -67,17 +67,38 @@
   }
 }
 
-.content {
-  display: flex;
+.panels {
+  position: relative;
   flex: 1 0 0;
-  flex-direction: column;
   min-width: 0;
   min-height: 0;
   margin-right: -24px;
+}
+
+.content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
   padding: 0 24px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: none contain;
+}
+
+.panelPreparing {
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.panelHidden {
+  content-visibility: hidden;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .cell {
@@ -130,10 +151,19 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .subpageContent,
-  .returningContent {
+  .subpageContent {
     --settings-page-motion: var(--surface-motion, 200ms cubic-bezier(0.2, 0.75, 0.25, 1));
     animation: settings-page-fade var(--settings-page-motion);
+  }
+
+  .returningContent {
+    --settings-page-motion: var(--surface-motion, 200ms cubic-bezier(0.2, 0.75, 0.25, 1));
+    animation: settings-page-return-fade var(--settings-page-motion);
+  }
+
+  .tabEntering {
+    --settings-page-motion: var(--surface-motion, 200ms cubic-bezier(0.2, 0.75, 0.25, 1));
+    animation: settings-tab-fade var(--settings-page-motion);
   }
 
   /* Keep control positions stable while animating the navigation cues. */
@@ -149,6 +179,18 @@
 }
 
 @keyframes settings-page-fade {
+  from {
+    opacity: 0.6;
+  }
+}
+
+@keyframes settings-page-return-fade {
+  from {
+    opacity: 0.6;
+  }
+}
+
+@keyframes settings-tab-fade {
   from {
     opacity: 0.6;
   }

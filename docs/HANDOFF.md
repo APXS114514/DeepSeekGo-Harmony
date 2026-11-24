@@ -62,7 +62,8 @@
   - Files API 体积上限：版面解析 PDF/Word/PPT 100 MiB、图片 64 MiB、`user_data` 32 MiB。[Files API](https://api-docs.deepseek.com/zh-cn/guides/files_api/)
   - [`attachments.ts`](../chat-demo-main/src/services/attachments.ts) 上传前将长边 > 4096 px 图片等比缩小（动图保留首帧），本地预览与历史保留原件；发送前自动检查并补传历史超限旧图。[视觉限制](https://api-docs.deepseek.com/zh-cn/guides/vision/#限制)
   - 合并导入使用 ZIP 暂存、IndexedDB 事务与 Web Locks 串行保护，保留同 ID 本地会话，校验失败回滚。
-  - 余额查询 `GET /user/balance` 仅在打开「数据管理」时内存缓存（按 Key 隔离）；峰谷时段按北京时间及内置 2026/2027 法定节假日计算（未覆盖年份工作日标「待更新」）。
+  - 余额查询 `GET /user/balance` 仅在「数据管理」页签处于激活状态时发起（`ApiBalance` 接收 `active` 参数，切走后中止请求并暂停计费时段计时器，再次切回仍刷新），内存缓存按 Key 隔离；峰谷时段按北京时间及内置 2026/2027 法定节假日计算（未覆盖年份工作日标「待更新」）。
+  - **设置页签分批预渲染**（[`SettingsDialog.tsx`](../chat-demo-main/src/components/settings/SettingsDialog.tsx)）：打开弹窗时先只渲染当前页签；待入场动画结束后在浏览器空闲时每次预渲染一个其他页签，后台排版一帧后以 `content-visibility: hidden` + `inert` + `aria-hidden` 缓存排版；每个页签有独立 `id` / `aria-controls`，切换时仅切换可见性、播放入场淡入、回到顶部并记录 `performance.measure('settings-tab-switch')`；「外观 / 对话 / 语音」二级页保持按需渲染。
   - 上下文估算满 90% 预警；服务端明确超限时保留消息与本地附件、还原草稿并暂停重复发送。
 - **输入与多形态交互**：
   - 软键盘：鸿蒙手机/平板普通 Enter 由输入法换行；2in1 实体键盘 Enter 发送、`Shift+Enter` 换行、`Ctrl/⌘+Enter` 提交。
@@ -105,7 +106,7 @@
 - 单项运行：`node tests/harmony/run.mjs <片段>`；设置 `SHOTS_DIR=<目录>` 可保存截图。
 - 重新生成 README 截图：`pnpm screenshots`（脚本 `readme-shots.mjs`，输出到 `assets/images/screenshots/`）。
 
-当前回归脚本（17 项，全部使用模拟 DeepSeek API 与模拟 ArkWeb 端口）：
+当前回归脚本（18 项，全部使用模拟 DeepSeek API 与模拟 ArkWeb 端口）：
 
 - `adaptation`：顶栏对齐、返回手势分层、字体缩放、键盘安全区、无痕对话、后台通知、2in1 快捷键/右键菜单。
 - `appearance-settings`：默认主题色、背景跟随主题色、设置项分隔。
@@ -122,6 +123,7 @@
 - `motion-smoke`：键盘视口合并过渡、继承变量稳定、抽屉 `data-idle` 与常驻侧栏 `content-visibility: visible`、来源面板宽度稳定。
 - `quick-shortcuts`：四种桌面快捷动作、冷热启动派发与不支持时的提示。
 - `personalization`：自定义指令、记忆快照与前端提炼/整理/撤销、人设卡。
+- `settings-prerender`：设置首帧仅挂载当前页签、空闲分批预渲染与 `content-visibility: hidden` + `inert` 缓存、余额仅在选中「数据管理」时请求与重进刷新、切换复用 DOM 节点、回到顶部、耗时打点及页签首帧高亮。
 - `window-orientation`：悬停折痕实时/旧版坐标、非全屏回退与旋转策略。
 - `window-sizes`：320–942px 悬浮窗/分屏布局、设置二级页动效与页签首帧切换高亮。
 
@@ -144,7 +146,7 @@
 
 当前仍待真机实测：
 
-- **1.7.0 新增**：模糊定位首次授权与二次引导去设置、本机反地理编码中英文结果、切后台取消定位；真实模型在主动/按需图表与实时汇率提示下的表现；撤回/分支与系统触感反馈实际手感；桌面长按快捷方式在启动器中的显示与冷热启动；原生光感菜单、确认弹窗和「添加附件」半模态在深浅主题、悬浮窗和 2in1 下的材质与位置；原生弹层 `onWillDisappear` 提前发回结果后的关闭响应速度，以及从半模态选择「上传图片或文件」后网页文件选择器能否稳定打开。
+- **1.7.0 新增**：模糊定位首次授权与二次引导去设置、本机反地理编码中英文结果、切后台取消定位；真实模型在主动/按需图表与实时汇率提示下的表现；撤回/分支与系统触感反馈实际手感；桌面长按快捷方式在启动器中的显示与冷热启动；原生光感菜单、确认弹窗和「添加附件」半模态在深浅主题、悬浮窗和 2in1 下的材质与位置；原生弹层 `onWillDisappear` 提前发回结果后的关闭响应速度，以及从半模态选择「上传图片或文件」后网页文件选择器能否稳定打开；设置弹窗非激活页签使用 `content-visibility: hidden` + `inert` 在真机（含 Pura X Max）上的稳定性与切换耗时（`settings-tab-switch` / `hitrace`），如遇异常可退回 `hidden`。
 - **1.6.0 延续**：设置页签快速切换首帧高亮（ArkWeb 实机）、键盘掉帧修复后的 `hitrace` 对比、原生光感顶栏分层、防截屏/录屏/投屏、折叠屏全屏悬停 + 键盘组合、平板分屏与 2in1 跨应用拖拽。
 - **既有跨形态与文件流**：系统分享面板列出 Deepseek GO 及跨应用接收/打开分享导出的 Markdown 与长图、导出到文件管理器；2in1 相机/语音与系统快捷键冲突；ArkWeb 双指缩放与单指上滑取消语音手感；真实 API 下的长图缩放补传、余额与上下文超限恢复；华为上架自检对分层图标的裁切校验；覆盖安装后 localStorage 数据保留。
 - **低版本兼容**：HarmonyOS 5.0（API 12）真机启动、普通顶栏与网页识字菜单回退路径。

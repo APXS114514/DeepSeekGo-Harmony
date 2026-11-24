@@ -19,7 +19,13 @@ export const useApiKeyEditor = () => {
 type ApiKeyEditor = ReturnType<typeof useApiKeyEditor>
 
 /** API Key：保存后只显示掩码，点编辑按钮才能重新输入 */
-export const ApiKeyField = ({ editor }: { editor: ApiKeyEditor }) => {
+export const ApiKeyField = ({
+  editor,
+  active = true,
+}: {
+  editor: ApiKeyEditor
+  active?: boolean
+}) => {
   const t = useTranslate()
   const isMobile = useIsMobile()
   const apiKeyTemporary = useSettings((state) => state.apiKeyTemporary)
@@ -53,8 +59,8 @@ export const ApiKeyField = ({ editor }: { editor: ApiKeyEditor }) => {
               autoCapitalize="none"
               spellCheck={false}
               readOnly={form.verifying}
-              // 移动端打开设置时不弹键盘，点编辑后才聚焦
-              autoFocus={!isMobile || editing}
+              // 移动端打开设置时不弹键盘，点编辑后才聚焦；后台预渲染时不抢焦点
+              autoFocus={active && (!isMobile || editing)}
               value={form.value}
               onChange={(event) => form.setValue(event.target.value)}
               onKeyDown={(event) => {
