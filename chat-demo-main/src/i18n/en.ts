@@ -332,6 +332,9 @@ export const en = {
   historyImportConfirmDescription:
     'Merge keeps local chats and skips duplicates. Replace removes all local chats and attachments.',
   historyImportDescription: 'Merge or replace your history from a ZIP file exported by DeepSeek.',
+  historyImportPreparing: 'Checking archive…',
+  historyImportProgress: 'Reading chats and attachments ({percent}%)',
+  historyImportSaving: 'Saving imported history…',
   historyImportNoNew: 'No new chats to merge',
   historyImportedOne: 'Imported 1 chat',
   historyImported: 'Imported {count} chats',

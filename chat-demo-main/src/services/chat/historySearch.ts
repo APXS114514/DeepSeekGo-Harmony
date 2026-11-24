@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { throwIfAborted } from '../../utils/abort.js'
 import { getVisibleMessages } from './branches.js'
 import { loadSession } from './db.js'
 import { getReplyText } from './reply.js'
@@ -32,13 +33,13 @@ export const findHistory = async (
   onResults([...results])
 
   for (let index = 0; index < sessions.length && results.length < MAX_RESULTS; index++) {
-    signal.throwIfAborted()
+    throwIfAborted(signal)
     const summary = sessions[index]
     const cache = useChatStore.getState().sessionCache
     const session = Object.hasOwn(cache, summary.id)
       ? cache[summary.id]
       : await loadSession(summary.id)
-    signal.throwIfAborted()
+    throwIfAborted(signal)
     if (session && !session.ephemeral) {
       for (const message of getVisibleMessages(session)) {
         const text =
@@ -67,6 +68,6 @@ export const findHistory = async (
       await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
     }
   }
-  signal.throwIfAborted()
+    throwIfAborted(signal)
   onResults(results)
 }

@@ -91,6 +91,9 @@ const newContext = async (features, initialShare) => {
                 new TextDecoder().decode(new Uint8Array(event.data, 4, length))
               )
               const body = new Uint8Array(event.data, 4 + length)
+              if (header.operation === 'save-file' && window.saveStatus === 0) {
+                window.savedHistory = Array.from(body)
+              }
               window.deviceLog.push({
                 ...header,
                 size: body.byteLength,
@@ -497,6 +500,17 @@ try {
   })
   await save.click()
   await settings.getByText('保存失败，请重新选择位置').waitFor()
+  const exportedZip = Buffer.from(await page.evaluate(() => window.savedHistory))
+  await settings.locator('input[type=file]').setInputFiles({
+    name: frame.value,
+    mimeType: 'application/zip',
+    buffer: exportedZip,
+  })
+  await page
+    .getByRole('dialog', { name: '确认导入历史对话？' })
+    .getByRole('button', { name: '合并导入' })
+    .click()
+  await settings.getByText('没有可合并的新对话').waitFor()
   assert.deepEqual(errors, [])
   await context.close()
 

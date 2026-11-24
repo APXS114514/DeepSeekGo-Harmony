@@ -63,6 +63,7 @@
   - Files API 体积上限：版面解析 PDF/Word/PPT 100 MiB、图片 64 MiB、`user_data` 32 MiB。[Files API](https://api-docs.deepseek.com/zh-cn/guides/files_api/)
   - [`attachments.ts`](../chat-demo-main/src/services/attachments.ts) 上传前将长边 > 4096 px 图片等比缩小（动图保留首帧），本地预览与历史保留原件；发送前自动检查并补传历史超限旧图。[视觉限制](https://api-docs.deepseek.com/zh-cn/guides/vision/#限制)
   - 合并导入使用 ZIP 暂存、IndexedDB 事务与 Web Locks 串行保护，保留同 ID 本地会话，校验失败回滚。
+  - 吸收上游 v0.1.4 的导入优化与兼容修复。校验和导入复用 ZIP 目录与读窗口，分批暂存会话和图片，只回填受影响会话的图片 MIME。设置按已读取的归档条目显示进度，随后进入保存阶段，关闭再打开设置可继续查看。归档按原条目顺序检查，可读取附件紧随会话或集中位于索引之后的 ZIP，保留合并跳重与覆盖事务回滚。附件补传、会话树导入、历史搜索和鸿蒙定位使用旧内核可用的排序与中止检查，缺少 `dvh` 时视口回退至 `vh`。[上游 v0.1.4 改动](https://github.com/deepseek-ai/chat-demo/compare/v0.1.3...v0.1.4)
   - 余额查询 `GET /user/balance` 仅在「数据管理」页签处于激活状态时发起（`ApiBalance` 接收 `active` 参数，切走后中止请求并暂停计费时段计时器，再次切回仍刷新），内存缓存按 Key 隔离；峰谷时段按北京时间及内置 2026/2027 法定节假日计算（未覆盖年份工作日标「待更新」）。
   - **设置页签分批预渲染**（[`SettingsDialog.tsx`](../chat-demo-main/src/components/settings/SettingsDialog.tsx)）：打开弹窗时先只渲染当前页签；待入场动画结束后在浏览器空闲时每次预渲染一个其他页签，后台排版一帧后以 `content-visibility: hidden` + `inert` + `aria-hidden` 缓存排版；每个页签有独立 `id` / `aria-controls`，切换时仅切换可见性、播放入场淡入、回到顶部并记录 `performance.measure('settings-tab-switch')`；「外观 / 对话 / 语音」二级页保持按需渲染。
   - 上下文估算满 90% 预警；服务端明确超限时保留消息与本地附件、还原草稿并暂停重复发送。
@@ -109,15 +110,15 @@
 
 当前回归脚本（18 项，全部使用模拟 DeepSeek API 与模拟 ArkWeb 端口）：
 
-- `adaptation`：顶栏对齐、返回手势分层、字体缩放、键盘安全区、无痕对话、后台通知、2in1 快捷键/右键菜单。
+- `adaptation`：顶栏对齐、返回手势分层、字体缩放、键盘安全区、无痕对话、后台通知、2in1 快捷键/右键菜单，以及旧内核备份导入、大附件进度、重开设置、合并跳重与损坏归档回滚。
 - `appearance-settings`：默认主题色、背景跟随主题色、设置项分隔。
 - `brand-sider-smoke`：Logo、Key 保存与失败重试、宽窄侧栏切换。
 - `conversation-management`：撤回上一轮、对话分支创建与侧栏分支分组。
-- `device-features`：接收/发起分享、语音输入与按住说话、原生/网页识字菜单、导出保存、防截屏与悬停。
+- `device-features`：接收/发起分享、语音输入与按住说话、原生/网页识字菜单、导出保存与重新导入、防截屏与悬停。
 - `edit-regression`：历史消息编辑、版本切换与草稿保留。
 - `haptics`：关键交互触发系统触感反馈消息。
 - `immersive-light-extended`：原生菜单、确认弹窗与「添加附件」半模态的请求、打开/识字中不置灰与防重入、不可用回退网页菜单，关闭沉浸光感后保持入口数量不变并恢复网页菜单，胶囊开关与悬浮按钮光感样式，以及原生 `onWillDisappear` 静态核对。
-- `input-limit`：32,768 Token 回退与提示、大图缩放、历史补传与原件保留。
+- `input-limit`：32,768 Token 回退与提示、旧内核大图缩放、历史补传失败后重试与原件保留。
 - `local-info-charts`：按需定位开关、Open-Meteo 天气与失败回退、活动搜索、实时数据未开搜索提示、主动/按需图表渲染与纯文本复制、Mermaid 共存。
 - `location-service`：原生定位权限、前后台守卫、粗粒度脱敏与缓存回退。
 - `microphone-permission`：原生麦克风首次授权、连续录音、页面重建与权限撤销。
@@ -130,6 +131,7 @@
 
 ### 静态检查与 HAP Release 打包
 
+- **上游 v0.1.4 集成验证**：类型检查、lint、鸿蒙网页构建与 18 项浏览器回归通过。历史导入使用模拟 ArkWeb 消息通道及本地 ZIP，未连接真机。
 - **工具位置**：本机没有 pnpm、DevEco Studio 或系统 Java 时，命令行工具、Node 和 Java 的路径及等价命令见根目录 `AGENTS.local.md`。`PackageHap` 需要 Java，缺少时 ArkTS 编译通过但打包报 `00308018 Unknown Error`。
 - **前端检查**（在 `chat-demo-main/`）：`pnpm type`、`pnpm lint`、`pnpm build:harmony`、`pnpm build`。
 - **ArkTS 检查**（在 `harmony/`）：`codelinter -p default -e error entry/src/main/ets/...`。
@@ -151,3 +153,4 @@
 - **1.6.0 延续**：设置页签快速切换首帧高亮（ArkWeb 实机）、键盘掉帧修复后的 `hitrace` 对比、原生光感顶栏分层、防截屏/录屏/投屏、折叠屏全屏悬停 + 键盘组合、平板分屏与 2in1 跨应用拖拽。
 - **既有跨形态与文件流**：系统分享面板列出 Deepseek GO 及跨应用接收/打开分享导出的 Markdown 与长图、导出到文件管理器；2in1 相机/语音与系统快捷键冲突；ArkWeb 双指缩放与单指上滑取消语音手感；真实 API 下的长图缩放补传、余额与上下文超限恢复；华为上架自检对分层图标的裁切校验；覆盖安装后 localStorage 数据保留。
 - **低版本兼容**：HarmonyOS 5.0（API 12）真机启动、普通顶栏与网页识字菜单回退路径。
+- **历史导入**：用真机文件选择器导入实际大体积备份，观察 ArkWeb 上的进度、操作响应和耗时。旧内核缺失部分 API 的兼容仅在 Chromium 模拟验证。

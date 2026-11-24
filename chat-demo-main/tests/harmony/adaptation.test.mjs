@@ -218,18 +218,24 @@ const openSettings = async (page) => {
   return page.getByRole('dialog', { name: '设置', exact: true })
 }
 
-const archive = (sessions, images = {}) => {
+const archive = (sessions, images = {}, interleaved = false) => {
   const json = (value) => strToU8(JSON.stringify(value))
+  const sessionEntries = sessions.flatMap((session) => [
+    [`chat_sessions/${session.id}.json`, json(session)],
+    ...(interleaved
+      ? Object.entries(images).filter(([path]) =>
+          path.startsWith(`chat_sessions/${session.id}_files/`)
+        )
+      : []),
+  ])
   return Buffer.from(
     zipSync({
       'manifest.json': json({ export_format_version: 3 }),
-      ...Object.fromEntries(
-        sessions.map((session) => [`chat_sessions/${session.id}.json`, json(session)])
-      ),
+      ...Object.fromEntries(sessionEntries),
       'chat_session_index.json': json(
         sessions.map((session) => ({ ...session, message_count: session.messages.length }))
       ),
-      ...images,
+      ...(interleaved ? {} : images),
     })
   )
 }
@@ -852,9 +858,12 @@ try {
     await context.close()
   }
 
-  // 合并保留当前会话、草稿和图片原件，同 ID 会话跳过，重复导入不产生副本。
+  // 旧内核仍能导入。合并保留会话、草稿和原件，损坏的附件会回滚整个导入。
   {
     const { context, page, errors } = await open(desktop)
+    await page.evaluate(() => {
+      delete Array.prototype.toSorted
+    })
     const imported = archiveChat('new-chat', '外部会话')
     const existing = archiveChat('local-chat', '本机会话')
     const chooseArchive = async (buffer, mode) => {
@@ -869,9 +878,11 @@ try {
         .click()
       return settings
     }
-    const initial = archive([existing], {
-      'chat_sessions/local-chat_files/shared-id_sample.png': pngBytes(1),
-    })
+    const initial = archive(
+      [existing],
+      { 'chat_sessions/local-chat_files/shared-id_sample.png': pngBytes(1) },
+      true
+    )
     let settings = await chooseArchive(initial, '覆盖导入')
     await settings.getByText('已导入 1 个对话').waitFor()
     await page.keyboard.press('Escape')
@@ -879,10 +890,46 @@ try {
     await page.getByText('本机会话', { exact: true }).click()
     await page.getByText('本机会话的正文', { exact: true }).waitFor()
     await page.locator('textarea:visible').first().fill('导入时保留草稿')
+    const image = new Uint8Array(700 * 1024)
+    image.set(pngBytes(0))
+    image[image.length - 1] = 2
     const combined = archive([{ ...existing, title: '旧备份标题' }, imported], {
-      'chat_sessions/new-chat_files/shared-id_sample.png': pngBytes(2),
+      'chat_sessions/new-chat_files/shared-id_sample.png': [image, { level: 0 }],
+    })
+    await page.evaluate(() => {
+      const slice = File.prototype.slice
+      File.prototype.slice = function (start, end) {
+        const blob = slice.call(this, start, end)
+        // 暂停在图片正文的后半段，跳过用于读取 ZIP 目录的尾部读取。
+        if (
+          this.name === 'history.zip' &&
+          start > 0 &&
+          start < this.size - 65557 &&
+          end === this.size
+        ) {
+          File.prototype.slice = slice
+          const read = blob.arrayBuffer.bind(blob)
+          blob.arrayBuffer = async () => {
+            await new Promise((resolve) => {
+              window.resumeHistoryRead = resolve
+            })
+            return read()
+          }
+        }
+        return blob
+      }
     })
     settings = await chooseArchive(combined, '合并导入')
+    const progress = () => settings.getByRole('progressbar', { name: '正在读取对话和附件（80%）' })
+    await progress().waitFor()
+    assert.equal(await progress().getAttribute('value'), '80')
+    assert.equal(await settings.getByRole('button', { name: '上传', exact: true }).isDisabled(), true)
+    await page.keyboard.press('Escape')
+    await settings.waitFor({ state: 'hidden' })
+    settings = await openSettings(page)
+    await settings.getByRole('tab', { name: '数据管理' }).click()
+    await progress().waitFor()
+    await page.evaluate(() => window.resumeHistoryRead())
     await settings.getByText('已导入 1 个对话').waitFor()
     await page.keyboard.press('Escape')
     await settings.waitFor({ state: 'hidden' })
@@ -890,6 +937,14 @@ try {
     assert.equal(await page.getByText('旧备份标题', { exact: true }).count(), 0)
     settings = await chooseArchive(combined, '合并导入')
     await settings.getByText('没有可合并的新对话').waitFor()
+    await page.keyboard.press('Escape')
+    await settings.waitFor({ state: 'hidden' })
+    const badImage = Buffer.from(combined)
+    const imageStart = badImage.indexOf(image)
+    assert(imageStart >= 0, 'stored image archive entry')
+    badImage[imageStart + image.length - 1] = 3
+    settings = await chooseArchive(badImage, '覆盖导入')
+    await settings.getByText(/导入失败/).waitFor()
     await page.keyboard.press('Escape')
     await settings.waitFor({ state: 'hidden' })
     const corrupt = archive([imported, { ...imported, id: 'broken', current_message_id: 20 }])
@@ -916,7 +971,7 @@ try {
             const bytes = new Uint8Array(
               await files.find((file) => file.id === fileId).blob.arrayBuffer()
             )
-            return [session.id, session.title, bytes.at(-1)]
+            return [session.id, session.title, session.messages[0].files[0].mimeType, bytes.at(-1)]
           })
         )
       } finally {
@@ -924,8 +979,8 @@ try {
       }
     })
     assert.deepEqual(saved, [
-      ['local-chat', '本机会话', 1],
-      ['new-chat', '外部会话', 2],
+      ['local-chat', '本机会话', 'image/png', 1],
+      ['new-chat', '外部会话', 'image/png', 2],
     ])
     await page.getByText('外部会话', { exact: true }).click()
     await page.getByText('外部会话的正文', { exact: true }).waitFor()

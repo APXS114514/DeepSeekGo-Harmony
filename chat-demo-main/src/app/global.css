@@ -32,6 +32,12 @@ body.dark {
   color-scheme: dark;
 }
 
+@supports not (height: 100dvh) {
+  body {
+    --app-viewport-height: 100vh;
+  }
+}
+
 body[data-ds-dark-theme] {
   --scroll-color: rgba(255, 255, 255, 0.15);
   --scroll-color-hover: rgba(255, 255, 255, 0.24);

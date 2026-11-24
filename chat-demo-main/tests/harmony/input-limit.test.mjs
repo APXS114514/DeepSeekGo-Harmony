@@ -353,7 +353,7 @@ try {
     await context.close()
   }
 
-  // 新图仅缩放上传副本。升级后的历史大图失败时跳过旧 ID，下轮重试并保存新 ID。
+  // 旧内核也能缩放并上传图片。历史大图补传失败时跳过旧 ID，下轮重试并保存新 ID。
   {
     const title = '历史长图'
     let rejectNextUpload = false
@@ -366,6 +366,11 @@ try {
         return reject
       }
     )
+    await page.evaluate(() => {
+      delete AbortSignal.prototype.throwIfAborted
+      delete AbortSignal.prototype.reason
+      delete Array.prototype.toReversed
+    })
     const originals = await attachImages(page, [
       ['tall.png', 320, 9000],
       ['wide.png', 8192, 1],

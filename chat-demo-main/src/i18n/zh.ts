@@ -313,6 +313,9 @@ export const zh = {
   historyImportConfirmDescription:
     '合并会保留本地对话并跳过重复会话。覆盖会替换所有本地对话和附件。',
   historyImportDescription: '支持 DeepSeek 导出的 ZIP 文件，可选择合并或覆盖。',
+  historyImportPreparing: '正在检查归档…',
+  historyImportProgress: '正在读取对话和附件（{percent}%）',
+  historyImportSaving: '正在保存导入结果…',
   historyImportNoNew: '没有可合并的新对话',
   historyImportedOne: '已导入 1 个对话',
   historyImported: '已导入 {count} 个对话',

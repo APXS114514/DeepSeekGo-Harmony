@@ -1,3 +1,5 @@
+import { throwIfAborted } from './abort.js'
+
 // 与 DeepSeek Chat Demo 一致，按多图请求的长边上限生成上传副本。
 const MAX_IMAGE_EDGE = 4096
 
@@ -20,9 +22,9 @@ export const isUploadImageOversized = async (blob: Blob): Promise<boolean> => {
 
 /** 按比例缩小上传副本，超限动图只保留一帧。 */
 export const resizeUploadImage = async (file: File, signal: AbortSignal): Promise<File> => {
-  signal.throwIfAborted()
+  throwIfAborted(signal)
   const image = await readImage(file)
-  signal.throwIfAborted()
+  throwIfAborted(signal)
   const longestEdge = Math.max(image.naturalWidth, image.naturalHeight)
   if (longestEdge <= MAX_IMAGE_EDGE) {
     return file
@@ -46,7 +48,7 @@ export const resizeUploadImage = async (file: File, signal: AbortSignal): Promis
         1
       )
     })
-    signal.throwIfAborted()
+    throwIfAborted(signal)
     // 浏览器可能回退到 PNG，文件后缀以实际编码为准。
     const extension = blob.type === 'image/jpeg' ? 'jpg' : blob.type.slice('image/'.length)
     const name = file.name.replace(/\.[^.]*$/, '') + '.' + extension

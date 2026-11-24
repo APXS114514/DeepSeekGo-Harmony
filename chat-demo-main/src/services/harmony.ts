@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { throwIfAborted } from '../utils/abort.js'
 import type { ThemePreference } from './settings.js'
 
 const PORT_MESSAGE = 'pocket-chat-device-port'
@@ -317,7 +318,7 @@ const requestDeviceFrame = (
   signal?: AbortSignal
 ): Promise<DeviceReply> =>
   sendRequest((id) => {
-    signal?.throwIfAborted()
+    throwIfAborted(signal)
     const header = new TextEncoder().encode(JSON.stringify({ id, operation, value }))
     const frame = new Uint8Array(4 + header.byteLength + data.byteLength)
     new DataView(frame.buffer).setUint32(0, header.byteLength, true)

@@ -44,11 +44,15 @@ export const exportHistory = (): Promise<{ name: string; blob: Blob }> =>
 /**
  * 校验 ZIP 后流式写入暂存，成功才合并或替换正式数据。返回新导入的会话数。
  */
-export const importHistory = (file: File, mode: HistoryImportMode): Promise<number> =>
+export const importHistory = (
+  file: File,
+  mode: HistoryImportMode,
+  onProgress?: (percent: number) => void
+): Promise<number> =>
   enqueueBackup(async () => {
     const { checkArchiveFormat, importArchive } = await import('./history/importArchive.js')
-    await checkArchiveFormat(file)
-    return updateHistory(() => importArchive(file), mode)
+    const archive = await checkArchiveFormat(file)
+    return updateHistory(() => importArchive(archive, onProgress), mode)
   })
 
 /** 确认删除后调用：以空历史原子替换全部本地会话与附件，保留 API Key 和其他设置。 */

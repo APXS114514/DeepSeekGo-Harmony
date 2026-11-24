@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { translate } from '../../i18n/index.js'
+import { getAbortReason, throwIfAborted } from '../../utils/abort.js'
 import { createId } from '../../utils/id.js'
 import { isUploadImageOversized } from '../../utils/resizeUploadImage.js'
 import { ApiError, streamMessage } from '../api/client.js'
@@ -1147,7 +1148,7 @@ const checkLegacyImageIds = async (sessionId: string, request: Request, signal: 
   }
   const checked = new Map<string, string | null>()
   for (const [id, serverId] of unchecked) {
-    signal.throwIfAborted()
+    throwIfAborted(signal)
     const oversized = await loadAttachment(sessionId, id)
       .then((blob) => blob && isUploadImageOversized(blob))
       .catch(() => undefined)
@@ -1212,10 +1213,10 @@ const prepareFiles = async (sessionId: string, request: Request, signal: AbortSi
   const serverIds = new Map<string, string>()
   // 停止生成立即生效；上传本身不取消（输入框与其他消息可能共用同一任务），完成后照常写回 serverId
   const aborted = new Promise<never>((_, reject) => {
-    signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+    signal.addEventListener('abort', () => reject(getAbortReason(signal)), { once: true })
   })
   const checked = await Promise.race([checkLegacyImageIds(sessionId, request, signal), aborted])
-  signal.throwIfAborted()
+  throwIfAborted(signal)
   if (checked.size > 0) {
     const tasks = useUploads.getState().tasks
     for (const [id, serverId] of checked) {
@@ -1246,7 +1247,7 @@ const prepareFiles = async (sessionId: string, request: Request, signal: AbortSi
   }
 
   const pending = new Map<string, FileAttachment>()
-  for (const [user] of getContextRounds(request.history).toReversed()) {
+  for (const [user] of getContextRounds(request.history).reverse()) {
     for (const file of user.files) {
       if (!file.serverId && !serverIds.has(file.id) && !pending.has(file.id)) {
         pending.set(file.id, file)
@@ -1254,7 +1255,7 @@ const prepareFiles = async (sessionId: string, request: Request, signal: AbortSi
     }
   }
   for (const file of pending.values()) {
-    signal.throwIfAborted()
+    throwIfAborted(signal)
     try {
       const serverId = await Promise.race([ensureServerId(sessionId, apiKey, file), aborted])
       if (serverId) {
@@ -1262,7 +1263,7 @@ const prepareFiles = async (sessionId: string, request: Request, signal: AbortSi
         saveServerIds(sessionId, new Map([[file.id, serverId]]))
       }
     } catch {
-      signal.throwIfAborted()
+      throwIfAborted(signal)
     }
   }
 

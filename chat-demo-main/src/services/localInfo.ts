@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { throwIfAborted } from '../utils/abort.js'
 import { formatDate } from '../utils/format.js'
 import {
   DeviceStatus,
@@ -760,7 +761,7 @@ export const prepareTurnLocalContext = async ({
     (typeof document === 'undefined' || document.visibilityState === 'visible')
   ) {
     const resolved = await resolveDeviceLocation({ locale })
-    signal.throwIfAborted()
+    throwIfAborted(signal)
     if (resolved.location) {
       const label = formatCoarseLocation(resolved.location, locale)
       if (label) {
@@ -809,7 +810,7 @@ export const prepareTurnLocalContext = async ({
             localDate,
             signal,
           })
-          signal.throwIfAborted()
+          throwIfAborted(signal)
           if (structured) {
             break
           }

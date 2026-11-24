@@ -459,6 +459,17 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
+.importProgress {
+  display: grid;
+  gap: 2px;
+}
+
+.importProgress progress {
+  width: 100%;
+  max-width: 220px;
+  accent-color: var(--dsw-alias-brand-primary);
+}
+
 .error {
   font-size: 12px;
   line-height: 18px;

@@ -92,7 +92,10 @@ import styles from './Settings.module.css'
 export const SettingsDialog = () => {
   const open = useSettingsDialog((state) => state.open)
   const { ref, present, closing } = useSurfacePresence<HTMLDivElement>(open)
-  return present ? <SettingsContent overlayRef={ref} closing={closing} /> : null
+  const historyImport = useHistoryImport(open)
+  return present ? (
+    <SettingsContent overlayRef={ref} closing={closing} historyImport={historyImport} />
+  ) : null
 }
 
 const sections: { value: SettingsSection; label: TranslationKey; icon: ReactNode }[] = [
@@ -134,9 +137,11 @@ const scheduleIdle = (callback: () => void) => {
 const SettingsContent = ({
   overlayRef,
   closing,
+  historyImport,
 }: {
   overlayRef: RefObject<HTMLDivElement>
   closing: boolean
+  historyImport: ReturnType<typeof useHistoryImport>
 }) => {
   const t = useTranslate()
   const isMobile = useIsMobile()
@@ -323,7 +328,6 @@ const SettingsContent = ({
   }
   // 切换分组不丢失正在输入的 API Key 与导入状态
   const apiKeyEditor = useApiKeyEditor()
-  const historyImport = useHistoryImport()
   const historyDelete = useHistoryDelete()
   const importingHistory = useChatStore((state) => state.importingHistory !== false)
   const historyBusy = historyImport.busy || historyDelete.busy || importingHistory
@@ -1147,7 +1151,7 @@ const SettingCell = ({
   className,
 }: {
   label: string
-  description?: string
+  description?: ReactNode
   status: Status
   action: ReactNode
   className?: string
@@ -1171,11 +1175,18 @@ const SettingCell = ({
 }
 
 /** 确认导入方式后校验文件，并报告写入结果。 */
-const useHistoryImport = () => {
+const useHistoryImport = (open: boolean) => {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState<number | null>(null)
   const [status, setStatus] = useState<Status>(null)
   const importing = useRef(false)
+
+  useEffect(() => {
+    if (!open) {
+      setFile(null)
+    }
+  }, [open])
 
   const confirm = async (mode: HistoryImportMode) => {
     if (!file || importing.current) {
@@ -1184,9 +1195,10 @@ const useHistoryImport = () => {
     importing.current = true
     setFile(null)
     setBusy(true)
+    setProgress(null)
     setStatus(null)
     try {
-      const count = await importHistory(file, mode)
+      const count = await importHistory(file, mode, setProgress)
       if (mode === 'merge' && count === 0) {
         setStatus({ key: 'historyImportNoNew' })
       } else {
@@ -1203,7 +1215,7 @@ const useHistoryImport = () => {
     }
   }
 
-  return { file, busy, status, select: setFile, cancel: () => setFile(null), confirm }
+  return { file, busy, progress, status, select: setFile, cancel: () => setFile(null), confirm }
 }
 
 const ImportHistory = ({
@@ -1215,11 +1227,27 @@ const ImportHistory = ({
 }) => {
   const t = useTranslate()
   const inputRef = useRef<HTMLInputElement>(null)
+  const { busy, progress } = historyImport
+  const progressText =
+    progress === null
+      ? t('historyImportPreparing')
+      : progress === 100
+        ? t('historyImportSaving')
+        : t('historyImportProgress', { percent: progress })
 
   return (
     <SettingCell
       label={t('historyImport')}
-      description={t('historyImportDescription')}
+      description={
+        busy ? (
+          <span className={styles.importProgress}>
+            <progress aria-label={progressText} max={100} value={progress ?? undefined} />
+            <span>{progressText}</span>
+          </span>
+        ) : (
+          t('historyImportDescription')
+        )
+      }
       status={historyImport.status}
       action={
         <>
