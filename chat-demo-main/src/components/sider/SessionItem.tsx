@@ -71,12 +71,8 @@ export const SessionItem = memo(function SessionItem({
         closeMobileSider()
       }}
       onContextMenu={(event) => {
-        // 鼠标右键打开与「…」相同的菜单；触屏长按仍交给系统的文字选择。
-        if (
-          __HARMONY_APP__ &&
-          event.nativeEvent instanceof PointerEvent &&
-          event.nativeEvent.pointerType === 'mouse'
-        ) {
+        // 鸿蒙端鼠标右键或触屏长按会话条目，统一打开操作菜单（支持光感时走原生沉浸菜单）。
+        if (__HARMONY_APP__) {
           event.preventDefault()
           menuRef.current?.open()
         }
@@ -88,11 +84,13 @@ export const SessionItem = memo(function SessionItem({
       <div className={styles.action} onClick={(event) => event.stopPropagation()}>
         <Menu
           controlRef={menuRef}
+          nativeTitle={displayTitle}
           options={[
             {
               key: 'rename',
               label: t('sessionItemMenuRenameOption'),
               icon: <IconEditOutline16 />,
+              nativeIcon: 'rename',
               onSelect: () => setEditing(true),
             },
             ...(__HARMONY_APP__ && sharing && !generating && !preparingShare
@@ -101,6 +99,7 @@ export const SessionItem = memo(function SessionItem({
                     key: 'share',
                     label: t('shareChat'),
                     icon: <IconShareOutline16 />,
+                    nativeIcon: 'share',
                     onSelect: async () => {
                       setPreparingShare(true)
                       try {
@@ -126,6 +125,7 @@ export const SessionItem = memo(function SessionItem({
               key: 'delete',
               label: t('delete'),
               icon: <IconTrashOutline16 />,
+              nativeIcon: 'delete',
               danger: true,
               onSelect: onDelete,
             },

@@ -225,7 +225,7 @@ export const en = {
   dragAnswer: 'Drag to another app',
   immersiveLightTitle: 'Immersive lighting',
   immersiveLightDescription:
-    'Add translucency and highlights to the composer and use system materials in the text recognition menu on supported devices.',
+    'Add translucency and highlights to the composer, floating buttons, and pill toggles. Supported devices also use native materials for the header, menus, sheets, and confirmation dialogs.',
   hideChatComposerTitle: 'Hide composer while reading',
   hideChatComposerDescription:
     'Scroll up in a chat to hide the composer. Return to the bottom or select Show composer to bring it back.',
@@ -448,4 +448,8 @@ export const en = {
   branchGroupCount: '{count} chats',
   shortcutVoiceUnavailable: 'Voice input is unavailable on this device',
   shortcutScanUnavailable: 'Image text scanning is unavailable on this device',
+  toolsSheetTitle: 'Attachments & tools',
+  toolsSheetAttachments: 'Attachments & OCR',
+  toolsSheetChatTools: 'Chat tools',
+  toolsSheetUploadFile: 'Upload image or file',
 } satisfies Record<keyof typeof zh, string>

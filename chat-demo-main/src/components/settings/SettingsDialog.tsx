@@ -23,10 +23,12 @@ import { useSurfacePresence } from '../../app/useSurfacePresence.js'
 import { useChatStore } from '../../services/chat/store.js'
 import type { HistoryImportMode } from '../../services/chat/types.js'
 import {
+  confirmDeviceAction,
   DeviceStatus,
   requestNotificationPermission,
   saveDeviceFile,
   setDeviceWindowPrivacy,
+  triggerDeviceHaptic,
   useDeviceFeatures,
 } from '../../services/harmony.js'
 import {
@@ -478,9 +480,11 @@ const DeleteAllConfirm = ({
 }
 
 const useHistoryDelete = () => {
+  const t = useTranslate()
   const [opened, setOpened] = useState(false)
   const [busy, setBusy] = useState(false)
   const deleting = useRef(false)
+  const prompting = useRef(false)
 
   const confirm = async () => {
     if (deleting.current) {
@@ -500,10 +504,43 @@ const useHistoryDelete = () => {
     }
   }
 
+  const open = () => {
+    if (deleting.current || prompting.current) {
+      return
+    }
+    if (
+      __HARMONY_APP__ &&
+      useDeviceFeatures.getState().immersiveUi &&
+      useSettings.getState().immersiveLight
+    ) {
+      prompting.current = true
+      triggerDeviceHaptic('menu')
+      void confirmDeviceAction({
+        title: t('deleteAllSessionsModalTitle'),
+        message: t('deleteAllSessionsModalDescription'),
+        confirm: t('deleteAllSessions'),
+        cancel: t('cancel'),
+        danger: true,
+      })
+        .then((result) => {
+          if (result === 'confirmed') {
+            void confirm()
+          } else if (result === 'unavailable') {
+            setOpened(true)
+          }
+        })
+        .finally(() => {
+          prompting.current = false
+        })
+      return
+    }
+    setOpened(true)
+  }
+
   return {
     opened,
     busy,
-    open: () => setOpened(true),
+    open,
     cancel: () => {
       if (!deleting.current) {
         setOpened(false)

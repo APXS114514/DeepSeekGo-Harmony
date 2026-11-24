@@ -9,7 +9,12 @@ import {
   IconStopFill16,
   IconThinkOutline14,
 } from '../base/icons.js'
-import { setSearch, setThinking, useSettings } from '../../services/settings.js'
+import {
+  setGenerationOptions,
+  setSearch,
+  setThinking,
+  useSettings,
+} from '../../services/settings.js'
 import { useIsMobile } from '../../app/viewport.js'
 import {
   carryDraftToNewChat,
@@ -38,7 +43,12 @@ import {
   useDrafts,
 } from '../../services/chat/drafts.js'
 import { stopReadAloud } from '../../services/speech/readAloud.js'
-import { useDeviceFeatures } from '../../services/harmony.js'
+import {
+  chooseDeviceToolsSheet,
+  triggerDeviceHaptic,
+  useDeviceFeatures,
+  type ScanSource,
+} from '../../services/harmony.js'
 import { IconButton } from '../base/IconButton.js'
 import { Tooltip } from '../base/Tooltip.js'
 import { ensureApiKey } from '../settings/settingsDialogState.js'
@@ -113,7 +123,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   const importingHistory = useChatStore((state) => state.importingHistory !== false)
   const isMobile = useIsMobile()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const scanButtonRef = useRef<{ open: () => void }>(null)
+  const scanButtonRef = useRef<{ open: () => void; scan: (source: ScanSource) => void }>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const draggingSelection = useRef(false)
   const togglesRef = useRef<HTMLDivElement>(null)
@@ -121,6 +131,9 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   const pendingActionSeq = useComposerAction((state) => state.seq)
   const featuresReady = useDeviceFeatures((state) => state.ready)
   const scanSupported = useDeviceFeatures((state) => state.scan)
+  const immersiveUi = useDeviceFeatures((state) => state.immersiveUi)
+  const immersiveLight = useSettings((state) => state.immersiveLight)
+  const [sheetOpening, setSheetOpening] = useState(false)
 
   useLayoutEffect(() => {
     const toggles = togglesRef.current
@@ -265,6 +278,81 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
       }
     } finally {
       setCarrying(false)
+    }
+  }
+
+  const openAttachmentOrTools = async () => {
+    if (__HARMONY_APP__ && immersiveUi && immersiveLight && !sheetOpening) {
+      setSheetOpening(true)
+      triggerDeviceHaptic('menu')
+      const selected = await chooseDeviceToolsSheet({
+        title: t('toolsSheetTitle'),
+        sections: [
+          {
+            title: t('toolsSheetAttachments'),
+            items: [
+              {
+                key: 'upload',
+                label: t('toolsSheetUploadFile'),
+                icon: 'file',
+              },
+              ...(scanSupported
+                ? [
+                    { key: 'scan-camera', label: t('harmonyScanCamera'), icon: 'camera' },
+                    { key: 'scan-album', label: t('harmonyScanAlbum'), icon: 'album' },
+                  ]
+                : []),
+            ],
+          },
+          {
+            title: t('toolsSheetChatTools'),
+            items: [
+              {
+                key: 'toggle-thinking',
+                label: t('thinkingSwitch'),
+                description: t('deactivatedThinkTooltip'),
+                icon: 'think',
+                active: thinking,
+              },
+              {
+                key: 'toggle-search',
+                label: t('search'),
+                description: t('deactivatedSearchTooltip'),
+                icon: 'search',
+                active: search,
+              },
+              {
+                key: 'toggle-read-links',
+                label: t('settingsReadLinks'),
+                description: t('settingsReadLinksDescription'),
+                icon: 'link',
+                active: generation.readLinks,
+              },
+            ],
+          },
+        ],
+        cancel: t('cancel'),
+      })
+      setSheetOpening(false)
+      if (selected === 'upload' || selected === 'unavailable') {
+        if (ensureApiKey()) {
+          fileInputRef.current?.click()
+        }
+      } else if (selected === 'scan-camera') {
+        scanButtonRef.current?.scan('camera')
+      } else if (selected === 'scan-album') {
+        scanButtonRef.current?.scan('album')
+      } else if (selected === 'toggle-thinking') {
+        setThinking(!thinking)
+      } else if (selected === 'toggle-search') {
+        setSearch(!search)
+      } else if (selected === 'toggle-read-links') {
+        setGenerationOptions({ readLinks: !generation.readLinks })
+      }
+      return
+    }
+    if (ensureApiKey()) {
+      fileInputRef.current?.click()
     }
   }
 
@@ -478,9 +566,13 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
             size="m"
             tone="primary"
             icon={<IconPaperclipOutline16 />}
-            tooltip={t('uploadFile')}
-            disabled={importingHistory || listening}
-            onClick={() => ensureApiKey() && fileInputRef.current?.click()}
+            tooltip={
+              __HARMONY_APP__ && immersiveUi && immersiveLight
+                ? t('toolsSheetTitle')
+                : t('uploadFile')
+            }
+            disabled={importingHistory || listening || sheetOpening}
+            onClick={() => void openAttachmentOrTools()}
           />
           <input
             ref={fileInputRef}

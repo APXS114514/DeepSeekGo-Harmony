@@ -9,7 +9,12 @@ import {
   IconSettingsOutline16,
   NewChatIcon,
 } from '../base/icons.js'
-import { setSiderCollapsed } from '../../services/settings.js'
+import { setSiderCollapsed, useSettings } from '../../services/settings.js'
+import {
+  confirmDeviceAction,
+  triggerDeviceHaptic,
+  useDeviceFeatures,
+} from '../../services/harmony.js'
 import {
   groupSessions,
   toggleBranchGroup,
@@ -39,6 +44,41 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   const groups = useMemo(() => groupSessions(sessions, now, t), [sessions, now, t])
   const [deleting, setDeleting] = useState<SessionSummary | null>(null)
   const [deletePending, setDeletePending] = useState(false)
+
+  const requestDelete = async (session: SessionSummary) => {
+    if (deletePending) {
+      return
+    }
+    if (
+      __HARMONY_APP__ &&
+      useDeviceFeatures.getState().immersiveUi &&
+      useSettings.getState().immersiveLight
+    ) {
+      triggerDeviceHaptic('menu')
+      const result = await confirmDeviceAction({
+        title: t('deleteSessionModalContentTitle'),
+        message: t('deleteSessionWithFilesDescription'),
+        confirm: t('delete'),
+        cancel: t('cancel'),
+        danger: true,
+      })
+      if (result === 'confirmed') {
+        setDeletePending(true)
+        try {
+          if (!(await removeSession(session.id))) {
+            showToast({ key: 'sessionDeleteFailed', type: 'error' })
+          }
+        } finally {
+          setDeletePending(false)
+        }
+        return
+      }
+      if (result === 'cancelled') {
+        return
+      }
+    }
+    setDeleting(session)
+  }
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>
@@ -105,7 +145,7 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
                       key={entry.session.id}
                       session={entry.session}
                       active={entry.session.id === activeId}
-                      onDelete={() => setDeleting(entry.session)}
+                      onDelete={() => void requestDelete(entry.session)}
                     />
                   )
                 }
@@ -151,7 +191,7 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
                             key={session.id}
                             session={session}
                             active={session.id === activeId}
-                            onDelete={() => setDeleting(session)}
+                            onDelete={() => void requestDelete(session)}
                           />
                         ))}
                       </div>

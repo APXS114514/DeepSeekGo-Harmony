@@ -9,6 +9,14 @@ import { OPEN_SESSION_KEY } from '../services/BackgroundReply';
 import { extractShortcutAction, SHORTCUT_KEY } from '../services/QuickShortcut';
 import { ShareInbox } from '../services/ShareInbox';
 import { ScanSourceDialog, ScanSourceLabels } from '../services/ScanSourceMenu';
+import {
+  NativeConfirmDialog,
+  NativeConfirmPayload,
+  NativeMenuDialog,
+  NativeMenuPayload,
+  NativeSheetPayload,
+  nativeToolsSheetBuilder
+} from '../services/ImmersiveUi';
 import { clampFontScale, FONT_SCALE_KEY } from '../window/FontScale';
 import { ChatHeader } from '../window/ChatHeader';
 import { FoldBounds, readFoldBounds } from '../window/FoldHover';
@@ -61,6 +69,14 @@ struct Index {
   private insetsRevision: number = 0;
   private nativeColorMode?: ConfigurationConstant.ColorMode;
   private scanSourceDialog?: CustomDialogController;
+  private nativeMenuDialog?: CustomDialogController;
+  private nativeConfirmDialog?: CustomDialogController;
+  @State private toolsSheetOpen: boolean = false;
+  @State private toolsSheetPayload: NativeSheetPayload = { title: '', sections: [], cancel: '' };
+  private toolsSheetSelected: string = '';
+  private toolsSheetAppeared: boolean = false;
+  private toolsSheetTimer: number = -1;
+  private toolsSheetResolve?: (value: string | null) => void;
   private foldBounds: FoldBounds | null = null;
   private observeFold: boolean = false;
   @State private headerMaterial: CommonModifier | null = null;
@@ -88,8 +104,17 @@ struct Index {
       this.observeFold = false;
     }
     void this.loadHeaderMaterial();
-    this.bridge = new DeviceBridge(context, WindowPrivacy.instance,
-      (labels) => this.presentScanSource(labels), (message) => this.sendWebMessage(message));
+    this.bridge = new DeviceBridge(
+      context,
+      WindowPrivacy.instance,
+      {
+        scanSource: (labels) => this.presentScanSource(labels),
+        menu: (payload) => this.presentNativeMenu(payload),
+        confirm: (payload) => this.presentNativeConfirm(payload),
+        sheet: (payload) => this.presentToolsSheet(payload)
+      },
+      (message) => this.sendWebMessage(message)
+    );
     this.webMicrophone = new WebMicrophonePermission(context, APP_ORIGIN, () => this.confirmWebMicrophone());
     ShareInbox.subscribe(this.flushShares);
     if (this.observeFold) {
@@ -397,6 +422,9 @@ struct Index {
   aboutToDisappear(): void {
     this.disposed = true;
     this.scanSourceDialog?.close();
+    this.nativeMenuDialog?.close();
+    this.nativeConfirmDialog?.close();
+    this.finishToolsSheet(null);
     this.closeDevicePort();
     ShareInbox.unsubscribe(this.flushShares);
     this.bridge?.dispose();
@@ -507,6 +535,124 @@ struct Index {
     });
   }
 
+  private presentNativeMenu(payload: NativeMenuPayload): Promise<string | null> {
+    return new Promise<string | null>((resolve) => {
+      let selected = '';
+      let appeared = false;
+      let finished = false;
+      let timer: number = -1;
+      const finish = (result: string | null): void => {
+        if (!finished) {
+          finished = true;
+          clearTimeout(timer);
+          this.nativeMenuDialog = undefined;
+          resolve(result);
+        }
+      };
+      try {
+        this.nativeMenuDialog = new CustomDialogController({
+          builder: NativeMenuDialog({
+            payload: payload,
+            onSelect: (key: string) => { selected = key; }
+          }),
+          alignment: DialogAlignment.Center,
+          autoCancel: true,
+          customStyle: false,
+          onWillAppear: () => {
+            appeared = true;
+            clearTimeout(timer);
+          },
+          onDidDisappear: () => finish(appeared ? selected : null)
+        });
+        timer = setTimeout(() => {
+          this.nativeMenuDialog?.close();
+          finish(null);
+        }, 2000);
+        this.getUIContext().runScopedTask(() => this.nativeMenuDialog?.open());
+      } catch {
+        finish(null);
+      }
+    });
+  }
+
+  private presentNativeConfirm(payload: NativeConfirmPayload): Promise<boolean | null> {
+    return new Promise<boolean | null>((resolve) => {
+      let confirmed = false;
+      let appeared = false;
+      let finished = false;
+      let timer: number = -1;
+      const finish = (result: boolean | null): void => {
+        if (!finished) {
+          finished = true;
+          clearTimeout(timer);
+          this.nativeConfirmDialog = undefined;
+          resolve(result);
+        }
+      };
+      try {
+        this.nativeConfirmDialog = new CustomDialogController({
+          builder: NativeConfirmDialog({
+            payload: payload,
+            onResult: (ok: boolean) => { confirmed = ok; }
+          }),
+          alignment: DialogAlignment.Center,
+          autoCancel: true,
+          customStyle: false,
+          onWillAppear: () => {
+            appeared = true;
+            clearTimeout(timer);
+          },
+          onDidDisappear: () => finish(appeared ? confirmed : null)
+        });
+        timer = setTimeout(() => {
+          this.nativeConfirmDialog?.close();
+          finish(null);
+        }, 2000);
+        this.getUIContext().runScopedTask(() => this.nativeConfirmDialog?.open());
+      } catch {
+        finish(null);
+      }
+    });
+  }
+
+  private presentToolsSheet(payload: NativeSheetPayload): Promise<string | null> {
+    return new Promise<string | null>((resolve) => {
+      this.finishToolsSheet(null);
+      this.toolsSheetSelected = '';
+      this.toolsSheetAppeared = false;
+      this.toolsSheetPayload = payload;
+      this.toolsSheetResolve = resolve;
+      this.toolsSheetTimer = setTimeout(() => {
+        this.finishToolsSheet(null);
+      }, 2000);
+      this.toolsSheetOpen = true;
+    });
+  }
+
+  private finishToolsSheet(result?: string | null): void {
+    clearTimeout(this.toolsSheetTimer);
+    this.toolsSheetTimer = -1;
+    this.toolsSheetOpen = false;
+    const resolve = this.toolsSheetResolve;
+    if (!resolve) {
+      return;
+    }
+    this.toolsSheetResolve = undefined;
+    if (result !== undefined) {
+      resolve(result);
+    } else {
+      resolve(this.toolsSheetAppeared ? this.toolsSheetSelected : null);
+    }
+  }
+
+  @Builder
+  private toolsSheetBuilder() {
+    nativeToolsSheetBuilder(this.toolsSheetPayload, (key: string) => {
+      this.toolsSheetSelected = key;
+      this.toolsSheetOpen = false;
+    })
+  }
+
   private confirmWebMicrophone(): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       this.getUIContext().showAlertDialog({
@@ -571,5 +717,16 @@ struct Index {
     }
       .width('100%')
       .height('100%')
+      .bindSheet($$this.toolsSheetOpen, this.toolsSheetBuilder(), {
+        height: SheetSize.FIT_CONTENT,
+        dragBar: true,
+        showClose: true,
+        preferType: SheetType.BOTTOM,
+        onWillAppear: () => {
+          this.toolsSheetAppeared = true;
+          clearTimeout(this.toolsSheetTimer);
+        },
+        onDisappear: () => this.finishToolsSheet()
+      })
   }
 }

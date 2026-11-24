@@ -332,6 +332,44 @@
   }
 }
 
+:global(.harmony-app[data-immersive-light]) .immersiveLightSwitch {
+  background:
+    radial-gradient(ellipse at 50% 0%, var(--composer-highlight), transparent 80%),
+    var(--glass-capsule-bg);
+  box-shadow: inset 0 1px 1px var(--composer-rim);
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s;
+
+  &::before {
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  }
+
+  &:checked {
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.35), transparent 72%),
+      var(--dsw-alias-button-primary-fill);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.38),
+      0 2px 8px var(--glass-capsule-glow);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  :global(.harmony-app[data-immersive-light]) .immersiveLightSwitch {
+    background: var(--dsw-alias-bg-layer-2);
+    box-shadow: none;
+
+    &:checked {
+      background: var(--dsw-alias-button-primary-fill);
+      box-shadow: none;
+    }
+  }
+}
+
 .themeOptions {
   display: flex;
   flex-wrap: wrap;

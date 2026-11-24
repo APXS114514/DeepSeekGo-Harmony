@@ -22,7 +22,7 @@ export const ScanTextButton = ({
 }: {
   disabled: boolean
   onText: (text: string) => void
-  controlRef?: Ref<{ open: () => void }>
+  controlRef?: Ref<{ open: () => void; scan: (source: ScanSource) => void }>
 }) => {
   const t = useTranslate()
   const available = useDeviceFeatures((state) => state.scan)
@@ -42,7 +42,15 @@ export const ScanTextButton = ({
   }, [])
 
   const openPickerRef = useRef<() => void>(() => {})
-  useImperativeHandle(controlRef, () => ({ open: () => openPickerRef.current() }), [])
+  const scanSourceRef = useRef<(source: ScanSource) => void>(() => {})
+  useImperativeHandle(
+    controlRef,
+    () => ({
+      open: () => openPickerRef.current(),
+      scan: (source: ScanSource) => scanSourceRef.current(source),
+    }),
+    []
+  )
 
   if (!available) {
     return null
@@ -82,6 +90,12 @@ export const ScanTextButton = ({
     if (source === 'unavailable') {
       menu.current?.open()
     } else if (source !== 'cancelled') {
+      void scan(source)
+    }
+  }
+
+  scanSourceRef.current = (source) => {
+    if (!disabled && !busy && !choosing) {
       void scan(source)
     }
   }

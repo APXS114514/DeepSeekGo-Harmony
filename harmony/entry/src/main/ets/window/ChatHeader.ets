@@ -12,6 +12,8 @@ export struct ChatHeader {
   @Prop material: CommonModifier | null = null;
   @Prop titleOptions: NavigationTitleOptions = {};
   private readonly plainMaterial: CommonModifier = new CommonModifier();
+  @State private menuBounce: number = 0;
+  @State private newChatBounce: number = 0;
   onMenu: () => void = () => {};
   onNewChat: () => void = () => {};
 
@@ -20,10 +22,14 @@ export struct ChatHeader {
   }
 
   @Builder
-  actionButton(symbol: Resource, label: string, action: () => void) {
+  actionButton(symbol: Resource, label: string, trigger: number, action: () => void) {
     Button({ type: ButtonType.Circle, buttonStyle: ButtonStyleMode.TEXTUAL, stateEffect: true }) {
       // 图标固定 22vp，与网页顶栏一致；标题用 fp 跟随系统字体。
-      SymbolGlyph(symbol).fontSize('22vp').fontColor([this.foreground()]).accessibilityLevel('no');
+      SymbolGlyph(symbol)
+        .fontSize('22vp')
+        .fontColor([this.foreground()])
+        .symbolEffect(new BounceSymbolEffect(EffectScope.WHOLE, EffectDirection.UP), trigger)
+        .accessibilityLevel('no');
     }
     .width(44)
     .height(44)
@@ -36,7 +42,12 @@ export struct ChatHeader {
   @Builder
   headerContent() {
     Row({ space: 8 }) {
-      this.actionButton($r('sys.symbol.line_3_horizontal'), this.menuLabel, this.onMenu)
+      this.actionButton($r('sys.symbol.line_3_horizontal'), this.menuLabel, this.menuBounce, () => {
+        if (this.material) {
+          this.menuBounce++;
+        }
+        this.onMenu();
+      })
       Text(this.title)
         .accessibilityGroup(true)
         .layoutWeight(1)
@@ -46,7 +57,12 @@ export struct ChatHeader {
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       if (this.showNewChat) {
-        this.actionButton($r('sys.symbol.square_and_pencil'), this.newChatLabel, this.onNewChat)
+        this.actionButton($r('sys.symbol.square_and_pencil'), this.newChatLabel, this.newChatBounce, () => {
+          if (this.material) {
+            this.newChatBounce++;
+          }
+          this.onNewChat();
+        })
       }
     }
     .width('100%')

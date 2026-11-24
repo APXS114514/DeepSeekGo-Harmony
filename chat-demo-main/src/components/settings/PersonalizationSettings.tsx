@@ -19,6 +19,12 @@ import {
   type Memory,
 } from '../../services/personalization.js'
 import { formatDate } from '../../utils/format.js'
+import {
+  confirmDeviceAction,
+  triggerDeviceHaptic,
+  useDeviceFeatures,
+} from '../../services/harmony.js'
+import { useSettings } from '../../services/settings.js'
 import { Button } from '../base/Button.js'
 import { IconButton } from '../base/IconButton.js'
 import { IconEditOutline16, IconTrashOutline16 } from '../base/icons.js'
@@ -171,6 +177,33 @@ const MemorySetting = () => {
     }
   }
 
+  const requestClearMemories = async () => {
+    if (
+      __HARMONY_APP__ &&
+      useDeviceFeatures.getState().immersiveUi &&
+      useSettings.getState().immersiveLight
+    ) {
+      triggerDeviceHaptic('menu')
+      const result = await confirmDeviceAction({
+        title: t('memoryClearTitle'),
+        message: t('memoryClearDescription'),
+        confirm: t('memoryClear'),
+        cancel: t('cancel'),
+        danger: true,
+      })
+      if (result === 'confirmed') {
+        clearMemories()
+        setPrevious(null)
+        showToast({ key: 'memoryCleared' })
+        return
+      }
+      if (result === 'cancelled') {
+        return
+      }
+    }
+    setConfirmClear(true)
+  }
+
   return (
     <section className={styles.section} aria-labelledby="personal-memory">
       <h3 id="personal-memory" className={styles.heading}>
@@ -218,7 +251,7 @@ const MemorySetting = () => {
             variant="dangerOutlined"
             size="m"
             disabled={memories.length === 0 || organizing}
-            onClick={() => setConfirmClear(true)}
+            onClick={() => void requestClearMemories()}
           >
             {t('memoryClear')}
           </Button>

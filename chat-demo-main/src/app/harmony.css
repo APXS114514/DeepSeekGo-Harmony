@@ -27,6 +27,11 @@
   --composer-tint: rgba(237, 247, 240, 0.81);
   --composer-highlight: rgba(255, 255, 255, 0.95);
   --composer-rim: rgba(255, 255, 255, 0.96);
+  --glass-surface: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.78);
+  --glass-shadow: 0 6px 18px rgba(12, 24, 17, 0.08);
+  --glass-capsule-bg: rgba(255, 255, 255, 0.45);
+  --glass-capsule-glow: rgba(42, 118, 89, 0.18);
 }
 
 .harmony-app [data-content-enter] {
@@ -56,17 +61,26 @@
   --composer-tint: rgba(39, 49, 44, 0.83);
   --composer-highlight: rgba(159, 195, 177, 0.15);
   --composer-rim: rgba(214, 239, 224, 0.17);
+  --glass-surface: rgba(38, 46, 42, 0.76);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-shadow: 0 8px 22px rgba(0, 0, 0, 0.32);
+  --glass-capsule-bg: rgba(255, 255, 255, 0.07);
+  --glass-capsule-glow: rgba(113, 201, 163, 0.22);
 }
 
 @supports (color: color-mix(in srgb, white, black)) {
   .harmony-app[data-custom-accent] {
     --composer-tint: color-mix(in srgb, var(--user-accent) 10%, rgba(251, 252, 250, 0.8));
+    --glass-surface: color-mix(in srgb, var(--user-accent) 8%, rgba(255, 255, 255, 0.74));
+    --glass-capsule-glow: color-mix(in srgb, var(--user-accent) 24%, transparent);
   }
 
   .harmony-app[data-custom-accent][data-ds-dark-theme] {
     --composer-tint: color-mix(in srgb, var(--user-accent) 10%, rgba(36, 36, 36, 0.84));
     --composer-highlight: color-mix(in srgb, var(--user-accent) 25%, rgba(255, 255, 255, 0.1));
     --composer-rim: color-mix(in srgb, var(--user-accent) 25%, rgba(255, 255, 255, 0.14));
+    --glass-surface: color-mix(in srgb, var(--user-accent) 10%, rgba(34, 34, 34, 0.78));
+    --glass-capsule-glow: color-mix(in srgb, var(--user-accent) 30%, transparent);
   }
 }
 

@@ -1,40 +1,103 @@
 import clsx from 'clsx'
 import {
+  useEffect,
   useImperativeHandle,
   useLayoutEffect,
+  useRef,
   useState,
   type KeyboardEvent,
   type ReactNode,
   type Ref,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslate } from '../../i18n/index.js'
 import { useAnchoredPosition, useDismiss } from './anchored.js'
 import { useBackLayer } from '../../services/backStack.js'
-import { triggerDeviceHaptic } from '../../services/harmony.js'
+import { chooseDeviceMenu, triggerDeviceHaptic, useDeviceFeatures } from '../../services/harmony.js'
+import { useSettings } from '../../services/settings.js'
 import styles from './Menu.module.css'
 
 export type MenuOption = {
   key: string
   label: string
   icon: ReactNode
+  /** 原生沉浸光感菜单的语义图标名 */
+  nativeIcon?: string
   danger?: boolean
   onSelect: () => void
 }
 
-/** 支持触发按钮、键盘和外部请求打开的操作菜单。 */
+/** 支持触发按钮、键盘、右键/长按与鸿蒙原生光感菜单的操作菜单。 */
 export const Menu = ({
   options,
   children,
   controlRef,
+  nativeTitle,
 }: {
   options: MenuOption[]
   children: (props: { open: boolean; toggle: () => void }) => ReactNode
-  /** 供外部打开菜单，例如 2in1 上右键会话条目 */
+  /** 供外部打开菜单，例如 2in1 上右键或触屏长按会话条目 */
   controlRef?: Ref<{ open: () => void }>
+  nativeTitle?: string
 }) => {
+  const t = useTranslate()
   const [entry, setEntry] = useState<'first' | 'last' | null>(null)
+  const [nativeOpening, setNativeOpening] = useState(false)
+  const mountedRef = useRef(true)
+  const openNativeRef = useRef<() => void>(() => {})
+  const supportsNative = useDeviceFeatures((state) => state.immersiveUi)
+  const immersiveLight = useSettings((state) => state.immersiveLight)
+  const useNative = __HARMONY_APP__ && supportsNative && immersiveLight
   const open = entry !== null
-  useImperativeHandle(controlRef, () => ({ open: () => setEntry('first') }), [])
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  openNativeRef.current = () => {
+    if (nativeOpening) {
+      return
+    }
+    setNativeOpening(true)
+    triggerDeviceHaptic('menu')
+    void chooseDeviceMenu({
+      ...(nativeTitle ? { title: nativeTitle } : {}),
+      options: options.map((option) => ({
+        key: option.key,
+        label: option.label,
+        ...(option.nativeIcon ? { icon: option.nativeIcon } : {}),
+        ...(option.danger ? { danger: true } : {}),
+      })),
+      cancel: t('cancel'),
+    }).then((selected) => {
+      if (!mountedRef.current) {
+        return
+      }
+      setNativeOpening(false)
+      if (selected === 'unavailable') {
+        setEntry('first')
+      } else if (selected !== 'cancelled') {
+        options.find((option) => option.key === selected)?.onSelect()
+      }
+    })
+  }
+
+  useImperativeHandle(
+    controlRef,
+    () => ({
+      open: () => {
+        if (useNative) {
+          openNativeRef.current()
+        } else {
+          setEntry('first')
+        }
+      },
+    }),
+    [useNative]
+  )
   // 左侧对齐并再左移 5px，让菜单文字与触发元素图标对齐
   const { anchorRef, floatingRef, position } = useAnchoredPosition<HTMLSpanElement, HTMLDivElement>(
     open,
@@ -108,7 +171,18 @@ export const Menu = ({
   return (
     <>
       <span ref={anchorRef} className={styles.anchor} onKeyDown={onTriggerKeyDown}>
-        {children({ open, toggle: () => setEntry(open ? null : 'first') })}
+        {children({
+          open: open || nativeOpening,
+          toggle: () => {
+            if (open) {
+              setEntry(null)
+            } else if (useNative) {
+              openNativeRef.current()
+            } else {
+              setEntry('first')
+            }
+          },
+        })}
       </span>
       {open
         ? createPortal(

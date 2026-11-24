@@ -12,7 +12,13 @@ import { LocalSpeech } from './LocalSpeech';
 import { LocationService } from './LocationService';
 import { ShareOut } from './ShareOut';
 import { TextScanner } from './TextScanner';
-import type { ScanSourceLabels, ScanSourcePicker } from './ScanSourceMenu';
+import type { ScanSourceLabels } from './ScanSourceMenu';
+import type {
+  NativeConfirmPayload,
+  NativeMenuPayload,
+  NativeSheetPayload,
+  NativeUiPresenter
+} from './ImmersiveUi';
 import { WindowPrivacy } from '../window/WindowPrivacy';
 import { VoiceInput } from './VoiceInput';
 
@@ -36,6 +42,7 @@ interface DeviceFeatures {
   share: boolean;
   scan: boolean;
   immersiveScanMenu: boolean;
+  immersiveUi: boolean;
   save: boolean;
   location: boolean;
   haptics: boolean;
@@ -63,15 +70,15 @@ export class DeviceBridge {
   private readonly haptics: Haptics;
   private readonly shareOut: ShareOut;
   private readonly background: BackgroundReply;
-  private readonly presentScanSource: ScanSourcePicker;
+  private readonly ui: NativeUiPresenter;
   private readonly privacy: WindowPrivacy;
-  private scanMenuOpen: boolean = false;
+  private nativeUiOpen: boolean = false;
 
-  constructor(context: common.UIAbilityContext, privacy: WindowPrivacy, presentScanSource: ScanSourcePicker,
+  constructor(context: common.UIAbilityContext, privacy: WindowPrivacy, ui: NativeUiPresenter,
     emit: (message: string) => void) {
     this.privacy = privacy;
     this.context = context;
-    this.presentScanSource = presentScanSource;
+    this.ui = ui;
     this.voice = new VoiceInput(context, emit);
     this.scanner = new TextScanner(context);
     this.saver = new FileSaver(context);
@@ -84,8 +91,7 @@ export class DeviceBridge {
 
   features(): Promise<string> {
     const scan = TextScanner.supported();
-    const picker = scan ? this.loadScanSourcePicker() : Promise.resolve(null);
-    return picker.then((pick) => {
+    return this.supportsImmersiveUi().then((immersiveUi) => {
       const features: DeviceFeatures = {
         type: 'device-features',
         voice: VoiceInput.supported(),
@@ -93,7 +99,8 @@ export class DeviceBridge {
         readAloud: LocalSpeech.supported(),
         share: ShareOut.supported(),
         scan: scan,
-        immersiveScanMenu: pick !== null,
+        immersiveScanMenu: scan && immersiveUi,
+        immersiveUi: immersiveUi,
         save: true,
         location: LocationService.supported(),
         haptics: Haptics.supported(),
@@ -104,19 +111,19 @@ export class DeviceBridge {
     });
   }
 
-  private loadScanSourcePicker(): Promise<ScanSourcePicker | null> {
+  private supportsImmersiveUi(): Promise<boolean> {
     // Older runtimes never load the API 26 material module.
     if (deviceInfo.sdkApiVersion >= 26) {
       if (deviceInfo.apiAvailable('26.0.0')) {
-        return import('../window/ImmersiveMaterial').then((material): ScanSourcePicker | null => {
-          return material.supportsImmersiveMaterial() ? this.presentScanSource : null;
+        return import('../window/ImmersiveMaterial').then((material): boolean => {
+          return material.supportsImmersiveMaterial();
         }).catch(() => {
-          hilog.warn(0x0000, 'PocketChat', 'Cannot load immersive scan menu');
-          return null;
+          hilog.warn(0x0000, 'PocketChat', 'Cannot check immersive UI material support');
+          return false;
         });
       }
     }
-    return Promise.resolve(null);
+    return Promise.resolve(false);
   }
 
   /** 页面隐藏或端口重连时中断进行中的收音。 */
@@ -200,6 +207,15 @@ export class DeviceBridge {
         case 'scan-source':
           this.chooseScanSource(request).then((result) => this.reply(port, result));
           return;
+        case 'native-menu':
+          this.chooseNativeMenu(request).then((result) => this.reply(port, result));
+          return;
+        case 'native-confirm':
+          this.confirmNativeAction(request).then((result) => this.reply(port, result));
+          return;
+        case 'native-sheet':
+          this.chooseNativeSheet(request).then((result) => this.reply(port, result));
+          return;
         case 'location':
           this.handleLocation(request, port);
           return;
@@ -219,7 +235,7 @@ export class DeviceBridge {
 
   private async chooseScanSource(request: DeviceRequest): Promise<DeviceReply> {
     const reply: DeviceReply = { id: request.id, status: DeviceStatus.FAILED, value: '' };
-    if (this.scanMenuOpen) {
+    if (this.nativeUiOpen) {
       reply.status = DeviceStatus.CANCELLED;
       return reply;
     }
@@ -227,9 +243,9 @@ export class DeviceBridge {
       reply.status = DeviceStatus.UNSUPPORTED;
       return reply;
     }
-    this.scanMenuOpen = true;
-    return this.loadScanSourcePicker().then((pickSource) => {
-      if (!pickSource) {
+    this.nativeUiOpen = true;
+    return this.supportsImmersiveUi().then((supported) => {
+      if (!supported) {
         reply.status = DeviceStatus.UNSUPPORTED;
         return reply;
       }
@@ -239,7 +255,7 @@ export class DeviceBridge {
         labels.camera.length > 120 || labels.album.length > 120 || labels.cancel.length > 120) {
         return reply;
       }
-      return pickSource(labels).then((source) => {
+      return this.ui.scanSource(labels).then((source) => {
         if (source !== null) {
           reply.status = source ? DeviceStatus.OK : DeviceStatus.CANCELLED;
           reply.value = source;
@@ -250,7 +266,129 @@ export class DeviceBridge {
       hilog.warn(0x0000, 'PocketChat', 'Cannot open immersive scan menu: %{public}d', error.code);
       return reply;
     }).finally(() => {
-      this.scanMenuOpen = false;
+      this.nativeUiOpen = false;
+    });
+  }
+
+  private async chooseNativeMenu(request: DeviceRequest): Promise<DeviceReply> {
+    const reply: DeviceReply = { id: request.id, status: DeviceStatus.FAILED, value: '' };
+    if (this.nativeUiOpen) {
+      reply.status = DeviceStatus.CANCELLED;
+      return reply;
+    }
+    this.nativeUiOpen = true;
+    return this.supportsImmersiveUi().then((supported) => {
+      if (!supported) {
+        reply.status = DeviceStatus.UNSUPPORTED;
+        return reply;
+      }
+      const payload = JSON.parse(request.value ?? 'null') as NativeMenuPayload;
+      if (!payload || !Array.isArray(payload.options) || payload.options.length === 0 ||
+        payload.options.length > 16 || typeof payload.cancel !== 'string' || payload.cancel.length > 60) {
+        return reply;
+      }
+      if (payload.title !== undefined && (typeof payload.title !== 'string' || payload.title.length > 120)) {
+        return reply;
+      }
+      for (const option of payload.options) {
+        if (typeof option?.key !== 'string' || !option.key || option.key.length > 60 ||
+          typeof option.label !== 'string' || !option.label || option.label.length > 120) {
+          return reply;
+        }
+      }
+      return this.ui.menu(payload).then((selected) => {
+        if (selected !== null) {
+          reply.status = selected ? DeviceStatus.OK : DeviceStatus.CANCELLED;
+          reply.value = selected;
+        }
+        return reply;
+      });
+    }).catch((error: BusinessError) => {
+      hilog.warn(0x0000, 'PocketChat', 'Cannot open immersive menu: %{public}d', error.code);
+      return reply;
+    }).finally(() => {
+      this.nativeUiOpen = false;
+    });
+  }
+
+  private async confirmNativeAction(request: DeviceRequest): Promise<DeviceReply> {
+    const reply: DeviceReply = { id: request.id, status: DeviceStatus.FAILED, value: '' };
+    if (this.nativeUiOpen) {
+      reply.status = DeviceStatus.CANCELLED;
+      return reply;
+    }
+    this.nativeUiOpen = true;
+    return this.supportsImmersiveUi().then((supported) => {
+      if (!supported) {
+        reply.status = DeviceStatus.UNSUPPORTED;
+        return reply;
+      }
+      const payload = JSON.parse(request.value ?? 'null') as NativeConfirmPayload;
+      if (!payload || typeof payload.title !== 'string' || !payload.title || payload.title.length > 200 ||
+        typeof payload.confirm !== 'string' || !payload.confirm || payload.confirm.length > 60 ||
+        typeof payload.cancel !== 'string' || !payload.cancel || payload.cancel.length > 60) {
+        return reply;
+      }
+      if (payload.message !== undefined && (typeof payload.message !== 'string' || payload.message.length > 400)) {
+        return reply;
+      }
+      return this.ui.confirm(payload).then((confirmed) => {
+        if (confirmed !== null) {
+          reply.status = confirmed ? DeviceStatus.OK : DeviceStatus.CANCELLED;
+          reply.value = confirmed ? 'confirmed' : '';
+        }
+        return reply;
+      });
+    }).catch((error: BusinessError) => {
+      hilog.warn(0x0000, 'PocketChat', 'Cannot open immersive confirm dialog: %{public}d', error.code);
+      return reply;
+    }).finally(() => {
+      this.nativeUiOpen = false;
+    });
+  }
+
+  private async chooseNativeSheet(request: DeviceRequest): Promise<DeviceReply> {
+    const reply: DeviceReply = { id: request.id, status: DeviceStatus.FAILED, value: '' };
+    if (this.nativeUiOpen) {
+      reply.status = DeviceStatus.CANCELLED;
+      return reply;
+    }
+    this.nativeUiOpen = true;
+    return this.supportsImmersiveUi().then((supported) => {
+      if (!supported) {
+        reply.status = DeviceStatus.UNSUPPORTED;
+        return reply;
+      }
+      const payload = JSON.parse(request.value ?? 'null') as NativeSheetPayload;
+      if (!payload || typeof payload.title !== 'string' || payload.title.length > 120 ||
+        typeof payload.cancel !== 'string' || payload.cancel.length > 60 ||
+        !Array.isArray(payload.sections) || payload.sections.length === 0 || payload.sections.length > 6) {
+        return reply;
+      }
+      for (const section of payload.sections) {
+        if (typeof section?.title !== 'string' || section.title.length > 80 ||
+          !Array.isArray(section.items) || section.items.length === 0 || section.items.length > 12) {
+          return reply;
+        }
+        for (const item of section.items) {
+          if (typeof item?.key !== 'string' || !item.key || item.key.length > 60 ||
+            typeof item.label !== 'string' || !item.label || item.label.length > 120) {
+            return reply;
+          }
+        }
+      }
+      return this.ui.sheet(payload).then((selected) => {
+        if (selected !== null) {
+          reply.status = selected ? DeviceStatus.OK : DeviceStatus.CANCELLED;
+          reply.value = selected;
+        }
+        return reply;
+      });
+    }).catch((error: BusinessError) => {
+      hilog.warn(0x0000, 'PocketChat', 'Cannot open immersive tools sheet: %{public}d', error.code);
+      return reply;
+    }).finally(() => {
+      this.nativeUiOpen = false;
     });
   }
 

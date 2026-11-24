@@ -12,6 +12,12 @@ import {
   usePersonalization,
   type PersonaCard,
 } from '../../services/personalization.js'
+import {
+  confirmDeviceAction,
+  triggerDeviceHaptic,
+  useDeviceFeatures,
+} from '../../services/harmony.js'
+import { useSettings } from '../../services/settings.js'
 import { Button } from '../base/Button.js'
 import { IconButton } from '../base/IconButton.js'
 import { IconEditOutline16, IconTrashOutline16 } from '../base/icons.js'
@@ -31,6 +37,30 @@ export const PersonaCardsSettings = () => {
   const [editing, setEditing] = useState<PersonaDraft | null>(null)
   const [deleting, setDeleting] = useState<PersonaCard | null>(null)
   const full = cards.length >= MAX_PERSONA_CARDS
+
+  const requestDeleteCard = async (card: PersonaCard) => {
+    if (
+      __HARMONY_APP__ &&
+      useDeviceFeatures.getState().immersiveUi &&
+      useSettings.getState().immersiveLight
+    ) {
+      triggerDeviceHaptic('menu')
+      const result = await confirmDeviceAction({
+        title: t('personaDeleteTitle', { name: card.name }),
+        confirm: t('delete'),
+        cancel: t('cancel'),
+        danger: true,
+      })
+      if (result === 'confirmed') {
+        removePersonaCard(card.id)
+        return
+      }
+      if (result === 'cancelled') {
+        return
+      }
+    }
+    setDeleting(card)
+  }
 
   return (
     <section className={styles.section} aria-labelledby="personal-personas">
@@ -87,7 +117,7 @@ export const PersonaCardsSettings = () => {
               <IconButton
                 icon={<IconTrashOutline16 />}
                 tooltip={t('personaDeleteNamed', { name: card.name })}
-                onClick={() => setDeleting(card)}
+                onClick={() => void requestDeleteCard(card)}
               />
             </li>
           ))}

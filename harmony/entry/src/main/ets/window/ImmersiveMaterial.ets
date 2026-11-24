@@ -11,7 +11,8 @@ export function supportsImmersiveMaterial(): boolean {
 class HeaderButtonMaterial extends CommonModifier {
   private readonly material: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
     style: uiMaterial.ImmersiveStyle.THIN,
-    interactive: false
+    interactive: true,
+    lightEffect: {}
   });
 
   applyNormalAttribute(instance: CommonAttribute): void {

@@ -213,7 +213,7 @@ export const zh = {
   dragAnswer: '也可拖到其他应用',
   immersiveLightTitle: '沉浸光感',
   immersiveLightDescription:
-    '为聊天输入区启用半透明和高光，支持的设备也会在识字菜单中使用系统材质。',
+    '为输入区、悬浮按钮和胶囊开关启用光感效果；支持的设备同时使用原生光感顶栏、菜单、半模态与确认弹窗。',
   hideChatComposerTitle: '阅读时隐藏输入框',
   hideChatComposerDescription: '向上翻阅对话时收起输入框，回到底部或点「显示输入框」即可恢复。',
   showChatComposer: '显示输入框',
@@ -419,4 +419,8 @@ export const zh = {
   branchGroupCount: '{count} 个对话',
   shortcutVoiceUnavailable: '当前设备暂不支持语音输入',
   shortcutScanUnavailable: '当前设备暂不支持识别图片文字',
+  toolsSheetTitle: '附件与对话工具',
+  toolsSheetAttachments: '附件与识字',
+  toolsSheetChatTools: '对话工具',
+  toolsSheetUploadFile: '上传图片或文件',
 } as const

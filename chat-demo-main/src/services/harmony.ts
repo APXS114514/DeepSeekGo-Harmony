@@ -47,6 +47,7 @@ export const useDeviceFeatures = create(() => ({
   share: false,
   scan: false,
   immersiveScanMenu: false,
+  immersiveUi: false,
   save: false,
   location: false,
   haptics: false,
@@ -167,6 +168,7 @@ const onWindowMessage = (event: MessageEvent<string>) => {
         share: message.share === true,
         scan: message.scan === true,
         immersiveScanMenu: message.immersiveScanMenu === true,
+        immersiveUi: message.immersiveUi === true,
         save: message.save === true,
         location: message.location === true,
         haptics: message.haptics === true,
@@ -291,6 +293,9 @@ type DeviceOperation =
   | 'speak-stop'
   | 'scan'
   | 'scan-source'
+  | 'native-menu'
+  | 'native-confirm'
+  | 'native-sheet'
   | 'location'
   | 'haptic'
   | 'reply-done'
@@ -456,6 +461,97 @@ export const chooseDeviceScanSource = async (labels: {
     }
   } catch {
     // 端口或原生菜单失效时仍可从网页菜单选择来源。
+  }
+  return 'unavailable'
+}
+
+export type NativeMenuOptionPayload = {
+  key: string
+  label: string
+  icon?: string
+  danger?: boolean
+}
+
+export const chooseDeviceMenu = async (payload: {
+  title?: string
+  options: NativeMenuOptionPayload[]
+  cancel: string
+}): Promise<string | 'cancelled' | 'unavailable'> => {
+  try {
+    const { status, value } = await requestDevice(
+      'native-menu',
+      JSON.stringify(payload),
+      PICKER_TIMEOUT
+    )
+    if (status === DeviceStatus.ok && value) {
+      return value
+    }
+    if (status === DeviceStatus.cancelled) {
+      return 'cancelled'
+    }
+  } catch {
+    // 端口或原生菜单不可用时回退网页菜单。
+  }
+  return 'unavailable'
+}
+
+export const confirmDeviceAction = async (payload: {
+  title: string
+  message?: string
+  confirm: string
+  cancel: string
+  danger?: boolean
+}): Promise<'confirmed' | 'cancelled' | 'unavailable'> => {
+  try {
+    const { status, value } = await requestDevice(
+      'native-confirm',
+      JSON.stringify(payload),
+      PICKER_TIMEOUT
+    )
+    if (status === DeviceStatus.ok && value === 'confirmed') {
+      return 'confirmed'
+    }
+    if (status === DeviceStatus.cancelled) {
+      return 'cancelled'
+    }
+  } catch {
+    // 原生确认弹窗不可用时回退网页弹窗。
+  }
+  return 'unavailable'
+}
+
+export type NativeSheetItemPayload = {
+  key: string
+  label: string
+  description?: string
+  icon?: string
+  active?: boolean
+}
+
+export type NativeSheetSectionPayload = {
+  title: string
+  items: NativeSheetItemPayload[]
+}
+
+export const chooseDeviceToolsSheet = async (payload: {
+  title: string
+  sections: NativeSheetSectionPayload[]
+  cancel: string
+}): Promise<string | 'cancelled' | 'unavailable'> => {
+  try {
+    const { status, value } = await requestDevice(
+      'native-sheet',
+      JSON.stringify(payload),
+      PICKER_TIMEOUT
+    )
+    if (status === DeviceStatus.ok && value) {
+      return value
+    }
+    if (status === DeviceStatus.cancelled) {
+      return 'cancelled'
+    }
+  } catch {
+    // 原生半模态不可用时回退网页交互。
   }
   return 'unavailable'
 }
