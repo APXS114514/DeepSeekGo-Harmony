@@ -28,6 +28,14 @@ assert(headerSource.includes('BounceSymbolEffect'), 'ChatHeader must apply Bounc
 assert(indexSource.includes('.bindSheet('), 'Index must bind native tools sheet via bindSheet')
 assert(indexSource.includes('NativeMenuDialog'), 'Index must present NativeMenuDialog')
 assert(indexSource.includes('NativeConfirmDialog'), 'Index must present NativeConfirmDialog')
+assert(
+  indexSource.includes('onWillDisappear: () => this.finishToolsSheet()'),
+  'Tools sheet must resolve in onWillDisappear'
+)
+assert(
+  indexSource.match(/onWillDisappear:/g)?.length >= 4,
+  'All native dialogs and sheets must resolve in onWillDisappear'
+)
 
 const csp = indexSource
   .match(/const PAGE_POLICY = ([\s\S]*?);\n/)[1]
@@ -111,6 +119,11 @@ try {
             return
           }
           if (operation === 'scan') {
+            if (window.deferScan) {
+              window.resolveScan = (reply) =>
+                port1.postMessage(JSON.stringify({ id, status: reply.status, value: reply.value }))
+              return
+            }
             port1.postMessage(JSON.stringify({ id, status: 0, value: `识字结果(${value})` }))
             return
           }
@@ -120,6 +133,11 @@ try {
             operation === 'native-sheet'
           ) {
             window.nativeUiRequests.push({ operation, payload: JSON.parse(value) })
+            if (operation === 'native-sheet' && window.deferSheet) {
+              window.resolveSheet = (reply) =>
+                port1.postMessage(JSON.stringify({ id, status: reply.status, value: reply.value }))
+              return
+            }
             const next = window.nativeUiQueue.shift() ?? { status: 1, value: '' }
             port1.postMessage(JSON.stringify({ id, status: next.status, value: next.value }))
             return
@@ -197,30 +215,80 @@ try {
   )
   await page.getByRole('button', { name: '打开边栏', exact: true }).click()
 
-  // 3. 原生附件与工具入口半模态（native-sheet）
+  // 3. 统一回形针「添加附件」半模态（native-sheet）：不再保留独立识字按钮、不再禁用变灰、去掉重复开关
+  assert.equal(await page.getByRole('button', { name: '识别图片文字', exact: true }).count(), 0)
+  const attachBtn = page.getByRole('button', { name: '添加附件', exact: true })
+  const normalAttachColor = await attachBtn.evaluate((el) => getComputedStyle(el).color)
+
+  // 半模态打开期间按钮保持正常颜色（不设 disabled），只设 aria-expanded，且重复点击不发第二次请求
   await page.evaluate(() => {
-    window.nativeUiQueue.push(
-      { status: 0, value: 'toggle-thinking' },
-      { status: 0, value: 'scan-camera' }
-    )
+    window.deferSheet = true
   })
-  const toolsBtn = page.getByRole('button', { name: '附件与对话工具', exact: true })
-  await toolsBtn.click()
-  await page.waitForFunction(
-    () =>
-      document.querySelector('button[aria-label="深度思考"]')?.getAttribute('aria-pressed') ===
-      'true'
+  await attachBtn.click()
+  await page.waitForFunction(() => window.nativeUiRequests.length === 1)
+  const openState = await attachBtn.evaluate((el) => ({
+    disabled: el.disabled,
+    expanded: el.getAttribute('aria-expanded'),
+    color: getComputedStyle(el).color,
+  }))
+  assert.equal(openState.disabled, false, 'paperclip must not be disabled while sheet is open')
+  assert.equal(openState.expanded, 'true')
+  assert.equal(openState.color, normalAttachColor, 'paperclip must keep normal color while open')
+  await attachBtn.click()
+  assert.equal(
+    await page.evaluate(() => window.nativeUiRequests.length),
+    1,
+    'duplicate click while sheet is open must be ignored'
   )
 
-  await toolsBtn.click()
+  // 选择拍照识字，并在识别进行中验证按钮为忙碌态且不变灰
+  await page.evaluate(() => {
+    window.deferSheet = false
+    window.deferScan = true
+    window.resolveSheet({ status: 0, value: 'scan-camera' })
+  })
+  const busyBtn = page.getByRole('button', { name: '正在识别文字…', exact: true })
+  await busyBtn.waitFor()
+  const busyState = await busyBtn.evaluate((el) => ({
+    disabled: el.disabled,
+    busy: el.getAttribute('aria-busy'),
+    color: getComputedStyle(el).color,
+  }))
+  assert.equal(busyState.disabled, false, 'paperclip must not be disabled while scanning')
+  assert.equal(busyState.busy, 'true')
+  assert.equal(
+    busyState.color,
+    normalAttachColor,
+    'paperclip must keep normal color while scanning'
+  )
+  await page.evaluate(() => {
+    window.deferScan = false
+    window.resolveScan({ status: 0, value: '识字结果(camera)' })
+  })
   await page.waitForFunction(() => document.querySelector('textarea')?.value === '识字结果(camera)')
+  await attachBtn.waitFor()
+
+  // 半模态只含「上传图片或文件 / 拍照识字 / 从图库识字」三项，无重复的深度思考/智能搜索/阅读链接
   const sheetReq = await page.evaluate(() =>
     window.nativeUiRequests.find((item) => item.operation === 'native-sheet')
   )
   assert(sheetReq)
-  assert.equal(sheetReq.payload.sections.length, 2)
-  assert(sheetReq.payload.sections[0].items.some((i) => i.key === 'upload'))
-  assert(sheetReq.payload.sections[1].items.some((i) => i.key === 'toggle-thinking'))
+  assert.equal(sheetReq.payload.title, '添加附件')
+  assert.equal(sheetReq.payload.sections.length, 1)
+  assert.deepEqual(
+    sheetReq.payload.sections[0].items.map((i) => i.key),
+    ['upload', 'scan-camera', 'scan-album']
+  )
+
+  // 原生半模态不可用时回退网页菜单，内容相同
+  await page.evaluate(() => {
+    window.nativeUiQueue.push({ status: -1, value: '' })
+  })
+  await attachBtn.click()
+  await page.getByRole('menuitem', { name: '上传图片或文件', exact: true }).waitFor()
+  await page.getByRole('menuitem', { name: '拍照识字', exact: true }).waitFor()
+  await page.getByRole('menuitem', { name: '从图库识字', exact: true }).waitFor()
+  await page.keyboard.press('Escape')
 
   // 创建一个会话用于菜单与删除确认测试
   await composer.fill('光感菜单测试')
@@ -288,7 +356,22 @@ try {
   await page.getByRole('button', { name: '关闭', exact: true }).click()
 
   assert.equal(await page.evaluate(() => document.body.hasAttribute('data-immersive-light')), false)
-  await page.getByRole('button', { name: '上传文件', exact: true }).waitFor()
+  // 关闭沉浸光感后按钮数量不变，回形针仍为「添加附件」，但改用网页菜单且不触发 native-sheet
+  assert.equal(await page.getByRole('button', { name: '识别图片文字', exact: true }).count(), 0)
+  const sheetCountBefore = await page.evaluate(
+    () => window.nativeUiRequests.filter((item) => item.operation === 'native-sheet').length
+  )
+  await attachBtn.click()
+  await page.getByRole('menuitem', { name: '上传图片或文件', exact: true }).waitFor()
+  await page.getByRole('menuitem', { name: '拍照识字', exact: true }).waitFor()
+  await page.getByRole('menuitem', { name: '从图库识字', exact: true }).waitFor()
+  assert.equal(
+    await page.evaluate(
+      () => window.nativeUiRequests.filter((item) => item.operation === 'native-sheet').length
+    ),
+    sheetCountBefore
+  )
+  await page.keyboard.press('Escape')
 
   assert.deepEqual(runtimeErrors, [])
   console.log('immersive-light-extended: PASS')

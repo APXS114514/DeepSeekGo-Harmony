@@ -1,20 +1,17 @@
 import clsx from 'clsx'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
+  IconCameraOutline16,
   IconGlobeLanguageOutline14,
   IconKeyboardOutline16,
   IconMicOutline16,
   IconPaperclipOutline16,
+  IconPhotoOutline16,
   IconSendOutline16,
   IconStopFill16,
   IconThinkOutline14,
 } from '../base/icons.js'
-import {
-  setGenerationOptions,
-  setSearch,
-  setThinking,
-  useSettings,
-} from '../../services/settings.js'
+import { setSearch, setThinking, useSettings } from '../../services/settings.js'
 import { useIsMobile } from '../../app/viewport.js'
 import {
   carryDraftToNewChat,
@@ -47,9 +44,9 @@ import {
   chooseDeviceToolsSheet,
   triggerDeviceHaptic,
   useDeviceFeatures,
-  type ScanSource,
 } from '../../services/harmony.js'
 import { IconButton } from '../base/IconButton.js'
+import { Menu } from '../base/Menu.js'
 import { Tooltip } from '../base/Tooltip.js'
 import { ensureApiKey } from '../settings/settingsDialogState.js'
 import { DragMask, useFileDrop } from './DragMask.js'
@@ -59,7 +56,7 @@ import { DraftAttachments } from './DraftAttachments.js'
 import { ContextNotice } from './ContextNotice.js'
 import { useVoiceInput } from './useVoiceInput.js'
 import { useHarmonyVoiceInput } from './useHarmonyVoiceInput.js'
-import { ScanTextButton } from './ScanTextButton.js'
+import { useScanText } from './useScanText.js'
 import { clearComposerAction, useComposerAction } from './composerAction.js'
 import { VoiceButton } from './VoiceButton.js'
 import { HoldToSpeak } from './HoldToSpeak.js'
@@ -123,7 +120,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   const importingHistory = useChatStore((state) => state.importingHistory !== false)
   const isMobile = useIsMobile()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const scanButtonRef = useRef<{ open: () => void; scan: (source: ScanSource) => void }>(null)
+  const attachmentMenuRef = useRef<{ open: () => void }>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const draggingSelection = useRef(false)
   const togglesRef = useRef<HTMLDivElement>(null)
@@ -133,7 +130,17 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   const scanSupported = useDeviceFeatures((state) => state.scan)
   const immersiveUi = useDeviceFeatures((state) => state.immersiveUi)
   const immersiveLight = useSettings((state) => state.immersiveLight)
-  const [sheetOpening, setSheetOpening] = useState(false)
+  const activeRef = useRef(true)
+  const sheetOpeningRef = useRef(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [attachmentMenuMode, setAttachmentMenuMode] = useState<'attachment' | 'scan'>('attachment')
+
+  useEffect(() => {
+    activeRef.current = true
+    return () => {
+      activeRef.current = false
+    }
+  }, [])
 
   useLayoutEffect(() => {
     const toggles = togglesRef.current
@@ -203,6 +210,18 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   })
   const holdVoice = 'start' in voice && voice.available && voiceMode && !hasInput && !streaming
   const cancelVoice = voice.cancel
+  const recording = voice.status === 'recording'
+  const listening = __HARMONY_APP__ && voice.status !== 'idle'
+  const openWebScanMenu = useCallback(() => {
+    setAttachmentMenuMode('scan')
+    attachmentMenuRef.current?.open()
+  }, [])
+  const scan = useScanText({
+    disabled: importingHistory || listening,
+    onText: insertText,
+    onOpenWebSourceMenu: openWebScanMenu,
+  })
+  const chooseScanSource = scan.chooseSource
 
   useEffect(() => {
     if (!__HARMONY_APP__ || !pendingAction || !featuresReady || importingHistory) {
@@ -220,12 +239,13 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
       }
     } else if (pendingAction === 'scan') {
       if (scanSupported) {
-        requestAnimationFrame(() => scanButtonRef.current?.open())
+        requestAnimationFrame(() => void chooseScanSource())
       } else {
         showToast({ key: 'shortcutScanUnavailable' })
       }
     }
   }, [
+    chooseScanSource,
     featuresReady,
     hasInput,
     importingHistory,
@@ -255,8 +275,6 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   )
 
   // 移动端录音时用频谱替代输入框内容；鸿蒙版改为实时显示识别文字
-  const recording = voice.status === 'recording'
-  const listening = __HARMONY_APP__ && voice.status !== 'idle'
 
   // 排队、上传中或上传失败的附件都留在输入框，全部上传成功后才能发送
   const canSend =
@@ -281,80 +299,89 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
     }
   }
 
-  const openAttachmentOrTools = async () => {
-    if (__HARMONY_APP__ && immersiveUi && immersiveLight && !sheetOpening) {
-      setSheetOpening(true)
-      triggerDeviceHaptic('menu')
-      const selected = await chooseDeviceToolsSheet({
-        title: t('toolsSheetTitle'),
-        sections: [
-          {
-            title: t('toolsSheetAttachments'),
-            items: [
-              {
-                key: 'upload',
-                label: t('toolsSheetUploadFile'),
-                icon: 'file',
-              },
-              ...(scanSupported
-                ? [
-                    { key: 'scan-camera', label: t('harmonyScanCamera'), icon: 'camera' },
-                    { key: 'scan-album', label: t('harmonyScanAlbum'), icon: 'album' },
-                  ]
-                : []),
-            ],
-          },
-          {
-            title: t('toolsSheetChatTools'),
-            items: [
-              {
-                key: 'toggle-thinking',
-                label: t('thinkingSwitch'),
-                description: t('deactivatedThinkTooltip'),
-                icon: 'think',
-                active: thinking,
-              },
-              {
-                key: 'toggle-search',
-                label: t('search'),
-                description: t('deactivatedSearchTooltip'),
-                icon: 'search',
-                active: search,
-              },
-              {
-                key: 'toggle-read-links',
-                label: t('settingsReadLinks'),
-                description: t('settingsReadLinksDescription'),
-                icon: 'link',
-                active: generation.readLinks,
-              },
-            ],
-          },
-        ],
-        cancel: t('cancel'),
-      })
-      setSheetOpening(false)
-      if (selected === 'upload' || selected === 'unavailable') {
-        if (ensureApiKey()) {
-          fileInputRef.current?.click()
-        }
-      } else if (selected === 'scan-camera') {
-        scanButtonRef.current?.scan('camera')
-      } else if (selected === 'scan-album') {
-        scanButtonRef.current?.scan('album')
-      } else if (selected === 'toggle-thinking') {
-        setThinking(!thinking)
-      } else if (selected === 'toggle-search') {
-        setSearch(!search)
-      } else if (selected === 'toggle-read-links') {
-        setGenerationOptions({ readLinks: !generation.readLinks })
-      }
-      return
-    }
+  const hasAttachmentMenu = __HARMONY_APP__ && scanSupported
+  const useNativeSheet = hasAttachmentMenu && immersiveUi && immersiveLight
+
+  const openFilePicker = () => {
     if (ensureApiKey()) {
       fileInputRef.current?.click()
     }
   }
+
+  const openAttachmentSheet = async () => {
+    if (importingHistory || listening || sheetOpeningRef.current || scan.isBusy()) {
+      return
+    }
+    sheetOpeningRef.current = true
+    setSheetOpen(true)
+    triggerDeviceHaptic('menu')
+    const selected = await chooseDeviceToolsSheet({
+      title: t('addAttachment'),
+      sections: [
+        {
+          title: '',
+          items: [
+            { key: 'upload', label: t('uploadImageOrFile'), icon: 'file' },
+            { key: 'scan-camera', label: t('harmonyScanCamera'), icon: 'camera' },
+            { key: 'scan-album', label: t('harmonyScanAlbum'), icon: 'album' },
+          ],
+        },
+      ],
+      cancel: t('cancel'),
+    })
+    sheetOpeningRef.current = false
+    if (!activeRef.current) {
+      return
+    }
+    setSheetOpen(false)
+    if (selected === 'upload') {
+      openFilePicker()
+    } else if (selected === 'scan-camera') {
+      void scan.scan('camera')
+    } else if (selected === 'scan-album') {
+      void scan.scan('album')
+    } else if (selected === 'unavailable') {
+      setAttachmentMenuMode('attachment')
+      attachmentMenuRef.current?.open()
+    }
+  }
+
+  const attachmentMenuOptions =
+    attachmentMenuMode === 'scan'
+      ? [
+          {
+            key: 'scan-camera',
+            label: t('harmonyScanCamera'),
+            icon: <IconCameraOutline16 />,
+            onSelect: () => void scan.scan('camera'),
+          },
+          {
+            key: 'scan-album',
+            label: t('harmonyScanAlbum'),
+            icon: <IconPhotoOutline16 />,
+            onSelect: () => void scan.scan('album'),
+          },
+        ]
+      : [
+          {
+            key: 'upload',
+            label: t('uploadImageOrFile'),
+            icon: <IconPaperclipOutline16 />,
+            onSelect: openFilePicker,
+          },
+          {
+            key: 'scan-camera',
+            label: t('harmonyScanCamera'),
+            icon: <IconCameraOutline16 />,
+            onSelect: () => void scan.scan('camera'),
+          },
+          {
+            key: 'scan-album',
+            label: t('harmonyScanAlbum'),
+            icon: <IconPhotoOutline16 />,
+            onSelect: () => void scan.scan('album'),
+          },
+        ]
 
   const send = () => {
     if (
@@ -540,13 +567,6 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
           </Tooltip>
         </div>
         <div className={styles.right}>
-          {__HARMONY_APP__ ? (
-            <ScanTextButton
-              controlRef={scanButtonRef}
-              disabled={importingHistory || listening}
-              onText={insertText}
-            />
-          ) : null}
           {'toggle' in voice ? (
             <VoiceButton
               status={voice.status}
@@ -562,18 +582,59 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
               }}
             />
           ) : null}
-          <IconButton
-            size="m"
-            tone="primary"
-            icon={<IconPaperclipOutline16 />}
-            tooltip={
-              __HARMONY_APP__ && immersiveUi && immersiveLight
-                ? t('toolsSheetTitle')
-                : t('uploadFile')
-            }
-            disabled={importingHistory || listening || sheetOpening}
-            onClick={() => void openAttachmentOrTools()}
-          />
+          {hasAttachmentMenu ? (
+            <Menu
+              controlRef={attachmentMenuRef}
+              disableNative
+              onOpenChange={(isOpen) => {
+                if (!isOpen) {
+                  setAttachmentMenuMode('attachment')
+                }
+              }}
+              options={attachmentMenuOptions}
+            >
+              {({ open, toggle }) => (
+                <IconButton
+                  size="m"
+                  tone="primary"
+                  icon={
+                    scan.busy ? (
+                      <span className={styles.attachBusy} aria-hidden />
+                    ) : (
+                      <IconPaperclipOutline16 />
+                    )
+                  }
+                  tooltip={scan.busy ? t('harmonyScanBusy') : t('addAttachment')}
+                  aria-expanded={open || sheetOpen || scan.choosing}
+                  aria-haspopup={useNativeSheet && !open ? 'dialog' : 'menu'}
+                  aria-busy={scan.busy || undefined}
+                  disabled={importingHistory || listening}
+                  onClick={() => {
+                    if (importingHistory || listening || sheetOpeningRef.current || scan.isBusy()) {
+                      return
+                    }
+                    if (open) {
+                      toggle()
+                    } else if (useNativeSheet) {
+                      void openAttachmentSheet()
+                    } else {
+                      setAttachmentMenuMode('attachment')
+                      toggle()
+                    }
+                  }}
+                />
+              )}
+            </Menu>
+          ) : (
+            <IconButton
+              size="m"
+              tone="primary"
+              icon={<IconPaperclipOutline16 />}
+              tooltip={t('uploadFile')}
+              disabled={importingHistory || listening}
+              onClick={openFilePicker}
+            />
+          )}
           <input
             ref={fileInputRef}
             type="file"

@@ -356,7 +356,28 @@ try {
   await renameInput.press('Enter')
   await group.getByRole('button', { name: '重命名后的分支', exact: true }).waitFor()
 
-  // 重载页面后确认分支组与重命名均已持久化
+  // 等重命名写入 IndexedDB 后再重载页面，确认分支组与重命名均已持久化
+  await page.waitForFunction(
+    () =>
+      new Promise((resolve) => {
+        const req = indexedDB.open('chat-demo')
+        req.onerror = () => resolve(false)
+        req.onsuccess = () => {
+          const db = req.result
+          const tx = db.transaction('sessionSummaries', 'readonly')
+          const getAll = tx.objectStore('sessionSummaries').getAll()
+          getAll.onsuccess = () => {
+            const ok = (getAll.result || []).some((item) => item.title === '重命名后的分支')
+            db.close()
+            resolve(ok)
+          }
+          getAll.onerror = () => {
+            db.close()
+            resolve(false)
+          }
+        }
+      })
+  )
   await page.reload()
   const reloadedGroup = page.locator('[data-branch-group]').first()
   await reloadedGroup.waitFor()

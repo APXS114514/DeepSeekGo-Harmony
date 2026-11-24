@@ -406,15 +406,17 @@ try {
   await page.getByRole('button', { name: '切换到键盘', exact: true }).click()
   await textarea.waitFor({ state: 'visible' })
 
-  // 识字：拍照成功插入光标处、图库取消无提示、空结果提示
+  // 识字：回形针统一为「添加附件」菜单（无独立识字按钮），拍照成功插入光标处、图库取消无提示、空结果提示
   // 等语音插入后把光标移到末尾的那一帧过去，否则清空时的全选会被它打断
   await page.waitForTimeout(100)
   await textarea.fill('')
-  const scan = page.getByRole('button', { name: '识别图片文字', exact: true })
+  assert.equal(await page.getByRole('button', { name: '识别图片文字', exact: true }).count(), 0)
+  const attach = page.getByRole('button', { name: '添加附件', exact: true })
   await page.evaluate(() => {
     window.scanReply = { status: 0, value: '  第一行\n第二行  ' }
   })
-  await scan.click()
+  await attach.click()
+  await page.getByRole('menuitem', { name: '上传图片或文件', exact: true }).waitFor()
   if (shots) await page.screenshot({ path: join(shots, '3-scan-menu.png') })
   await page.getByRole('menuitem', { name: '拍照识字' }).click()
   await page.waitForFunction(() => document.querySelector('textarea').value === '第一行\n第二行')
@@ -425,7 +427,7 @@ try {
   await page.evaluate(() => {
     window.scanReply = { status: 1, value: '' }
   })
-  await scan.click()
+  await attach.click()
   await page.getByRole('menuitem', { name: '从图库识字' }).click()
   await page.waitForFunction(
     () => window.deviceLog.filter((e) => e.operation === 'scan').length === 2
@@ -434,13 +436,13 @@ try {
   await page.evaluate(() => {
     window.scanReply = { status: 0, value: '   ' }
   })
-  await scan.click()
+  await attach.click()
   await page.getByRole('menuitem', { name: '从图库识字' }).click()
   await toast(page, '图片中没有识别到文字')
   await page.evaluate(() => {
     window.scanReply = { status: 13900042, value: '' }
   })
-  await scan.click()
+  await attach.click()
   await page.getByRole('menuitem', { name: '拍照识字' }).click()
   await toast(page, '文字识别失败，请换一张图片再试')
 
@@ -498,16 +500,20 @@ try {
   assert.deepEqual(errors, [])
   await context.close()
 
-  // 1.6.0 原生菜单、窗口隐私、拖拽和悬停从应用入口验证。
+  // 1.6.0 原生识字来源菜单（快捷方式入口）、窗口隐私、拖拽和悬停从应用入口验证。
   const platform = await newContext({ scan: true, immersiveScanMenu: true, windowPrivacy: false })
   const devicePage = platform.page
   await devicePage.goto(origin + '/index.html')
   const input = devicePage.locator('textarea')
-  const scanSource = devicePage.getByRole('button', { name: '识别图片文字', exact: true })
+  const triggerScanShortcut = () =>
+    devicePage.evaluate(() =>
+      window.devicePost({ type: 'window-action', action: 'shortcut', value: 'scan' })
+    )
+  await devicePage.getByRole('button', { name: '添加附件', exact: true }).waitFor()
   await devicePage.evaluate(() => {
     window.scanReply = { status: 0, value: '来自原生相机' }
   })
-  await scanSource.click()
+  await triggerScanShortcut()
   await devicePage.waitForFunction(
     () => document.querySelector('textarea').value === '来自原生相机'
   )
@@ -521,19 +527,25 @@ try {
   await devicePage.evaluate(() => {
     window.scanSourceReply = { status: 1, value: '' }
   })
-  await scanSource.click()
-  await scanSource.waitFor({ state: 'visible' })
+  await triggerScanShortcut()
   await devicePage.waitForFunction(
-    () => !document.querySelector('[aria-label="识别图片文字"]').disabled
+    () => window.deviceLog.filter((entry) => entry.operation === 'scan-source').length === 2
+  )
+  await devicePage.waitForFunction(
+    () => !document.querySelector('[aria-label="添加附件"]').disabled
   )
   assert.equal(await devicePage.getByRole('menu').count(), 0)
   assert.equal((await log(devicePage)).filter((entry) => entry.operation === 'scan').length, 1)
   await devicePage.evaluate(() => {
     window.scanSourceReply = { status: -1, value: '' }
   })
-  await scanSource.click()
+  await triggerScanShortcut()
   const albumOption = devicePage.getByRole('menuitem', { name: '从图库识字' })
   await albumOption.waitFor()
+  assert.equal(
+    await devicePage.getByRole('menuitem', { name: '上传图片或文件', exact: true }).count(),
+    0
+  )
   assert.equal(await albumOption.locator('svg').count(), 1)
   await devicePage.keyboard.press('Escape')
   await albumOption.waitFor({ state: 'hidden' })
@@ -541,7 +553,7 @@ try {
     window.scanSourceReply = { status: 0, value: 'album' }
     window.scanReply = { status: 0, value: '来自原生图库' }
   })
-  await scanSource.click()
+  await triggerScanShortcut()
   await devicePage.waitForFunction(() =>
     document.querySelector('textarea').value.includes('来自原生图库')
   )
@@ -987,6 +999,11 @@ try {
     await fallback.page.getByRole('button', { name: '识别图片文字', exact: true }).count(),
     0
   )
+  assert.equal(
+    await fallback.page.getByRole('button', { name: '添加附件', exact: true }).count(),
+    0
+  )
+  await fallback.page.getByRole('button', { name: '上传文件', exact: true }).waitFor()
   assert.deepEqual(fallback.errors, [])
   await fallback.context.close()
   console.log('harmony features regression: OK')

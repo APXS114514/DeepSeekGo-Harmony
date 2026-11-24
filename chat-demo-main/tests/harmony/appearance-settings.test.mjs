@@ -177,10 +177,12 @@ try {
     assert.notEqual(style.shadow, 'none', 'divider between switch rows')
     await settings.getByRole('button', { name: '返回通用设置' }).click()
     assert(await chatPage.evaluate((element) => element === document.activeElement))
-    // 鸿蒙版不再展示手动地区下拉，位置信息改为定位开关
+    // 鸿蒙版不再展示手动地区下拉，位置信息移到「隐私」页签的防截屏下方
     assert.equal(await settings.getByRole('button', { name: '请选择国家或地区' }).count(), 0)
     assert.equal(await settings.getByRole('button', { name: '请选择省份/地区' }).count(), 0)
     assert.equal(await settings.getByRole('button', { name: '请选择市' }).count(), 0)
+    assert.equal(await settings.getByRole('switch', { name: '位置信息' }).count(), 0)
+    await settings.getByRole('tab', { name: '隐私', exact: true }).click()
     await settings
       .getByText(
         '开启后，仅在前台处理「我这里」「附近」等本地问题时使用鸿蒙模糊定位，只发送城市和行政区。'
@@ -192,7 +194,7 @@ try {
     await page.getByText('已开启定位（浙江省丽水市莲都区）').waitFor()
     assert.equal(await locationSwitch.isChecked(), true)
     assert.equal(await page.evaluate(() => localStorage.getItem('chat-demo:auto-location')), 'true')
-    if (shots) await page.screenshot({ path: join(shots, 'settings-general.png') })
+    if (shots) await page.screenshot({ path: join(shots, 'settings-privacy.png') })
     await settings.getByRole('button', { name: '关闭', exact: true }).click()
     await settings.waitFor({ state: 'detached' })
     await page.mouse.click(360, 400)
@@ -207,6 +209,7 @@ try {
     // 关闭定位开关后不再发送位置
     await page.evaluate(() => window.devicePost({ type: 'window-action', action: 'sidebar' }))
     await page.getByRole('button', { name: '设置', exact: true }).click()
+    await settings.getByRole('tab', { name: '隐私', exact: true }).click()
     await settings.getByRole('switch', { name: '位置信息' }).click()
     assert.equal(
       await page.evaluate(() => localStorage.getItem('chat-demo:auto-location')),
@@ -246,6 +249,8 @@ try {
     await page.evaluate(() => window.devicePost({ type: 'window-action', action: 'sidebar' }))
     await page.getByRole('button', { name: 'Settings', exact: true }).click()
     assert.equal(await page.getByRole('button', { name: 'Select country or region' }).count(), 0)
+    assert.equal(await page.getByRole('switch', { name: 'Location' }).count(), 0)
+    await page.getByRole('tab', { name: 'Privacy', exact: true }).click()
     const locSwitch = page.getByRole('switch', { name: 'Location' })
     assert.equal(await locSwitch.isChecked(), false)
     await context.close()

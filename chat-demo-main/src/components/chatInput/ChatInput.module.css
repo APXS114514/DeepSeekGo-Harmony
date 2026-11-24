@@ -489,6 +489,23 @@
   margin-left: auto;
 }
 
+.attachBusy {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1.75px solid color-mix(in srgb, currentColor 24%, transparent);
+  border-top-color: currentColor;
+  animation: spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attachBusy {
+    animation-duration: 2s;
+  }
+}
+
 .sendButton {
   display: flex;
   align-items: center;

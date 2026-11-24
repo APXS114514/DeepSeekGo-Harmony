@@ -374,8 +374,8 @@ try {
     const tabVisits = [
       ['个性化', '自定义指令'],
       ['数据管理', 'API Key'],
-      ['隐私', '防截屏'],
-      ['通用设置', '位置信息'],
+      ['隐私', '位置信息'],
+      ['通用设置', '语言'],
     ]
     // 从二级页进入其它页签，再连续点按四个页签。
     await dialog.getByRole('button', { name: '外观', exact: true }).tap()

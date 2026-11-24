@@ -33,21 +33,29 @@ export const Menu = ({
   children,
   controlRef,
   nativeTitle,
+  disableNative = false,
+  onOpenChange,
 }: {
   options: MenuOption[]
   children: (props: { open: boolean; toggle: () => void }) => ReactNode
   /** 供外部打开菜单，例如 2in1 上右键或触屏长按会话条目 */
   controlRef?: Ref<{ open: () => void }>
   nativeTitle?: string
+  /** 仅使用网页菜单，不接管为原生菜单弹窗（用于由调用方决定半模态的场景） */
+  disableNative?: boolean
+  onOpenChange?: (open: boolean) => void
 }) => {
   const t = useTranslate()
   const [entry, setEntry] = useState<'first' | 'last' | null>(null)
   const [nativeOpening, setNativeOpening] = useState(false)
+  const nativeOpeningRef = useRef(false)
   const mountedRef = useRef(true)
   const openNativeRef = useRef<() => void>(() => {})
+  const onOpenChangeRef = useRef(onOpenChange)
+  onOpenChangeRef.current = onOpenChange
   const supportsNative = useDeviceFeatures((state) => state.immersiveUi)
   const immersiveLight = useSettings((state) => state.immersiveLight)
-  const useNative = __HARMONY_APP__ && supportsNative && immersiveLight
+  const useNative = !disableNative && __HARMONY_APP__ && supportsNative && immersiveLight
   const open = entry !== null
 
   useEffect(() => {
@@ -57,10 +65,15 @@ export const Menu = ({
     }
   }, [])
 
+  useEffect(() => {
+    onOpenChangeRef.current?.(open)
+  }, [open])
+
   openNativeRef.current = () => {
-    if (nativeOpening) {
+    if (nativeOpeningRef.current) {
       return
     }
+    nativeOpeningRef.current = true
     setNativeOpening(true)
     triggerDeviceHaptic('menu')
     void chooseDeviceMenu({
@@ -73,6 +86,7 @@ export const Menu = ({
       })),
       cancel: t('cancel'),
     }).then((selected) => {
+      nativeOpeningRef.current = false
       if (!mountedRef.current) {
         return
       }
@@ -129,6 +143,7 @@ export const Menu = ({
       open ||
       !(trigger instanceof HTMLButtonElement) ||
       trigger.getAttribute('aria-haspopup') !== 'menu' ||
+      trigger.getAttribute('aria-busy') === 'true' ||
       (event.key !== 'ArrowDown' && event.key !== 'ArrowUp')
     ) {
       return

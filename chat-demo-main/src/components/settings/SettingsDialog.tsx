@@ -76,8 +76,8 @@ import { closeSettings, useSettingsDialog, type SettingsSection } from './settin
 import styles from './Settings.module.css'
 
 /**
- * 设置弹窗：分「通用设置」（外观、对话、语音、语言、位置）、「个性化」（指令与记忆）
- * 与「数据管理」（API Key、导入、导出、删除）。
+ * 设置弹窗：分「通用设置」（外观、对话、语音、语言；网页版含位置）、「个性化」（指令与记忆）、
+ * 「数据管理」（API Key、导入、导出、删除）与鸿蒙版「隐私」（防截屏、位置信息）。
  * 桌面端为居中弹窗、左侧导航；移动端为底部弹层、导航横排在内容上方
  */
 export const SettingsDialog = () => {
@@ -275,7 +275,7 @@ const SettingsContent = ({
                   </button>
                 ))}
                 <LocaleSetting />
-                {__HARMONY_APP__ ? <AutoLocationSetting /> : <LocationSetting />}
+                {!__HARMONY_APP__ ? <LocationSetting /> : null}
               </>
             )
           ) : section === 'personal' ? (
@@ -884,20 +884,23 @@ const PrivacySetting = () => {
   const enabled = useDeviceFeatures((state) => state.windowPrivacy)
   const updating = useDeviceFeatures((state) => state.updatingWindowPrivacy)
   return (
-    <SettingsSwitch
-      className={styles.cell}
-      label={t('screenCaptureProtection')}
-      description={t(enabled === null ? 'screenCaptureUnavailable' : 'screenCaptureDescription')}
-      checked={enabled === true}
-      disabled={enabled === null || updating}
-      onChange={(next) => {
-        void setDeviceWindowPrivacy(next).then((ok) => {
-          if (!ok) {
-            showToast({ key: 'screenCaptureFailed' })
-          }
-        })
-      }}
-    />
+    <>
+      <SettingsSwitch
+        className={styles.cell}
+        label={t('screenCaptureProtection')}
+        description={t(enabled === null ? 'screenCaptureUnavailable' : 'screenCaptureDescription')}
+        checked={enabled === true}
+        disabled={enabled === null || updating}
+        onChange={(next) => {
+          void setDeviceWindowPrivacy(next).then((ok) => {
+            if (!ok) {
+              showToast({ key: 'screenCaptureFailed' })
+            }
+          })
+        }}
+      />
+      <AutoLocationSetting />
+    </>
   )
 }
 

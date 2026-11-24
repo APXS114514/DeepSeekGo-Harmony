@@ -258,7 +258,7 @@ function toolsSheetRow(item: NativeSheetItem, onSelect: (key: string) => void) {
 }
 
 /**
- * 原生附件与工具入口半模态内容，挂载于 Index.ets 的 bindSheet 中自动获得系统沉浸光感材质。
+ * 原生添加附件半模态内容，挂载于 Index.ets 的 bindSheet 中自动获得系统沉浸光感材质。
  */
 @Builder
 export function nativeToolsSheetBuilder(payload: NativeSheetPayload, onSelect: (key: string) => void) {
@@ -286,7 +286,7 @@ export function nativeToolsSheetBuilder(payload: NativeSheetPayload, onSelect: (
         }, (item: NativeSheetItem) => item.key)
       }
       .width('100%')
-    }, (section: NativeSheetSection) => section.title)
+    }, (section: NativeSheetSection, index: number) => `${index}-${section.title}`)
   }
   .width('100%')
   .padding({ left: 12, right: 12, top: 8, bottom: 24 })

@@ -419,8 +419,6 @@ export const zh = {
   branchGroupCount: '{count} 个对话',
   shortcutVoiceUnavailable: '当前设备暂不支持语音输入',
   shortcutScanUnavailable: '当前设备暂不支持识别图片文字',
-  toolsSheetTitle: '附件与对话工具',
-  toolsSheetAttachments: '附件与识字',
-  toolsSheetChatTools: '对话工具',
-  toolsSheetUploadFile: '上传图片或文件',
+  addAttachment: '添加附件',
+  uploadImageOrFile: '上传图片或文件',
 } as const

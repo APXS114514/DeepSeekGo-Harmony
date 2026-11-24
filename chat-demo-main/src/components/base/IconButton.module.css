@@ -30,6 +30,10 @@
     cursor: not-allowed;
     color: var(--dsw-alias-label-caption);
   }
+
+  &[aria-busy='true'] {
+    cursor: progress;
+  }
 }
 
 .xs {

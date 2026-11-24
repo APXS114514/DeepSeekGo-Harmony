@@ -448,8 +448,6 @@ export const en = {
   branchGroupCount: '{count} chats',
   shortcutVoiceUnavailable: 'Voice input is unavailable on this device',
   shortcutScanUnavailable: 'Image text scanning is unavailable on this device',
-  toolsSheetTitle: 'Attachments & tools',
-  toolsSheetAttachments: 'Attachments & OCR',
-  toolsSheetChatTools: 'Chat tools',
-  toolsSheetUploadFile: 'Upload image or file',
+  addAttachment: 'Add attachment',
+  uploadImageOrFile: 'Upload image or file',
 } satisfies Record<keyof typeof zh, string>

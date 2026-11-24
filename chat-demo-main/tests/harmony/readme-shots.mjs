@@ -230,8 +230,8 @@ try {
     await page.getByRole('button', { name: '切换到键盘', exact: true }).click()
     await page.locator('textarea').fill('')
 
-    // 识别图片文字菜单
-    await page.getByRole('button', { name: '识别图片文字', exact: true }).click()
+    // 添加附件与识别图片文字菜单
+    await page.getByRole('button', { name: '添加附件', exact: true }).click()
     await page.getByRole('menuitem', { name: '拍照识字' }).waitFor()
     await page.waitForTimeout(300)
     await page.screenshot({ path: join(out, 'phone-scan.png') })

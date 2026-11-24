@@ -24,7 +24,7 @@
 
 - **应用级静态配置**：[`harmony/entry/src/main/module.json5`](../harmony/entry/src/main/module.json5) 的 `module.metadata` 配置 `ohos.arkui.UIMaterial.state = "enable"`（要求 `targetSdkVersion >= 26.0.0`），作用于支持系统材质的原生 ArkUI 组件（`default`/省略沿用默认，`disable` 全局禁用）。排查用 `uiMaterial.getMaterialInfo()` 与 `uiMaterial.isImmersiveMaterialSupported()`。[启用指南](https://developer.huawei.com/consumer/cn/doc/HarmonyOS-Guides/arkts-immersive-light-sense-enable) · [组件适配](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-immersive-light-sense-component-adaptation/)
 - **前端与原生联动**：设置项「通用设置 → 外观 → 沉浸光感」默认开启（`chat-demo:immersive-light`），由 [`App.tsx`](../chat-demo-main/src/app/App.tsx) 更新 `data-immersive-light`，[`ChatInput.module.css`](../chat-demo-main/src/components/chatInput/ChatInput.module.css) 控制半透明底、模糊与高光（软键盘弹起、抽屉/弹窗过渡、减少透明度或高对比度时自动降级）。支持原生材质的 API 26 设备会给窄屏透明顶栏操作按钮应用 `THIN` 材质，并在「识别图片文字」使用带 `SymbolGlyph` 图标的 `CustomDialogController` 系统背板弹窗。
-- **扩展光感（原生弹层）**：`DeviceBridge` 在 API 26 且 `supportsImmersiveMaterial()` 时上报 `immersiveUi`。网页侧仅在 `immersiveUi` 且「沉浸光感」开启时，经 `native-menu`（会话「…」、右键和触屏长按菜单）、`native-confirm`（删除会话、清空历史、清空记忆、删除人设卡）和 `native-sheet`（回形针改为「附件与对话工具」半模态：上传、拍照/图库识字、深度思考、智能搜索、阅读链接）请求 [`ImmersiveUi.ets`](../harmony/entry/src/main/ets/services/ImmersiveUi.ets) 的原生弹层；返回 `unavailable` 时回退网页菜单或弹窗。弹窗用 `CustomDialogController`（`customStyle: false`），半模态挂在 `Index.ets` 的 `bindSheet`，2 秒内未出现视为失败；`DeviceBridge` 同一时间只允许一个原生弹层（含识字菜单）。顶栏按钮材质改为 `interactive: true` 并带 `lightEffect`，点按时 `SymbolGlyph` 播放 `BounceSymbolEffect`。网页侧悬浮按钮和胶囊开关的玻璃样式由 `--glass-*` 变量控制，减少透明度、高对比度或强制颜色时降级。
+- **扩展光感（原生弹层）**：`DeviceBridge` 在 API 26 且 `supportsImmersiveMaterial()` 时上报 `immersiveUi`。设备支持识字时，回形针统一为「添加附件」入口（含上传图片或文件、拍照识字、从图库识字三项），不再保留独立识字按钮；不支持识字时回形针保持直接上传。网页侧仅在 `immersiveUi` 且「沉浸光感」开启时，经 `native-menu`（会话「…」、右键和触屏长按菜单）、`native-confirm`（删除会话、清空历史、清空记忆、删除人设卡）和 `native-sheet`（「添加附件」半模态）请求 [`ImmersiveUi.ets`](../harmony/entry/src/main/ets/services/ImmersiveUi.ets) 的原生弹层；其他情况或返回 `unavailable` 时使用网页菜单或弹窗（按钮数量不随光感开关变化）。桌面快捷方式「识别图片文字」通过 `useScanText` 直接打开原生/网页拍照或图库选择。弹窗用 `CustomDialogController`（`customStyle: false`），半模态挂在 `Index.ets` 的 `bindSheet`，2 秒内未出现视为失败；全部原生弹层在 `onWillDisappear` 即发回结果（保留 `onDidDisappear`/`onDisappear` 兜底），网页侧用 ref 防止重复点击并在打开与识字忙碌期间保持按钮非禁用态（仅设 `aria-expanded` / `aria-busy`），避免关闭后变灰或恢复滞后。`DeviceBridge` 同一时间只允许一个原生弹层（含识字菜单）。顶栏按钮材质改为 `interactive: true` 并带 `lightEffect`，点按时 `SymbolGlyph` 播放 `BounceSymbolEffect`。网页侧悬浮按钮和胶囊开关的玻璃样式由 `--glass-*` 变量控制，减少透明度、高对比度或强制颜色时降级。
 
 ### 原生服务与消息通道
 
@@ -33,12 +33,12 @@
 | 能力 | 原生模块 | 网页侧 / 要点 |
 | --- | --- | --- |
 | 能力上报 | `DeviceBridge.ets` | 端口连接后发送 `device-features`（含 `deviceType`、`immersiveScanMenu`、`location` 等），按 `canIUse` 决定入口显示。 |
-| 按需模糊定位 | `LocationService.ets` | 仅声明 `APPROXIMATELY_LOCATION`（API 12+ `geoLocationManager`），只在前台单次定位并本机反地理编码，仅返回国家/省/市/区县（不传坐标与街道），5 分钟内存缓存；`.geolocationAccess(false)`。鸿蒙设置改为单个开关（`chat-demo:auto-location`，默认关），网页版保留手动省市选择。 |
+| 按需模糊定位 | `LocationService.ets` | 仅声明 `APPROXIMATELY_LOCATION`（API 12+ `geoLocationManager`），只在前台单次定位并本机反地理编码，仅返回国家/省/市/区县（不传坐标与街道），5 分钟内存缓存；`.geolocationAccess(false)`。鸿蒙设置位于「设置 → 隐私」防截屏下方（`chat-demo:auto-location`，默认关），回答内「前往设置」直达隐私页签；网页版仍留在「通用设置」手动选省市。 |
 | 语音输入与麦克风 | `VoiceInput.ets`、`Microphone.ets` | 支持系统离线识别（Core Speech Kit，`zh-CN`，`vadEnd` 3s，最长 60s）与 DeepSeek API（16 kHz WAV → `/v1/tools/asr`），模式存 `chat-demo:voice-input-mode`（默认离线）。支持空白输入框按住说话、上滑取消、延迟启动兜底。 |
-| 图片识字 | `TextScanner.ets`、`ScanSourceMenu.ets` | `cameraPicker` / `PhotoViewPicker` + Core Vision Kit `textRecognition`，无需相机/相册权限，长边缩至 4096 px 并开启方向检测；原生菜单失败回退网页菜单。 |
+| 图片识字 | `TextScanner.ets`、`ScanSourceMenu.ets` | `cameraPicker` / `PhotoViewPicker` + Core Vision Kit `textRecognition`，无需相机/相册权限，长边缩至 4096 px 并开启方向检测；由 `useScanText.ts` 接入回形针「添加附件」菜单/半模态与桌面快捷方式，识别中回形针显示忙碌态不变灰，原生菜单失败回退网页菜单。 |
 | 触感反馈 | `Haptics.ets` | 网页发送 `haptic`（`voice-start`、`voice-cancel`、`reply-first-token`、`thinking-done`、`copy`、`menu`），原生按 `isSupportEffectSync` 选择预置效果，`usage: 'touch'` 遵循系统触感设置，仅前台触发并限制 35 ms 最小间隔；声明 `ohos.permission.VIBRATE`。 |
 | 桌面快捷方式 | `QuickShortcut.ets`、`shortcuts_config.json` | `module.json5` 的 `ohos.ability.shortcuts` 声明新对话、语音、识字、无痕四项，`Want` 参数 `pocketChatShortcut` 只接受白名单动作；`EntryAbility` 按通知跳转 > 快捷方式 > 分享的优先级分发，带递增序号写入 AppStorage，页面转发给网页执行（设备不支持语音或识字时提示）。 |
-| 原生光感弹层 | `ImmersiveUi.ets` | 原生菜单、确认弹窗与工具半模态，见上文「扩展光感」。 |
+| 原生光感弹层 | `ImmersiveUi.ets` | 原生菜单、确认弹窗与「添加附件」半模态，见上文「扩展光感」。 |
 | 本机朗读 | `LocalSpeech.ets` | 复用回答播放状态，按能力分段调用 Core Speech Kit；失败可重试或切换 API 音色。 |
 | 接收/发起分享 | `ShareInbox.ets`、`ShareOut.ets` | `ohos.want.action.sendData` 支持文本、链接、图片、PDF 和 Office 文档（单文件 20 MB、整批 40 MB、最多 9 项），冷启动排队等 Key 就绪后导入。分享单条回答/分支支持纯文本、Markdown 与 Canvas 长图，二进制帧写沙箱缓存并定期清理超 24 小时文件。 |
 | 导出记录 | `FileSaver.ets` | `DocumentViewPicker.save`；ZIP 以二进制帧传输（4 字节小端头长 + JSON 头 + 数据，上限 512 MB）。 |
@@ -114,7 +114,7 @@
 - `device-features`：接收/发起分享、语音输入与按住说话、原生/网页识字菜单、导出保存、防截屏与悬停。
 - `edit-regression`：历史消息编辑、版本切换与草稿保留。
 - `haptics`：关键交互触发系统触感反馈消息。
-- `immersive-light-extended`：原生菜单、确认弹窗与工具半模态的请求和回退，关闭沉浸光感后恢复网页交互，胶囊开关与悬浮按钮光感样式。
+- `immersive-light-extended`：原生菜单、确认弹窗与「添加附件」半模态的请求、打开/识字中不置灰与防重入、不可用回退网页菜单，关闭沉浸光感后保持入口数量不变并恢复网页菜单，胶囊开关与悬浮按钮光感样式，以及原生 `onWillDisappear` 静态核对。
 - `input-limit`：32,768 Token 回退与提示、大图缩放、历史补传与原件保留。
 - `local-info-charts`：按需定位开关、Open-Meteo 天气与失败回退、活动搜索、实时数据未开搜索提示、主动/按需图表渲染与纯文本复制、Mermaid 共存。
 - `location-service`：原生定位权限、前后台守卫、粗粒度脱敏与缓存回退。
@@ -144,7 +144,7 @@
 
 当前仍待真机实测：
 
-- **1.7.0 新增**：模糊定位首次授权与二次引导去设置、本机反地理编码中英文结果、切后台取消定位；真实模型在主动/按需图表与实时汇率提示下的表现；撤回/分支与系统触感反馈实际手感；桌面长按快捷方式在启动器中的显示与冷热启动；原生光感菜单、确认弹窗和工具半模态在深浅主题、悬浮窗和 2in1 下的材质与位置；从工具半模态选择「上传图片或文件」后网页文件选择器能否打开（该操作发生在原生层，ArkWeb 可能不再视为用户手势）。
+- **1.7.0 新增**：模糊定位首次授权与二次引导去设置、本机反地理编码中英文结果、切后台取消定位；真实模型在主动/按需图表与实时汇率提示下的表现；撤回/分支与系统触感反馈实际手感；桌面长按快捷方式在启动器中的显示与冷热启动；原生光感菜单、确认弹窗和「添加附件」半模态在深浅主题、悬浮窗和 2in1 下的材质与位置；原生弹层 `onWillDisappear` 提前发回结果后的关闭响应速度，以及从半模态选择「上传图片或文件」后网页文件选择器能否稳定打开。
 - **1.6.0 延续**：设置页签快速切换首帧高亮（ArkWeb 实机）、键盘掉帧修复后的 `hitrace` 对比、原生光感顶栏分层、防截屏/录屏/投屏、折叠屏全屏悬停 + 键盘组合、平板分屏与 2in1 跨应用拖拽。
 - **既有跨形态与文件流**：系统分享面板列出 Deepseek GO 及跨应用接收/打开分享导出的 Markdown 与长图、导出到文件管理器；2in1 相机/语音与系统快捷键冲突；ArkWeb 双指缩放与单指上滑取消语音手感；真实 API 下的长图缩放补传、余额与上下文超限恢复；华为上架自检对分层图标的裁切校验；覆盖安装后 localStorage 数据保留。
 - **低版本兼容**：HarmonyOS 5.0（API 12）真机启动、普通顶栏与网页识字菜单回退路径。

@@ -143,7 +143,7 @@ export const AssistantMessage = memo(function AssistantMessage({
               <button
                 type="button"
                 className={styles.noticeAction}
-                onClick={() => openSettings('general')}
+                onClick={() => openSettings(__HARMONY_APP__ ? 'privacy' : 'general')}
               >
                 {t('localContextOpenSettings')}
               </button>

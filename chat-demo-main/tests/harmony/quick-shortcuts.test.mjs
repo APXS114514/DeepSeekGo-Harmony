@@ -164,9 +164,14 @@ try {
     await page.getByRole('button', { name: '按住说话', exact: true }).waitFor()
     await page.getByRole('button', { name: '无痕对话', exact: true }).waitFor()
 
-    // 4. 热启动直达「识别图片文字」-> 打开识字来源菜单
+    // 4. 热启动直达「识别图片文字」-> 直接打开拍照/图库选择（不含上传文件项）
     await page.evaluate(() => window.triggerShortcut('scan'))
     await page.getByRole('menuitem', { name: '拍照识字', exact: true }).waitFor()
+    await page.getByRole('menuitem', { name: '从图库识字', exact: true }).waitFor()
+    assert.equal(
+      await page.getByRole('menuitem', { name: '上传图片或文件', exact: true }).count(),
+      0
+    )
     await page.keyboard.press('Escape')
 
     // 5. 热启动直达「新对话」-> 恢复普通欢迎页

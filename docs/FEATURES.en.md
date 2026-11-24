@@ -22,11 +22,11 @@ All features in the current version of Deepseek GO. For changes by version, see 
 - **Voice input.** Hold to talk, release to add the transcript to your draft, or swipe up and release to cancel. In **General → Voice**, choose on-device recognition (the default) or the multilingual DeepSeek API. With the API selected, releasing to confirm uploads the recording. Billing is based on audio duration.
 - **Read aloud offline.** On supported devices, choose the offline system voice or a DeepSeek API voice in **General → Voice**.
 - **Share a reply or chat.** Open a preview from the reply toolbar or chat menu, then use the system share sheet to send a reply or the current chat branch as plain text, Markdown, or a long image.
-- **Recognize text in an image.** Take a photo or pick one from the gallery. The app recognizes text on your device and inserts it into the composer without uploading the image. The native menu uses system icons for the camera and gallery.
+- **Recognize text in an image.** On supported devices, the composer paperclip button opens **Add attachment** with options to upload an image or file, take a photo, or choose from the gallery. Text is recognized on your device and inserted into the composer without uploading the image, and the home screen shortcut still opens the camera or gallery picker directly.
 - **Share to Deepseek GO.** Choose **Share → Deepseek GO** in another app. Text, links, images, and documents appear in a new chat for you to review before sending.
 - **Import and export chat history.** In **Settings → Data**, export your chats as a ZIP file or merge an archive into local history. A merge keeps existing chats with matching IDs. You can also choose to replace all local chats.
 - **Background generation and reply notifications.** Replies can keep generating in the background. Tap the completion notification to go straight to the chat. Turn off reply notifications in **General → Chat**.
-- **On-demand location.** **General → Location** is now a single toggle switch with no manual region entry required. When turned on, the app uses HarmonyOS approximate location in the foreground for “here” and “nearby” questions and converts it on-device to only the city and administrative region.
+- **On-demand location.** Turn on **Location** in **Settings → Privacy** with a single toggle—no manual region entry required. When enabled, the app uses HarmonyOS approximate location in the foreground for “here” and “nearby” questions and converts it on-device to only the city and administrative region.
 - **System haptics.** Feel subtle preset haptics when you hold to talk, swipe up to cancel, receive the first streamed token, finish DeepThink, copy, or open a menu. Haptics follow the system haptic setting.
 - **Home screen shortcuts.** Long-press the app icon to jump straight into a new chat, voice input, image text recognition, or an incognito chat.
 - **Secure API key storage.** HarmonyOS Asset Store keeps the key in the device’s secure storage, outside web storage.
@@ -53,7 +53,7 @@ Automatic memory sends one small extra request per reply and uses a few extra to
 - The system back gesture closes the topmost menu, dialog, settings screen, search panel, or sidebar first. It leaves the app once those layers are closed.
 - Replies, messages, and the composer follow the system font size up to 1.75×.
 - On 2-in-1 devices, use `Ctrl+N` for a new chat, `Ctrl+B` to toggle the sidebar, and `Ctrl+,` for Settings. Right-click or long-press a chat to rename, share, or delete it.
-- **Immersive lighting.** The composer, floating buttons, and pill toggles use translucency and highlights. On devices with system materials, the narrow-window header buttons add press, light, and symbol effects, and the chat menu, image text recognition menu, attachments and tools sheet, and delete or clear confirmations use native immersive surfaces. Turn the effect off in **General → Appearance**.
+- **Immersive lighting.** The composer, floating buttons, and pill toggles use translucency and highlights. On devices with system materials, the narrow-window header buttons add press, light, and symbol effects, and the chat menu, shortcut image text recognition menu, **Add attachment** sheet, and delete or clear confirmations use native immersive surfaces. Turn the effect off in **General → Appearance**.
 - **Drag and drop.** Drop text, links, images, or files into the composer. Drag a reply’s Copy button into another app to drop the reply as plain text.
 - **Foldable hover mode.** On supported devices in full-screen hover mode, the chat stays above the fold and the composer below it. Unfolding keeps the current chat and draft.
 - Animations follow the system’s Reduce Motion setting. The sidebar, history search, settings, and share preview support keyboard navigation. In voice mode, use Enter or Space to start and stop recording, and Escape to cancel.
@@ -61,6 +61,7 @@ Automatic memory sends one small extra request per reply and uses a few extra to
 ## Privacy
 
 - **Screen capture protection.** Turn it on in **Settings → Privacy** to hide the chat window in screenshots, recordings, screen sharing, and recent apps.
+- **Location.** Turn on on-demand approximate location in **Settings → Privacy** to fetch only your city and administrative region for local questions in the foreground, without sending precise coordinates.
 - Chats, drafts, instructions, and memories are stored locally.
 - The chat connects to `api.deepseek.com` and the structured weather lookup endpoints (`open-meteo.com`). The bundled page uses a strict content security policy and opens external links in the system browser.
 - API keys are kept out of source code, app packages, and logs.

@@ -500,16 +500,19 @@ struct Index {
       let appeared = false;
       let finished = false;
       let timer: number = -1;
+      let dialog: CustomDialogController | undefined;
       const finish = (result: string | null): void => {
         if (!finished) {
           finished = true;
           clearTimeout(timer);
-          this.scanSourceDialog = undefined;
+          if (this.scanSourceDialog === dialog) {
+            this.scanSourceDialog = undefined;
+          }
           resolve(result);
         }
       };
       try {
-        this.scanSourceDialog = new CustomDialogController({
+        dialog = new CustomDialogController({
           builder: ScanSourceDialog({
             labels: labels,
             onSelect: (source: string) => { selected = source; }
@@ -522,13 +525,15 @@ struct Index {
             appeared = true;
             clearTimeout(timer);
           },
+          onWillDisappear: () => finish(appeared ? selected : null),
           onDidDisappear: () => finish(appeared ? selected : null)
         });
+        this.scanSourceDialog = dialog;
         timer = setTimeout(() => {
-          this.scanSourceDialog?.close();
+          dialog?.close();
           finish(null);
         }, 2000);
-        this.getUIContext().runScopedTask(() => this.scanSourceDialog?.open());
+        this.getUIContext().runScopedTask(() => dialog?.open());
       } catch {
         finish(null);
       }
@@ -541,16 +546,19 @@ struct Index {
       let appeared = false;
       let finished = false;
       let timer: number = -1;
+      let dialog: CustomDialogController | undefined;
       const finish = (result: string | null): void => {
         if (!finished) {
           finished = true;
           clearTimeout(timer);
-          this.nativeMenuDialog = undefined;
+          if (this.nativeMenuDialog === dialog) {
+            this.nativeMenuDialog = undefined;
+          }
           resolve(result);
         }
       };
       try {
-        this.nativeMenuDialog = new CustomDialogController({
+        dialog = new CustomDialogController({
           builder: NativeMenuDialog({
             payload: payload,
             onSelect: (key: string) => { selected = key; }
@@ -562,13 +570,15 @@ struct Index {
             appeared = true;
             clearTimeout(timer);
           },
+          onWillDisappear: () => finish(appeared ? selected : null),
           onDidDisappear: () => finish(appeared ? selected : null)
         });
+        this.nativeMenuDialog = dialog;
         timer = setTimeout(() => {
-          this.nativeMenuDialog?.close();
+          dialog?.close();
           finish(null);
         }, 2000);
-        this.getUIContext().runScopedTask(() => this.nativeMenuDialog?.open());
+        this.getUIContext().runScopedTask(() => dialog?.open());
       } catch {
         finish(null);
       }
@@ -581,16 +591,19 @@ struct Index {
       let appeared = false;
       let finished = false;
       let timer: number = -1;
+      let dialog: CustomDialogController | undefined;
       const finish = (result: boolean | null): void => {
         if (!finished) {
           finished = true;
           clearTimeout(timer);
-          this.nativeConfirmDialog = undefined;
+          if (this.nativeConfirmDialog === dialog) {
+            this.nativeConfirmDialog = undefined;
+          }
           resolve(result);
         }
       };
       try {
-        this.nativeConfirmDialog = new CustomDialogController({
+        dialog = new CustomDialogController({
           builder: NativeConfirmDialog({
             payload: payload,
             onResult: (ok: boolean) => { confirmed = ok; }
@@ -602,13 +615,15 @@ struct Index {
             appeared = true;
             clearTimeout(timer);
           },
+          onWillDisappear: () => finish(appeared ? confirmed : null),
           onDidDisappear: () => finish(appeared ? confirmed : null)
         });
+        this.nativeConfirmDialog = dialog;
         timer = setTimeout(() => {
-          this.nativeConfirmDialog?.close();
+          dialog?.close();
           finish(null);
         }, 2000);
-        this.getUIContext().runScopedTask(() => this.nativeConfirmDialog?.open());
+        this.getUIContext().runScopedTask(() => dialog?.open());
       } catch {
         finish(null);
       }
@@ -726,7 +741,12 @@ struct Index {
           this.toolsSheetAppeared = true;
           clearTimeout(this.toolsSheetTimer);
         },
-        onDisappear: () => this.finishToolsSheet()
+        onWillDisappear: () => this.finishToolsSheet(),
+        onDisappear: () => {
+          if (!this.toolsSheetOpen) {
+            this.finishToolsSheet();
+          }
+        }
       })
   }
 }

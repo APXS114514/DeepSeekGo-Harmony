@@ -164,8 +164,8 @@ try {
     const composer = page.getByPlaceholder('请输入消息')
     await composer.waitFor()
 
-    // 1. 菜单弹出触感（识别图片文字菜单）
-    await page.getByRole('button', { name: '识别图片文字', exact: true }).click()
+    // 1. 菜单弹出触感（添加附件菜单）
+    await page.getByRole('button', { name: '添加附件', exact: true }).click()
     await page.getByRole('menuitem', { name: '拍照识字', exact: true }).waitFor()
     await page.keyboard.press('Escape')
 

@@ -319,6 +319,8 @@ try {
     const { page, chats, weatherCalls } = h
     const dialog = await openGeneralSettings(page)
     assert.equal(await dialog.getByRole('button', { name: '请选择国家或地区' }).count(), 0)
+    assert.equal(await dialog.getByRole('switch', { name: '位置信息' }).count(), 0)
+    await dialog.getByRole('tab', { name: '隐私', exact: true }).click()
     const autoLoc = dialog.getByRole('switch', { name: '位置信息' })
     assert.equal(await autoLoc.isChecked(), false, 'auto location defaults off')
 
@@ -626,9 +628,18 @@ try {
     )
     assert(overflow <= 1, `unexpected horizontal overflow on 320px viewport: ${overflow}px`)
 
-    // 点击提示中的「前往设置」打开设置页
+    // 点击提示中的「前往设置」直接打开隐私页签并显示位置信息开关
     await page.getByRole('button', { name: '前往设置', exact: true }).click()
-    await page.getByRole('dialog', { name: '设置' }).waitFor()
+    const privacyDialog = page.getByRole('dialog', { name: '设置' })
+    await privacyDialog.waitFor()
+    assert.equal(
+      await privacyDialog
+        .getByRole('tab', { name: '隐私', exact: true })
+        .getAttribute('aria-selected'),
+      'true',
+      'location fallback link must open Privacy tab directly'
+    )
+    await privacyDialog.getByRole('switch', { name: '位置信息' }).waitFor()
 
     await h.context.close()
   }
