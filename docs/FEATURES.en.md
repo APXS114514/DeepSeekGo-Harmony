@@ -5,6 +5,8 @@ All features in the current version of Deepseek GO. For changes by version, see 
 ## Chat
 
 - Stream replies in multi-turn chats, edit earlier messages and regenerate replies, and switch between reply versions.
+- **Recall last turn.** Recall the latest prompt and its answer, stopping generation first if needed. The prompt and attachments return to an editable draft, and the turn is removed from local history and future context.
+- **Chat branches.** Choose **Branch from here** on a reply to start an independent chat with everything up to that reply. The original chat and its branches are grouped automatically in a collapsible sidebar group, and each can continue, be renamed, or be deleted separately.
 - **Chat model.** Select Flash or V4 Pro in **General → Chat**. Requests with attachments or the existing web tools use Flash automatically.
 - **DeepThink.** Preview the latest few lines of reasoning. The preview collapses when the answer starts. Tap its heading to expand it. Set reasoning effort and output token limits in **General → Chat**.
 - **Web search.** Search the web with source citations. In wide windows, source cards appear alongside the chat on the right. Control link reading separately in **General → Chat**.
@@ -25,6 +27,8 @@ All features in the current version of Deepseek GO. For changes by version, see 
 - **Import and export chat history.** In **Settings → Data**, export your chats as a ZIP file or merge an archive into local history. A merge keeps existing chats with matching IDs. You can also choose to replace all local chats.
 - **Background generation and reply notifications.** Replies can keep generating in the background. Tap the completion notification to go straight to the chat. Turn off reply notifications in **General → Chat**.
 - **On-demand location.** **General → Location** is now a single toggle switch with no manual region entry required. When turned on, the app uses HarmonyOS approximate location in the foreground for “here” and “nearby” questions and converts it on-device to only the city and administrative region.
+- **System haptics.** Feel subtle preset haptics when you hold to talk, swipe up to cancel, receive the first streamed token, finish DeepThink, copy, or open a menu. Haptics follow the system haptic setting.
+- **Home screen shortcuts.** Long-press the app icon to jump straight into a new chat, voice input, image text recognition, or an incognito chat.
 - **Secure API key storage.** HarmonyOS Asset Store keeps the key in the device’s secure storage, outside web storage.
 
 On-device speech and image text recognition depend on system AI capabilities. Available controls reflect device capabilities and voice settings.
@@ -48,8 +52,8 @@ Automatic memory sends one small extra request per reply and uses a few extra to
 - Choose Light, Dark, or System. Pick a preset accent color, use the color picker, or enter a hex value.
 - The system back gesture closes the topmost menu, dialog, settings screen, search panel, or sidebar first. It leaves the app once those layers are closed.
 - Replies, messages, and the composer follow the system font size up to 1.75×.
-- On 2-in-1 devices, use `Ctrl+N` for a new chat, `Ctrl+B` to toggle the sidebar, and `Ctrl+,` for Settings. Right-click a chat to rename or delete it.
-- **Immersive lighting.** The composer uses translucency and highlights. On supported devices, the narrow-window header buttons and image text recognition menu also use system materials. Turn the effect off in **General → Appearance**.
+- On 2-in-1 devices, use `Ctrl+N` for a new chat, `Ctrl+B` to toggle the sidebar, and `Ctrl+,` for Settings. Right-click or long-press a chat to rename, share, or delete it.
+- **Immersive lighting.** The composer, floating buttons, and pill toggles use translucency and highlights. On devices with system materials, the narrow-window header buttons add press, light, and symbol effects, and the chat menu, image text recognition menu, attachments and tools sheet, and delete or clear confirmations use native immersive surfaces. Turn the effect off in **General → Appearance**.
 - **Drag and drop.** Drop text, links, images, or files into the composer. Drag a reply’s Copy button into another app to drop the reply as plain text.
 - **Foldable hover mode.** On supported devices in full-screen hover mode, the chat stays above the fold and the composer below it. Unfolding keeps the current chat and draft.
 - Animations follow the system’s Reduce Motion setting. The sidebar, history search, settings, and share preview support keyboard navigation. In voice mode, use Enter or Space to start and stop recording, and Escape to cancel.

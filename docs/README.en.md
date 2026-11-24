@@ -39,8 +39,8 @@ The screenshots show only the bundled app interface.
 
 ## Highlights
 
-- **Chat**: streaming replies, DeepThink, web search, local history search, Markdown, code, math, Mermaid diagrams, and attachments.
-- **HarmonyOS features**: offline voice input and read-aloud, image text recognition, system sharing in both directions, chat export, and background reply notifications.
+- **Chat**: streaming replies, DeepThink, web search, local history search, recalling the last turn, chat branches, Markdown, code, math, Mermaid diagrams, and attachments.
+- **HarmonyOS features**: offline voice input and read-aloud, image text recognition, system sharing in both directions, chat export, background reply notifications, system haptics, and home screen shortcuts.
 - **Personalization and memory**: custom instructions and personas, plus memory across chats that you can view, edit, or clear at any time.
 - **Every device**: one package for phones, foldables, tablets, and 2-in-1 devices, with light and dark themes, system font scaling, back gestures, and immersive lighting.
 - **Privacy**: chats and memories stay on your device, your API key is kept in the system Asset Store, and the app only talks to `api.deepseek.com`.
@@ -55,7 +55,7 @@ On first launch, enter your DeepSeek API key in **Settings → Data**.
 
 ## Roadmap
 
-Planned features include expanded immersive lighting, home screen shortcuts and widgets, system haptics, multi-page document scanning, background read-aloud with media controls, cross-device capture, knock-to-share and air gestures, smart holding-hand adaptation, third-party model APIs, undoing the last turn, and chat branches with automatic grouping. See the [Roadmap](ROADMAP.en.md).
+Planned features include home screen widgets, multi-page document scanning, background read-aloud with media controls, cross-device capture, knock-to-share and air gestures, smart holding-hand adaptation, and third-party model APIs. See the [Roadmap](ROADMAP.en.md).
 
 ## Contribute
 
