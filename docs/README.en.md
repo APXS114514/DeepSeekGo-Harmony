@@ -55,7 +55,7 @@ On first launch, enter your DeepSeek API key in **Settings → Data**.
 
 ## Roadmap
 
-Planned next: search past chats, on-device read-aloud, share out, accessibility, a home screen widget, drag and drop, foldable hover mode, and cross-device continuation. See the [Roadmap](ROADMAP.en.md).
+Planned features include expanded immersive lighting, home screen shortcuts and widgets, system haptics, multi-page document scanning, background read-aloud with media controls, cross-device capture, knock-to-share and air gestures, smart holding-hand adaptation, third-party model APIs, undoing the last turn, and chat branches with automatic grouping. See the [Roadmap](ROADMAP.en.md).
 
 ## Contribute
 
