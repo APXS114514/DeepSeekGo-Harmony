@@ -5,6 +5,10 @@
       "value": "用于录音并转写为输入框草稿"
     },
     {
+      "name": "location_reason",
+      "value": "按需获取你所在的城市和行政区，用于天气、本地信息和附近推荐"
+    },
+    {
       "name": "web_microphone_title",
       "value": "允许语音输入使用麦克风？"
     },

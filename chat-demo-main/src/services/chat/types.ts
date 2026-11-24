@@ -1,5 +1,6 @@
 import type { TranslationMessage } from '../../i18n/index.js'
 import type { ApiErrorKind } from '../api/client.js'
+import type { ReplyLocalContext } from '../localInfo.js'
 import type { MemorySnapshot } from '../personalization.js'
 import type { GenerationOptions } from '../settings.js'
 import type {
@@ -89,6 +90,8 @@ export type AssistantMessage = MessageBranch & {
   generation?: GenerationOptions
   /** 本轮请求的系统信息快照；各回答版本独立保存，续写沿用。历史消息中缺省的快照保持为空。 */
   latestReminder?: string
+  /** 本轮按需定位、结构化当地信息或图表指引上下文（仅用于展示标注与历史请求前缀一致）。 */
+  localContext?: ReplyLocalContext
   /** 是否允许作为续写前缀；仍需满足回复状态与内容限制。 */
   prefix: boolean
   status: ReplyStatus

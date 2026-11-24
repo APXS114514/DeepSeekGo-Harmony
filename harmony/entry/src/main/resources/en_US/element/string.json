@@ -5,6 +5,10 @@
       "value": "Record speech and transcribe it into a chat draft"
     },
     {
+      "name": "location_reason",
+      "value": "Get your city and administrative region on demand for weather, local info, and nearby questions"
+    },
+    {
       "name": "web_microphone_title",
       "value": "Allow microphone access?"
     },

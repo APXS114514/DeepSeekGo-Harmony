@@ -50,7 +50,11 @@ export const getHistoryContext = (messages: Message[]) => {
     if (!question.content && question.files.length === 0) {
       continue
     }
-    tokens += textTokens(question.content) + textTokens(reply.latestReminder ?? '') + 12
+    tokens +=
+      textTokens(question.content) +
+      textTokens(reply.latestReminder ?? '') +
+      textTokens(reply.localContext?.turnContext ?? '') +
+      12
     for (const file of question.files) {
       const estimate = fileTokens(file)
       if (estimate === null) {

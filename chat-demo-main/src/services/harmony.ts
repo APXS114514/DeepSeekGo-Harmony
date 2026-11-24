@@ -47,11 +47,23 @@ export const useDeviceFeatures = create(() => ({
   scan: false,
   immersiveScanMenu: false,
   save: false,
+  location: false,
   windowPrivacy: null as boolean | null,
   updatingWindowPrivacy: false,
   /** 2in1 设备，按钮提示里附带键盘快捷键 */
   keyboard: false,
 }))
+
+/** 鸿蒙系统定位总开关关闭时的标准错误码 */
+export const LOCATION_SWITCH_OFF = 3301100
+
+export type CoarseDeviceLocation = {
+  countryCode: string
+  countryName: string
+  province: string
+  city: string
+  district: string
+}
 
 export type DeviceVoiceEvent =
   | { event: 'result'; text: string; final: boolean; last: boolean }
@@ -137,6 +149,7 @@ const onWindowMessage = (event: MessageEvent<string>) => {
         scan: message.scan === true,
         immersiveScanMenu: message.immersiveScanMenu === true,
         save: message.save === true,
+        location: message.location === true,
         windowPrivacy: typeof message.windowPrivacy === 'boolean' ? message.windowPrivacy : null,
         keyboard: message.deviceType === '2in1',
       })
@@ -258,6 +271,7 @@ type DeviceOperation =
   | 'speak-stop'
   | 'scan'
   | 'scan-source'
+  | 'location'
   | 'reply-done'
   | 'notify-permission'
   | 'window-privacy'
@@ -561,3 +575,58 @@ export const startDeviceReadAloud = async (
 }
 
 export const stopDeviceReadAloud = (token: string) => postDevice('speak-stop', token)
+
+const cleanLocationField = (value: unknown) =>
+  typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, 60) : ''
+
+const parseCoarseLocation = (value: string): CoarseDeviceLocation | null => {
+  try {
+    const raw = JSON.parse(value) as Record<string, unknown> | null
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return null
+    }
+    const rawCode = cleanLocationField(raw.countryCode).toUpperCase()
+    const parsed: CoarseDeviceLocation = {
+      countryCode: /^[A-Z]{2}$/.test(rawCode) ? rawCode : '',
+      countryName: cleanLocationField(raw.countryName),
+      province: cleanLocationField(raw.province),
+      city: cleanLocationField(raw.city),
+      district: cleanLocationField(raw.district),
+    }
+    return parsed.countryCode ||
+      parsed.countryName ||
+      parsed.province ||
+      parsed.city ||
+      parsed.district
+      ? parsed
+      : null
+  } catch {
+    return null
+  }
+}
+
+/** 仅在前台按需请求鸿蒙模糊定位，返回城市与行政区，不传递精确坐标。 */
+export const requestDeviceLocation = async ({
+  locale,
+  openSettings = false,
+}: {
+  locale: string
+  openSettings?: boolean
+}): Promise<{ status: number; location: CoarseDeviceLocation | null }> => {
+  try {
+    const reply = await requestDevice(
+      'location',
+      JSON.stringify({ locale, openSettings }),
+      PICKER_TIMEOUT
+    )
+    if (reply.status !== DeviceStatus.ok) {
+      return { status: reply.status, location: null }
+    }
+    const location = parseCoarseLocation(reply.value)
+    return location
+      ? { status: DeviceStatus.ok, location }
+      : { status: DeviceStatus.failed, location: null }
+  } catch {
+    return { status: DeviceStatus.failed, location: null }
+  }
+}

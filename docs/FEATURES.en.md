@@ -8,8 +8,9 @@ All features in the current version of Deepseek GO. For changes by version, see 
 - **Chat model.** Select Flash or V4 Pro in **General → Chat**. Requests with attachments or the existing web tools use Flash automatically.
 - **DeepThink.** Preview the latest few lines of reasoning. The preview collapses when the answer starts. Tap its heading to expand it. Set reasoning effort and output token limits in **General → Chat**.
 - **Web search.** Search the web with source citations. In wide windows, source cards appear alongside the chat on the right. Control link reading separately in **General → Chat**.
+- **Local information lookup.** Automatically uses your city and local date to look up weather, events, and opening hours with sources in the answer. Daily forecasts use structured Open-Meteo data when available, falling back to web search otherwise. You can turn this off in **General → Chat**.
 - **Suggested questions.** Enable this in **General → Chat** to generate up to three related questions through a separate API call after a new answer in the active chat. Select a question to add it to your draft, where you can edit it before sending.
-- Render Markdown, highlighted code, equations, and Mermaid diagrams. Copy replies or read them aloud.
+- Render Markdown, highlighted code, equations, interactive data charts (line, area, bar, and pie with summary metrics, calculation notes, sources, tap-to-inspect values, and data table view), and Mermaid diagrams. Copy replies or read them aloud.
 - **Search chat history.** Search titles or messages in the current version of each chat from the sidebar. Open a chat or jump to the matching message.
 - Attach images, PDFs, Office documents, and code files. The per-file limits are 100 MiB for PDF, Word, and PowerPoint, 64 MiB for images, and 32 MiB for plain text, spreadsheets, and ebooks.
 - **Incognito chat.** Turn it on from the new chat screen. Incognito chats skip history and memory and are discarded when you leave. The privacy notice appears at the start of the message list and scrolls with it.
@@ -23,6 +24,7 @@ All features in the current version of Deepseek GO. For changes by version, see 
 - **Share to Deepseek GO.** Choose **Share → Deepseek GO** in another app. Text, links, images, and documents appear in a new chat for you to review before sending.
 - **Import and export chat history.** In **Settings → Data**, export your chats as a ZIP file or merge an archive into local history. A merge keeps existing chats with matching IDs. You can also choose to replace all local chats.
 - **Background generation and reply notifications.** Replies can keep generating in the background. Tap the completion notification to go straight to the chat. Turn off reply notifications in **General → Chat**.
+- **On-demand location.** When turned on in **General**, the app uses HarmonyOS approximate location in the foreground for “here” and “nearby” questions and converts it on-device to only the city and administrative region. Falls back to your manual region if permission is denied or location is unavailable.
 - **Secure API key storage.** HarmonyOS Asset Store keeps the key in the device’s secure storage, outside web storage.
 
 On-device speech and image text recognition depend on system AI capabilities. Available controls reflect device capabilities and voice settings.
@@ -56,5 +58,5 @@ Automatic memory sends one small extra request per reply and uses a few extra to
 
 - **Screen capture protection.** Turn it on in **Settings → Privacy** to hide the chat window in screenshots, recordings, screen sharing, and recent apps.
 - Chats, drafts, instructions, and memories are stored locally.
-- The chat connects to `api.deepseek.com`. The bundled page uses a strict content security policy and opens external links in the system browser.
+- The chat connects to `api.deepseek.com` and the structured weather lookup endpoints (`open-meteo.com`). The bundled page uses a strict content security policy and opens external links in the system browser.
 - API keys are kept out of source code, app packages, and logs.

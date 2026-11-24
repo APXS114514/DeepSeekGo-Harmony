@@ -204,13 +204,14 @@ const isUsableReply = (message: Message): message is AssistantMessage =>
   getReplyText(message) !== ''
 
 /** 有文件时用内容块数组：先文件后文本，文件按 Files API 的 file_id 引用 */
-const toUserParam = ({ content, files }: UserMessage): MessageParam => {
+const toUserParam = ({ content, files }: UserMessage, extraContext?: string): MessageParam => {
   const blocks = toFileBlocks(files)
+  const text = extraContext ? (content ? `${content}\n\n${extraContext}` : extraContext) : content
   return blocks.length === 0
-    ? { role: 'user', content }
+    ? { role: 'user', content: text }
     : {
         role: 'user',
-        content: [...blocks, ...(content ? [{ type: 'text' as const, text: content }] : [])],
+        content: [...blocks, ...(text ? [{ type: 'text' as const, text }] : [])],
       }
 }
 
@@ -309,7 +310,8 @@ export const toRequestMessages = (
   prefix?: AssistantMessage,
   thinking = prefix?.thinking ?? false,
   latestReminder?: string,
-  readLinks = true
+  readLinks = true,
+  turnContext?: string
 ): MessageParam[] => {
   const messages: MessageParam[] = []
   let previousReminder: string | undefined
@@ -326,10 +328,13 @@ export const toRequestMessages = (
       continue
     }
     appendReminder(reply.latestReminder)
-    messages.push(toUserParam(user), toAssistantParam(reply, { readLinks }))
+    messages.push(
+      toUserParam(user, reply.localContext?.turnContext),
+      toAssistantParam(reply, { readLinks })
+    )
   }
   appendReminder(latestReminder)
-  messages.push(toUserParam(question))
+  messages.push(toUserParam(question, turnContext))
   if (prefix?.prefix) {
     const assistant = toAssistantParam(prefix, { prefix: true, thinking, readLinks })
     // 没有非空白正文或有效思考时直接重发原问题，避免服务端拒绝空 Prefill。

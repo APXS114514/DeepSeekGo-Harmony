@@ -20,7 +20,8 @@ const APP_PAGE = APP_ORIGIN + '/index.html';
 const PORT_MESSAGE = 'pocket-chat-device-port';
 const PAGE_POLICY = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
   "font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob:; " +
-  "connect-src https://api.deepseek.com; frame-src 'none'; base-uri 'none'; form-action 'none'";
+  "connect-src https://api.deepseek.com https://geocoding-api.open-meteo.com https://api.open-meteo.com; " +
+  "frame-src 'none'; base-uri 'none'; form-action 'none'";
 const PACKAGED_PATH = /^\/static\/(?:js|css|media)\/(?:async\/)?[a-zA-Z0-9._-]+\.(?:js|css|woff2?|ttf|png)$/;
 const MEDIA_TYPES: Map<string, string> = new Map([
   ['html', 'text/html'],
@@ -196,11 +197,13 @@ struct Index {
   }
 
   onPageHide(): void {
+    this.bridge?.setForeground(false);
     this.bridge?.interrupt();
     this.updateWebActivity(false);
   }
 
   onPageShow(): void {
+    this.bridge?.setForeground(true);
     this.updateFoldBounds();
     this.updateWebActivity(true);
   }

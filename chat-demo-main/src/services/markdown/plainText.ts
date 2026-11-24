@@ -1,4 +1,6 @@
 import type { Nodes } from 'mdast'
+import { useSettings } from '../settings.js'
+import { chartToPlainText, parseChartSpec } from './chart.js'
 import { toMdAst } from './parse.js'
 
 const plainNode = (node: Nodes): string => {
@@ -12,6 +14,16 @@ const plainNode = (node: Nodes): string => {
       return ''
     case 'citation':
       return ''
+    case 'code': {
+      const lang = node.lang?.toLowerCase()
+      if (lang === 'chart' || lang === 'deepseek-chart') {
+        const spec = parseChartSpec(node.value)
+        if (spec) {
+          return chartToPlainText(spec, useSettings.getState().locale)
+        }
+      }
+      return node.value
+    }
     case 'list':
       return node.children
         .map(

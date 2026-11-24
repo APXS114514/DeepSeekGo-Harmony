@@ -38,6 +38,10 @@ type Settings = {
   immersiveLight: boolean
   hideComposerOnScroll: boolean
   location: UserLocation | null
+  /** 鸿蒙版：按需在前台使用模糊定位（默认关闭，用户开启后生效） */
+  autoLocation: boolean
+  /** 结合城市与当地日期自动查询天气、活动和营业时间等本地信息 */
+  autoLocalInfo: boolean
   ttsVoice: ReadAloudVoice
   voiceInputMode: VoiceInputMode
   thinking: boolean
@@ -53,6 +57,8 @@ const KEYS = {
   apiKey: 'chat-demo:api-key',
   locale: 'chat-demo:locale',
   location: 'chat-demo:location',
+  autoLocation: 'chat-demo:auto-location',
+  autoLocalInfo: 'chat-demo:auto-local-info',
   themePreference: 'chat-demo:theme-preference',
   accentColor: 'chat-demo:accent-color',
   immersiveLight: 'chat-demo:immersive-light',
@@ -149,6 +155,8 @@ export const useSettings = create<Settings>(() => ({
   apiKeyTemporary: false,
   locale: initialLocale(),
   location: initialLocation(),
+  autoLocation: read(KEYS.autoLocation) === 'true',
+  autoLocalInfo: read(KEYS.autoLocalInfo) !== 'false',
   themePreference: initialThemePreference(),
   accentColor: normalizeAccentColor(read(KEYS.accentColor) ?? ''),
   immersiveLight: read(KEYS.immersiveLight) !== 'false',
@@ -172,6 +180,16 @@ export const setLocation = (value: UserLocation | null) => {
   const location = normalizeLocation(value)
   write(KEYS.location, location ? JSON.stringify(location) : null)
   useSettings.setState({ location })
+}
+
+export const setAutoLocation = (autoLocation: boolean) => {
+  write(KEYS.autoLocation, String(autoLocation))
+  useSettings.setState({ autoLocation })
+}
+
+export const setAutoLocalInfo = (autoLocalInfo: boolean) => {
+  write(KEYS.autoLocalInfo, String(autoLocalInfo))
+  useSettings.setState({ autoLocalInfo })
 }
 
 export const setThemePreference = (themePreference: ThemePreference) => {

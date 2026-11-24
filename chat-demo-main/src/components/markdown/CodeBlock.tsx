@@ -9,26 +9,58 @@ import {
 import { IconCheckOutline16, IconCopyOutline16 } from '../base/icons.js'
 import { showToast } from '../base/toastState.js'
 import { copyText } from '../../utils/clipboard.js'
+import { ChartBlock, type ChartViewMode } from './ChartBlock.js'
 import { MermaidDiagram } from './MermaidDiagram.js'
 import styles from './CodeBlock.module.css'
 
-/** 代码块标题栏：左侧语言名，右侧复制 */
+/** 代码块标题栏：左侧语言名或视图切换，右侧复制 */
 const CodeInfoRow = ({
   code,
   infostring,
   showDiagram,
   onToggleDiagram,
+  chartView,
+  onChangeChartView,
 }: {
   code: string
   infostring: string
   showDiagram: boolean
   onToggleDiagram?: () => void
+  chartView?: ChartViewMode
+  onChangeChartView?: (view: ChartViewMode) => void
 }) => {
   const t = useTranslate()
   const [copied, setCopied] = useState(false)
   return (
     <div className={styles.container}>
-      {onToggleDiagram ? (
+      {onChangeChartView && chartView ? (
+        <div className="md-code-block-switch" aria-label={t('chartSwitchLabel')}>
+          <button
+            type="button"
+            className={styles.button}
+            aria-pressed={chartView === 'chart'}
+            onClick={() => onChangeChartView('chart')}
+          >
+            {t('chartViewChart')}
+          </button>
+          <button
+            type="button"
+            className={styles.button}
+            aria-pressed={chartView === 'table'}
+            onClick={() => onChangeChartView('table')}
+          >
+            {t('chartViewTable')}
+          </button>
+          <button
+            type="button"
+            className={styles.button}
+            aria-pressed={chartView === 'code'}
+            onClick={() => onChangeChartView('code')}
+          >
+            {t('mermaidCode')}
+          </button>
+        </div>
+      ) : onToggleDiagram ? (
         <div className="md-code-block-switch" aria-label={t('mermaidSwitchLabel')}>
           <button
             type="button"
@@ -79,11 +111,14 @@ export const CodeBlock = memo(function CodeBlock({
   infostring: string
   loading?: boolean
 }) {
-  const isMermaid = infostring.toLowerCase() === 'mermaid'
+  const lowerLang = infostring.toLowerCase()
+  const isMermaid = lowerLang === 'mermaid'
+  const isChart = lowerLang === 'chart' || lowerLang === 'deepseek-chart'
   const [showDiagram, setShowDiagram] = useState(true)
+  const [chartView, setChartView] = useState<ChartViewMode>('chart')
   // 语言包注册在全局 Prism 上，每次渲染直接判断；加载完成后触发一次重渲染
   const rerender = useReducer((n: number) => n + 1, 0)[1]
-  const lang = getHighlightLang(infostring)
+  const lang = getHighlightLang(isChart ? 'json' : infostring)
   const loaded = lang !== null && isHighlightLoaded(lang)
   useEffect(() => {
     if (lang === null || loaded) {
@@ -111,9 +146,13 @@ export const CodeBlock = memo(function CodeBlock({
           infostring={infostring}
           showDiagram={showDiagram}
           onToggleDiagram={isMermaid ? () => setShowDiagram((show) => !show) : undefined}
+          chartView={isChart ? chartView : undefined}
+          onChangeChartView={isChart ? setChartView : undefined}
         />
       </div>
-      {isMermaid && showDiagram ? (
+      {isChart && chartView !== 'code' ? (
+        <ChartBlock code={code} view={chartView} loading={loading} />
+      ) : isMermaid && showDiagram ? (
         <MermaidDiagram code={code} loading={loading} />
       ) : (
         <pre dangerouslySetInnerHTML={{ __html: renderedHtml }}></pre>

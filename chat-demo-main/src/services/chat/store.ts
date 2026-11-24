@@ -11,6 +11,8 @@ import {
   isUserInputTooLong,
 } from '../api/errors.js'
 import { cancelUpload, describeUploadError, uploadAttachment, useUploads } from '../attachments.js'
+import { useDeviceFeatures } from '../harmony.js'
+import { prepareTurnLocalContext, type ReplyLocalContext } from '../localInfo.js'
 import { DEFAULT_GENERATION, useSettings } from '../settings.js'
 import { appendBranch, getVisibleMessages, normalizeSession, selectVersion } from './branches.js'
 import * as db from './db.js'
@@ -1278,6 +1280,10 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
     let readLinks = generation.readLinks
     /** 本轮提问是否含链接；含链接时不能为长输入关闭阅读链接 */
     let questionHasLink = false
+    /** 首次发送前解析按需定位与本地结构化信息，重试和续写沿用同一份结果。 */
+    let resolvedLocal:
+      | { locationOverride: string | null; autoSearch: boolean; localContext?: ReplyLocalContext }
+      | undefined
     for (let attempt = 0; ; attempt += 1) {
       /** 附件补齐前出错属于上传失败，请求还没有发出 */
       let preparing = true
@@ -1285,23 +1291,50 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
       try {
         const prepared = await prepareFiles(sessionId, request, controller.signal)
         preparing = false
+        if (!resolvedLocal) {
+          if (prepared.prefix) {
+            resolvedLocal = {
+              locationOverride: null,
+              autoSearch: false,
+              localContext: prepared.prefix.localContext,
+            }
+          } else {
+            const settings = useSettings.getState()
+            resolvedLocal = await prepareTurnLocalContext({
+              text: prepared.question.content,
+              files: prepared.question.files,
+              locale: settings.locale,
+              manualLocation: settings.location,
+              autoLocation: settings.autoLocation,
+              autoLocalInfo: settings.autoLocalInfo,
+              deviceLocationSupported: useDeviceFeatures.getState().location,
+              searchAlreadyOn: Boolean(initial.search),
+              signal: controller.signal,
+            })
+          }
+        }
         // 附件就绪后获取本轮信息；续写沿用原回答快照，重新生成的快照独立保存。
         const latestReminder = prepared.prefix
           ? prepared.prefix.latestReminder
-          : createLatestReminder(useSettings.getState())
+          : createLatestReminder({
+              ...useSettings.getState(),
+              locationOverride: resolvedLocal.locationOverride,
+            })
         const messages = toRequestMessages(
           prepared.history,
           prepared.question,
           prepared.prefix,
           initial.thinking ?? false,
           latestReminder,
-          readLinks
+          readLinks,
+          resolvedLocal.localContext?.turnContext
         )
         questionHasLink = /https?:\/\//i.test(prepared.question.content)
+        const effectiveSearch = Boolean(initial.search || resolvedLocal.autoSearch)
         const preferredModel = prepared.prefix?.model ?? generation.model
         // 附件和联网工具使用 Flash。阅读链接开启时，纯文本请求仍可选 Pro。
         const needsFlash =
-          initial.search ||
+          effectiveSearch ||
           (readLinks && questionHasLink) ||
           messages.some((message) =>
             message.role === 'user'
@@ -1311,7 +1344,12 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
                 message.content.some((block) => block.type === 'server_tool_use')
           )
         const model = needsFlash ? FLASH_MODEL : preferredModel
-        reply = { ...reply, model, latestReminder }
+        reply = {
+          ...reply,
+          model,
+          latestReminder,
+          ...(resolvedLocal.localContext ? { localContext: resolvedLocal.localContext } : {}),
+        }
         updateReply(sessionId, reply)
         persist(sessionId)
         const events = streamMessage(
@@ -1325,10 +1363,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
               ? { output_config: { effort: generation.effort } }
               : {}),
             ...(generation.maxTokens ? { max_tokens: generation.maxTokens } : {}),
-            tools: serverTools(
-              initial.search ?? false,
-              readLinks && model === FLASH_MODEL
-            ),
+            tools: serverTools(effectiveSearch, readLinks && model === FLASH_MODEL),
             ...(titleRequests.has(controller) ? { title: { enabled: true } } : {}),
           },
           controller.signal
@@ -1375,16 +1410,26 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
           })
           break
         }
-        // 长输入不能同时生成标题或启用阅读链接：本轮去掉标题，提问不含链接时也关闭阅读链接，
-        // 重发一次。会话保持无标题，之后较短的提问再生成。这次重发不占用附件补传的重试次数。
+        // 长输入不能同时生成标题、自动搜索或启用阅读链接：本轮去掉标题与自动本地搜索，
+        // 提问不含链接时也关闭阅读链接，重发一次。这次重发不占用附件补传的重试次数。
         const dropReadLinks = readLinks && !questionHasLink
+        const dropAutoSearch = resolvedLocal?.autoSearch === true
         if (
           !receivedContent &&
-          (titleRequests.has(controller) || dropReadLinks) &&
+          (titleRequests.has(controller) || dropReadLinks || dropAutoSearch) &&
           isUserInputTooLong(error)
         ) {
           titleRequests.delete(controller)
           readLinks &&= !dropReadLinks
+          if (dropAutoSearch && resolvedLocal) {
+            resolvedLocal = {
+              ...resolvedLocal,
+              autoSearch: false,
+              localContext: resolvedLocal.localContext
+                ? { ...resolvedLocal.localContext, autoSearch: false }
+                : undefined,
+            }
+          }
           attempt -= 1
           continue
         }

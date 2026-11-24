@@ -29,9 +29,21 @@ import {
   setDeviceWindowPrivacy,
   useDeviceFeatures,
 } from '../../services/harmony.js'
-import { regionCodes, getRegionName, provinces } from '../../services/location.js'
+import {
+  formatCoarseLocation,
+  getRegionName,
+  provinces,
+  regionCodes,
+} from '../../services/location.js'
+import {
+  clearDeviceLocationCache,
+  resolveDeviceLocation,
+  useDeviceLocationState,
+} from '../../services/localInfo.js'
 import {
   OUTPUT_LIMITS,
+  setAutoLocalInfo,
+  setAutoLocation,
   setSuggestedQuestions,
   setGenerationOptions,
   setImmersiveLight,
@@ -261,6 +273,7 @@ const SettingsContent = ({
                 ))}
                 <LocaleSetting />
                 <LocationSetting />
+                {__HARMONY_APP__ ? <AutoLocationSetting /> : null}
               </>
             )
           ) : section === 'personal' ? (
@@ -317,6 +330,7 @@ const GeneralSettingsPage = ({ page }: { page: GeneralPage['value'] }) => {
       return (
         <>
           <GenerationSettings />
+          <AutoLocalInfoSetting />
           <SuggestedQuestionsSetting />
           <HideComposerSetting />
           {__HARMONY_APP__ ? <ReplyNotifySetting /> : null}
@@ -330,6 +344,71 @@ const GeneralSettingsPage = ({ page }: { page: GeneralPage['value'] }) => {
         </>
       )
   }
+}
+
+const AutoLocalInfoSetting = () => {
+  const t = useTranslate()
+  const enabled = useSettings((state) => state.autoLocalInfo)
+  return (
+    <SettingsSwitch
+      className={styles.cell}
+      label={t('settingsAutoLocalInfo')}
+      description={t('settingsAutoLocalInfoDescription')}
+      checked={enabled}
+      onChange={setAutoLocalInfo}
+    />
+  )
+}
+
+const AutoLocationSetting = () => {
+  const t = useTranslate()
+  const locale = useSettings((state) => state.locale)
+  const enabled = useSettings((state) => state.autoLocation)
+  const supported = useDeviceFeatures((state) => state.location)
+  const detected = useDeviceLocationState((state) => state.location)
+  const busy = useDeviceLocationState((state) => state.busy)
+  const detectedLabel = detected ? formatCoarseLocation(detected, locale) : ''
+  const description = !supported
+    ? t('settingsAutoLocationUnavailable')
+    : enabled && detectedLabel
+      ? t('settingsAutoLocationDetected', { place: detectedLabel })
+      : t('settingsAutoLocationDescription')
+
+  return (
+    <SettingsSwitch
+      className={styles.cell}
+      label={t('settingsAutoLocation')}
+      description={description}
+      checked={enabled && supported}
+      disabled={!supported || busy}
+      onChange={(next) => {
+        if (!next) {
+          setAutoLocation(false)
+          clearDeviceLocationCache()
+          return
+        }
+        void resolveDeviceLocation({ locale, openSettings: true, forceRefresh: true }).then(
+          ({ location, fallback }) => {
+            if (location) {
+              setAutoLocation(true)
+              const place = formatCoarseLocation(location, locale)
+              showToast({ key: 'autoLocationEnabled', params: { place } })
+            } else {
+              setAutoLocation(false)
+              showToast({
+                key:
+                  fallback === 'denied'
+                    ? 'autoLocationDenied'
+                    : fallback === 'switch_off'
+                      ? 'autoLocationSwitchOff'
+                      : 'autoLocationFailed',
+              })
+            }
+          }
+        )
+      }}
+    />
+  )
 }
 
 const SuggestedQuestionsSetting = () => {

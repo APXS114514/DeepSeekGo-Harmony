@@ -8,6 +8,7 @@ import { BackgroundReply, ReplyDone } from './BackgroundReply';
 import { DeviceStatus } from './DeviceStatus';
 import { FileSaver } from './FileSaver';
 import { LocalSpeech } from './LocalSpeech';
+import { LocationService } from './LocationService';
 import { ShareOut } from './ShareOut';
 import { TextScanner } from './TextScanner';
 import type { ScanSourceLabels, ScanSourcePicker } from './ScanSourceMenu';
@@ -35,8 +36,14 @@ interface DeviceFeatures {
   scan: boolean;
   immersiveScanMenu: boolean;
   save: boolean;
+  location: boolean;
   windowPrivacy: boolean | null;
   deviceType: string;
+}
+
+interface LocationRequestPayload {
+  locale?: string;
+  openSettings?: boolean;
 }
 
 /** 二进制消息：4 字节小端头长度 + JSON 头 + 文件内容。 */
@@ -50,6 +57,7 @@ export class DeviceBridge {
   private readonly scanner: TextScanner;
   private readonly saver: FileSaver;
   private readonly speech: LocalSpeech;
+  private readonly location: LocationService;
   private readonly shareOut: ShareOut;
   private readonly background: BackgroundReply;
   private readonly presentScanSource: ScanSourcePicker;
@@ -65,6 +73,7 @@ export class DeviceBridge {
     this.scanner = new TextScanner(context);
     this.saver = new FileSaver(context);
     this.speech = new LocalSpeech(emit);
+    this.location = new LocationService(context);
     this.shareOut = new ShareOut(context);
     this.background = BackgroundReply.forAbility(context);
   }
@@ -82,6 +91,7 @@ export class DeviceBridge {
         scan: scan,
         immersiveScanMenu: pick !== null,
         save: true,
+        location: LocationService.supported(),
         windowPrivacy: this.privacy.current,
         deviceType: deviceInfo.deviceType
       };
@@ -108,6 +118,10 @@ export class DeviceBridge {
   interrupt(): void {
     this.voice.interrupt();
     this.speech.stop();
+  }
+
+  setForeground(active: boolean): void {
+    this.location.setForeground(active);
   }
 
   setGenerating(generating: boolean): void {
@@ -180,6 +194,9 @@ export class DeviceBridge {
         case 'scan-source':
           this.chooseScanSource(request).then((result) => this.reply(port, result));
           return;
+        case 'location':
+          this.handleLocation(request, port);
+          return;
         default:
           return;
       }
@@ -235,6 +252,25 @@ export class DeviceBridge {
       typeof reply.title === 'string' && typeof reply.text === 'string') {
       this.background.replyDone(reply);
     }
+  }
+
+  private handleLocation(request: DeviceRequest, port: webview.WebMessagePort): void {
+    let locale = 'zh-CN';
+    let openSettings = false;
+    if (typeof request.value === 'string' && request.value) {
+      try {
+        const parsed = JSON.parse(request.value) as LocationRequestPayload;
+        if (typeof parsed?.locale === 'string' && parsed.locale.length <= 16) {
+          locale = parsed.locale;
+        }
+        openSettings = parsed?.openSettings === true;
+      } catch {
+        // 使用默认参数。
+      }
+    }
+    this.location.locate(locale, openSettings).then((result) => {
+      this.reply(port, { id: request.id, status: result.status, value: result.value });
+    });
   }
 
   private handleVoice(request: DeviceRequest, port: webview.WebMessagePort): void {

@@ -5,7 +5,7 @@ import { IconRefreshOutline16, IconShareOutline16, IconWarningOutline16 } from '
 import { describeReply } from '../../services/chat/describe.js'
 import { canContinueReply } from '../../services/chat/reply.js'
 import { continueReply, regenerateReply } from '../../services/chat/store.js'
-import { useDeviceFeatures } from '../../services/harmony.js'
+import { openCitation, useDeviceFeatures } from '../../services/harmony.js'
 import { useSettings } from '../../services/settings.js'
 import { shareAnswer } from '../../services/chat/share.js'
 import { openShare } from '../share/ShareDialog.js'
@@ -63,6 +63,20 @@ export const AssistantMessage = memo(function AssistantMessage({
     .join('\n\n')
   const copyText = responseText || notice?.text
   const waiting = streaming && view.steps.length === 0 && !view.answer && !message.thinking
+  const localContext = refused ? undefined : message.localContext
+  const hasLocalMeta = Boolean(
+    localContext &&
+    ((localContext.locationSource === 'auto' && localContext.locationLabel) ||
+      localContext.structuredSource ||
+      localContext.locationFallback ||
+      (localContext.autoSearch && localContext.locationLabel))
+  )
+  const fallbackKey =
+    localContext?.locationFallback === 'denied'
+      ? 'localContextFallbackDenied'
+      : localContext?.locationFallback === 'switch_off'
+        ? 'localContextFallbackSwitchOff'
+        : 'localContextFallbackFailed'
   const summaryEntry = `${message.id}-summary`
   return (
     <div className={styles.message} data-history-message={message.id} tabIndex={-1}>
@@ -74,6 +88,59 @@ export const AssistantMessage = memo(function AssistantMessage({
           hasResponse={!!responseText}
         />
       )}
+      {hasLocalMeta && localContext ? (
+        <div className={styles.localMeta} data-local-context>
+          {localContext.locationSource === 'auto' && localContext.locationLabel ? (
+            <span className={styles.localChip}>
+              {t('localContextAutoLocation', { place: localContext.locationLabel })}
+            </span>
+          ) : null}
+          {localContext.structuredSource ? (
+            <span className={styles.localChip}>
+              {t('localContextStructuredSource')}
+              {localContext.structuredSource.url ? (
+                <a
+                  className={styles.localLink}
+                  href={localContext.structuredSource.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(event) => {
+                    const url = localContext.structuredSource?.url
+                    if (__HARMONY_APP__ && url) {
+                      event.preventDefault()
+                      openCitation(url)
+                    }
+                  }}
+                >
+                  {localContext.structuredSource.name}
+                </a>
+              ) : (
+                localContext.structuredSource.name
+              )}
+            </span>
+          ) : localContext.autoSearch && localContext.locationLabel ? (
+            <span className={styles.localChip}>
+              {t('localContextAutoSearch', { place: localContext.locationLabel })}
+            </span>
+          ) : null}
+          {localContext.locationFallback ? (
+            <span className={styles.localChip}>
+              <span>
+                {localContext.locationSource === 'manual' && localContext.locationLabel
+                  ? t('localContextFallbackManual', { place: localContext.locationLabel })
+                  : t(fallbackKey)}
+              </span>
+              <button
+                type="button"
+                className={styles.noticeAction}
+                onClick={() => openSettings('general')}
+              >
+                {t('localContextChooseRegion')}
+              </button>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       {answer ? (
         <Markdown
           className="ds-assistant-message-main-content"
