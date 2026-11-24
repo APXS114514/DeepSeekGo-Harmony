@@ -3,16 +3,27 @@ import { getFoldBounds, getHorizontalInsets } from '../services/harmony.js'
 
 const query = window.matchMedia('not all and (min-width: 768px)')
 const KEYBOARD_RESIZE_THRESHOLD = 48
+const KEYBOARD_MOTION_MS = 180
 
 const subscribe = (onChange: () => void) => {
   if (__HARMONY_APP__) {
+    const viewport = window.visualViewport
+    let width = viewport?.width
+    let scale = viewport?.scale
+    const onVisualResize = () => {
+      if (viewport && (viewport.width !== width || viewport.scale !== scale)) {
+        width = viewport.width
+        scale = viewport.scale
+        onChange()
+      }
+    }
     window.addEventListener('resize', onChange)
     window.addEventListener('pocket-chat-insets', onChange)
-    window.visualViewport?.addEventListener('resize', onChange)
+    viewport?.addEventListener('resize', onVisualResize)
     return () => {
       window.removeEventListener('resize', onChange)
       window.removeEventListener('pocket-chat-insets', onChange)
-      window.visualViewport?.removeEventListener('resize', onChange)
+      viewport?.removeEventListener('resize', onVisualResize)
     }
   }
   query.addEventListener('change', onChange)
@@ -109,6 +120,7 @@ export const useMobileViewport = (enabled: boolean) => {
     const viewport = window.visualViewport
     const style = __HARMONY_APP__ ? document.body.style : frame.style
     const inputSelector = 'textarea, input:not([type="file"])'
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
     let restingHeight = viewport?.height ?? window.innerHeight
     let previousHeight = restingHeight
     let previousTop = viewport?.offsetTop ?? 0
@@ -116,17 +128,27 @@ export const useMobileViewport = (enabled: boolean) => {
     let keyboardOpen = false
     let previousScale = 1
     let animationFrame = 0
+    let motionEnd = 0
+    let motionTimer = 0
+    const stopMotion = () => {
+      if (motionEnd) {
+        clearTimeout(motionTimer)
+        motionEnd = 0
+        document.body.removeAttribute('data-viewport-transition')
+        style.removeProperty('--viewport-duration')
+      }
+    }
     const reset = () => {
       style.removeProperty('--app-viewport-height')
       style.removeProperty('--app-viewport-top')
       style.removeProperty('--app-viewport-obscured-bottom')
       if (__HARMONY_APP__) {
+        stopMotion()
         style.removeProperty('--app-viewport-bottom')
         style.removeProperty('--app-viewport-left')
         style.removeProperty('--app-viewport-width')
         style.removeProperty('--app-page-scale')
         document.body.removeAttribute('data-page-zoom')
-        document.body.removeAttribute('data-viewport-transition')
         document.body.removeAttribute('data-soft-keyboard')
         applyFoldLayout(0, 0, false)
       }
@@ -152,15 +174,22 @@ export const useMobileViewport = (enabled: boolean) => {
         }
         keyboardOpen =
           (focused || wasOpen) && restingHeight - visualHeight > KEYBOARD_RESIZE_THRESHOLD
-        if (visualHeight !== previousHeight || top !== previousTop || resized) {
-          // 用动画接住 ArkWeb 一次性上报的大跳变，逐帧上报时直接跟随系统键盘。
+        if (resized || reduceMotion.matches) {
+          stopMotion()
+        } else if (visualHeight !== previousHeight || top !== previousTop) {
+          const now = performance.now()
           const jump =
             (keyboardOpen || wasOpen) &&
             Math.abs(visualHeight - previousHeight) > KEYBOARD_RESIZE_THRESHOLD
-          const inMotion =
-            document.body.hasAttribute('data-viewport-transition') &&
-            (frame.getAnimations?.().length ?? 0) > 0
-          document.body.toggleAttribute('data-viewport-transition', !resized && (jump || inMotion))
+          if (!motionEnd && jump) {
+            // ArkWeb 一次性上报大幅变化时补间，后续修正沿用同一个结束时间。
+            motionEnd = now + KEYBOARD_MOTION_MS
+            document.body.setAttribute('data-viewport-transition', '')
+            motionTimer = window.setTimeout(stopMotion, KEYBOARD_MOTION_MS)
+          }
+          if (motionEnd) {
+            style.setProperty('--viewport-duration', `${Math.max(0, motionEnd - now)}ms`)
+          }
         }
         document.body.toggleAttribute('data-soft-keyboard', keyboardOpen)
         previousHeight = visualHeight
@@ -191,12 +220,18 @@ export const useMobileViewport = (enabled: boolean) => {
       style.setProperty('--app-viewport-top', `${top}px`)
     }
     const scheduleFrame = () => {
-      cancelAnimationFrame(animationFrame)
-      animationFrame = requestAnimationFrame(update)
+      if (!animationFrame) {
+        animationFrame = requestAnimationFrame(() => {
+          animationFrame = 0
+          update()
+        })
+      }
     }
     const schedule = () => {
-      // 先同步跟上键盘动画，下一帧再校准 Safari 延迟更新的视口读数。
-      update()
+      // Safari 需要立即响应并在下一帧校准，ArkWeb 的 resize 和 scroll 可合并为一次更新。
+      if (!__HARMONY_APP__) {
+        update()
+      }
       scheduleFrame()
     }
     const onFocusIn = () => {

@@ -243,6 +243,7 @@ export const App = () => {
         ref={frameRef}
         className={styles.frame}
         data-drawer-open={__HARMONY_APP__ && mobileSiderOpen ? '' : undefined}
+        data-drawer-covered={__HARMONY_APP__ && isMobile && drawerCoversHeader ? '' : undefined}
       >
         {isMobile ? (
           <MobileSider />

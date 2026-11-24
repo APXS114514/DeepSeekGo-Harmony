@@ -90,21 +90,17 @@
 }
 
 :global(.harmony-app) .panel {
-  animation: panel-enter var(--surface-motion) both;
+  animation: panel-enter var(--surface-motion) backwards;
 
   &[data-closing] {
     animation-name: panel-exit;
+    animation-fill-mode: both;
   }
 }
 
 :global(.harmony-app[data-chat-layout='wide']) .panel {
   width: clamp(240px, 28%, 344px);
   overflow: hidden;
-  animation-name: dock-enter;
-
-  &[data-closing] {
-    animation-name: dock-exit;
-  }
 }
 
 @keyframes panel-enter {
@@ -116,19 +112,5 @@
 @keyframes panel-exit {
   to {
     transform: translateX(100%);
-  }
-}
-
-@keyframes dock-enter {
-  from {
-    width: 0;
-    opacity: 0;
-  }
-}
-
-@keyframes dock-exit {
-  to {
-    width: 0;
-    opacity: 0;
   }
 }

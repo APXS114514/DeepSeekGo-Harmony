@@ -108,6 +108,24 @@
   }
 }
 
+:global(.harmony-app) .shimmer {
+  color: var(--dsw-alias-label-secondary);
+  background: none;
+  animation: working 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes working {
+  to {
+    opacity: 0.65;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(.harmony-app) .shimmer {
+    animation: none;
+  }
+}
+
 .withLine,
 .content {
   &::after {

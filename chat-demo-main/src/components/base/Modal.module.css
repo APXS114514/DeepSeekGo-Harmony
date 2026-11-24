@@ -44,13 +44,14 @@
   width: var(--app-viewport-width, 100%);
   padding: var(--app-display-safe-top) var(--app-display-safe-right) 0 var(--app-display-safe-left);
   overflow: hidden;
+  backdrop-filter: none;
   transition: var(--viewport-transition);
-  animation: overlay-enter var(--surface-motion) both;
+  animation: overlay-enter var(--surface-motion) backwards;
 }
 
 :global(.harmony-app) .content {
   max-height: var(--modal-max-height, 100%);
-  animation: dialog-enter var(--surface-motion) both;
+  animation: dialog-enter var(--surface-motion) backwards;
 }
 
 :global(.harmony-app[data-page-zoom]) .content {
@@ -60,9 +61,11 @@
 
 :global(.harmony-app) .overlay[data-closing] {
   animation-name: overlay-exit;
+  animation-fill-mode: both;
 
   .content {
     animation-name: dialog-exit;
+    animation-fill-mode: both;
   }
 }
 
@@ -80,13 +83,13 @@
 
 @keyframes dialog-enter {
   from {
-    transform: translateY(16px);
+    transform: translateY(12px);
   }
 }
 
 @keyframes dialog-exit {
   to {
-    transform: translateY(16px);
+    transform: translateY(12px);
   }
 }
 

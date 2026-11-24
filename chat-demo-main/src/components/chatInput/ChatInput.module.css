@@ -77,7 +77,10 @@
     --composer-highlight-x: 50%;
   }
 
-  :global(.harmony-app[data-immersive-light][data-soft-keyboard]) .wrapper {
+  :global(.harmony-app[data-immersive-light]:is([data-soft-keyboard], [data-viewport-transition]))
+    .wrapper,
+  :global(.harmony-app[data-immersive-light] :is([data-drawer-open], [data-drawer-covered]))
+    .wrapper {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }

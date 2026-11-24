@@ -298,7 +298,7 @@ try {
   const composerY = () => page.locator('textarea').evaluate((el) => el.getBoundingClientRect().top)
   const resizeVisual = (height, top = 0) =>
     page.evaluate(
-      ({ height, top }) => {
+      async ({ height, top }) => {
         const viewport = window.visualViewport
         if (height === null) {
           delete viewport.height
@@ -310,6 +310,7 @@ try {
           })
         }
         viewport.dispatchEvent(new Event('resize'))
+        await new Promise(requestAnimationFrame)
       },
       { height, top }
     )
@@ -322,7 +323,7 @@ try {
     )
   const sampleMotion = (height, top) =>
     frame.evaluate(
-      (el, { height, top }) => {
+      async (el, { height, top }) => {
         const viewport = window.visualViewport
         if (height === null) {
           delete viewport.height
@@ -335,6 +336,7 @@ try {
         }
         const before = el.getBoundingClientRect().height
         viewport.dispatchEvent(new Event('resize'))
+        await new Promise(requestAnimationFrame)
         const transitions = el.getAnimations()
         const animated = transitions.some(
           (transition) => transition.transitionProperty === '--visual-viewport-bottom'
@@ -390,6 +392,7 @@ try {
     JSON.stringify(closingKeyboard)
   )
   await settleFrame(844)
+  await page.locator('body[data-viewport-transition]').waitFor({ state: 'detached' })
   await page.locator('textarea').focus()
   await resizeVisual(810)
   const smallUpdate = await frame.evaluate((el) => ({
@@ -398,6 +401,23 @@ try {
   }))
   assert.deepEqual(smallUpdate, { height: 810, active: 0 })
   await resizeVisual(null)
+  const viewportBatch = await frame.evaluate(async (element) => {
+    const viewport = window.visualViewport
+    const heights = [650, 830, 810]
+    for (const height of heights) {
+      Object.defineProperty(viewport, 'height', { configurable: true, value: height })
+      viewport.dispatchEvent(new Event('resize'))
+    }
+    const beforeFrame = element.getBoundingClientRect().height
+    await new Promise(requestAnimationFrame)
+    const afterFrame = element.getBoundingClientRect().height
+    const animations = element.getAnimations().length
+    delete viewport.height
+    viewport.dispatchEvent(new Event('resize'))
+    return { beforeFrame, afterFrame, animations }
+  })
+  assert.deepEqual(viewportBatch, { beforeFrame: 844, afterFrame: 810, animations: 0 })
+  await settleFrame(844)
   await page.emulateMedia({ reducedMotion: 'reduce' })
   const reducedKeyboard = await sampleMotion(312, 0)
   assert.deepEqual(reducedKeyboard, { before: 844, middle: 312, target: 312, animated: false })
@@ -409,7 +429,9 @@ try {
     window.mockWindowLayout()
   })
   await page.waitForFunction(
-    () => document.body.style.getPropertyValue('--native-inset-left') === '38px'
+    () =>
+      document.body.style.getPropertyValue('--native-inset-left') === '38px' &&
+      document.querySelector('[class^="frame-"]').getBoundingClientRect().height === 410
   )
   assert.deepEqual(await padding(), ['0px', '12px', '10px', '38px'])
   await page.waitForFunction(
@@ -444,9 +466,22 @@ try {
   await page.waitForFunction(() => document.body.dataset.chatLayout === 'wide')
   await search.click()
   await panel.getByText('模拟来源', { exact: true }).waitFor()
-  await page.waitForFunction(() => window.animations.some((name) => name.startsWith('dock-enter')))
+  const widePanelMotion = await panel.evaluate((element) => {
+    const animation = element.getAnimations()[0]
+    const measure = () => ({
+      width: element.getBoundingClientRect().width,
+      x: element.getBoundingClientRect().x,
+      chatWidth: document.querySelector('main').getBoundingClientRect().width,
+    })
+    animation.currentTime = 35
+    const moving = measure()
+    animation.finish()
+    return { moving, settled: measure() }
+  })
+  assert(widePanelMotion.moving.x > widePanelMotion.settled.x, JSON.stringify(widePanelMotion))
+  assert.equal(widePanelMotion.moving.width, widePanelMotion.settled.width)
+  assert.equal(widePanelMotion.moving.chatWidth, widePanelMotion.settled.chatWidth)
   await panel.getByRole('button', { name: '关闭' }).click()
-  await page.waitForFunction(() => window.animations.some((name) => name.startsWith('dock-exit')))
   await panel.waitFor({ state: 'detached' })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.waitForFunction(() => document.body.dataset.chatLayout === 'compact')
@@ -525,7 +560,7 @@ try {
   assert(!(await light.isChecked()))
   await light.check()
   await page.waitForFunction(() => document.body.hasAttribute('data-immersive-light'))
-  assert.match(await composerBlur(), /blur/)
+  assert.equal(await composerBlur(), 'none')
   await settings.getByRole('tab', { name: '数据管理' }).click()
   await settings.getByRole('button', { name: '修改 API Key', exact: true }).click()
   await key.fill(nextKey)
@@ -534,6 +569,7 @@ try {
   await settings.getByRole('button', { name: '关闭', exact: true }).click()
   await page.getByRole('button', { name: '收起边栏', exact: true }).click()
   await page.waitForFunction(() => !window.lastWindowUi.covered)
+  assert.match(await composerBlur(), /blur/)
   await page.locator('textarea').fill('继续聊天')
   await page.getByRole('button', { name: '发送', exact: true }).click()
   await reply.nth(1).waitFor()
@@ -620,30 +656,42 @@ try {
   await page.getByText('测试会话', { exact: true }).click()
   await reply.nth(1).waitFor()
   await page.locator('textarea').fill('留在对话里的草稿')
-  const openingEdges = await frame.evaluate((element) => {
-    const viewport = window.visualViewport
-    const sample = () => ({
-      bottom: element.getBoundingClientRect().bottom,
-      composer: element.querySelector('[class^="wrapper-"]').getBoundingClientRect().bottom,
-    })
-    const update = (height, offsetTop, type) => {
-      Object.defineProperties(viewport, {
-        height: { value: height, configurable: true },
-        offsetTop: { value: offsetTop, configurable: true },
+  const { openingEdges, initialDuration, remainingDuration } = await frame.evaluate(
+    async (element) => {
+      const viewport = window.visualViewport
+      const sample = () => ({
+        bottom: element.getBoundingClientRect().bottom,
+        composer: element.querySelector('[class^="wrapper-"]').getBoundingClientRect().bottom,
       })
-      viewport.dispatchEvent(new Event(type))
+      const update = async (height, offsetTop, type) => {
+        Object.defineProperties(viewport, {
+          height: { value: height, configurable: true },
+          offsetTop: { value: offsetTop, configurable: true },
+        })
+        viewport.dispatchEvent(new Event(type))
+        await new Promise(requestAnimationFrame)
+      }
+      const duration = () =>
+        Number.parseFloat(document.body.style.getPropertyValue('--viewport-duration'))
+      const before = sample()
+      await update(484, 36, 'resize')
+      const initialDuration = duration()
+      for (const animation of element.getAnimations()) animation.currentTime = 0
+      const first = sample()
+      for (const animation of element.getAnimations()) animation.currentTime = 55
+      const moving = sample()
+      await update(450, 57, 'scroll')
+      const remainingDuration = duration()
+      const corrected = sample()
+      for (const animation of element.getAnimations()) animation.finish()
+      return {
+        openingEdges: [before, first, moving, corrected, sample()],
+        initialDuration,
+        remainingDuration,
+      }
     }
-    const before = sample()
-    update(484, 36, 'resize')
-    for (const animation of element.getAnimations()) animation.currentTime = 0
-    const first = sample()
-    for (const animation of element.getAnimations()) animation.currentTime = 55
-    const moving = sample()
-    update(450, 57, 'scroll')
-    const corrected = sample()
-    for (const animation of element.getAnimations()) animation.finish()
-    return [before, first, moving, corrected, sample()]
-  })
+  )
+  assert(remainingDuration > 0 && remainingDuration < initialDuration)
   for (let i = 1; i < openingEdges.length; i++) {
     assert(openingEdges[i].bottom <= openingEdges[i - 1].bottom + 1, JSON.stringify(openingEdges))
     assert(

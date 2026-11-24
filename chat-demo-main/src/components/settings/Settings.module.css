@@ -1,5 +1,4 @@
 :global(.harmony-app) .settingsOverlay {
-  backdrop-filter: none;
   overscroll-behavior-y: none;
 }
 

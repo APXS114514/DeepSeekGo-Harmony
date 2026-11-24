@@ -19,7 +19,6 @@
     calc(310px / var(--app-page-scale, 1)),
     calc(var(--app-viewport-width, 100vw) * 0.72)
   );
-  --drawer-motion: 260ms cubic-bezier(0.25, 0.8, 0.25, 1);
   position: fixed;
   top: var(--app-viewport-top, 0px);
   left: var(--app-viewport-left, 0px);
@@ -58,12 +57,6 @@
 
 :global(.harmony-app) .frame[data-drawer-open] .main {
   transform: translateX(var(--drawer-width));
-}
-
-@media (prefers-reduced-motion: reduce) {
-  :global(.harmony-app) .frame {
-    --drawer-motion: 0s;
-  }
 }
 
 .content {

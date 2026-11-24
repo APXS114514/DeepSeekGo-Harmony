@@ -30,7 +30,7 @@
 }
 
 .inputContainer {
-  --composer-motion: 360ms cubic-bezier(0.34, 0.12, 0.25, 1);
+  --composer-motion: var(--app-composer-motion, 360ms cubic-bezier(0.34, 0.12, 0.25, 1));
   position: sticky;
   bottom: 0;
   z-index: 10;
@@ -84,7 +84,13 @@
 }
 
 :global(.harmony-app) .title {
-  transition: margin-left var(--drawer-motion);
+  transition: transform var(--drawer-motion);
+}
+
+:global(.harmony-app) .withCollapsedSider {
+  margin-left: 0;
+  max-width: min(480px, calc(100% - 137px));
+  transform: translateX(113px);
 }
 
 .caveat {
