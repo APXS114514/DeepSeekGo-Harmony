@@ -9,11 +9,11 @@
 :global(.harmony-app) .frame {
   /* 框架随视觉视口移动，屏幕上的上沿始终在状态栏下面，所以顶部安全区不扣减视口偏移。 */
   --frame-safe-top: var(--app-display-safe-top);
+  --visual-viewport-bottom: var(--app-viewport-bottom, 0px);
+  /* 底部安全区跟随参与过渡的视口下缘，避免输入栏先向下跳。 */
   --frame-safe-bottom: max(
     0px,
-    calc(
-      (var(--app-safe-bottom) - var(--app-viewport-obscured-bottom, 0px)) / var(--app-page-scale, 1)
-    )
+    calc(var(--app-safe-bottom) - max(0px, var(--visual-viewport-bottom)))
   );
   --drawer-width: min(
     calc(310px / var(--app-page-scale, 1)),
@@ -24,15 +24,24 @@
   top: var(--app-viewport-top, 0px);
   left: var(--app-viewport-left, 0px);
   right: auto;
-  bottom: auto;
+  bottom: var(--visual-viewport-bottom);
   width: var(--app-viewport-width, 100%);
-  height: var(--app-viewport-height, 100dvh);
+  height: auto;
   box-sizing: border-box;
   padding-top: var(--frame-safe-top);
   padding-right: var(--app-display-safe-right);
   padding-bottom: var(--frame-safe-bottom);
   padding-left: var(--app-display-safe-left);
   transition: var(--viewport-transition);
+}
+
+:global(.harmony-app[data-page-zoom]) .frame {
+  --frame-safe-bottom: max(
+    0px,
+    calc(
+      (var(--app-safe-bottom) - var(--app-viewport-obscured-bottom, 0px)) / var(--app-page-scale, 1)
+    )
+  );
 }
 
 .main {

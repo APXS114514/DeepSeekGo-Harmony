@@ -335,11 +335,14 @@ try {
         }
         const before = el.getBoundingClientRect().height
         viewport.dispatchEvent(new Event('resize'))
-        const transition = el.getAnimations().find((a) => a.transitionProperty === 'height')
-        if (transition) transition.currentTime = 85
+        const transitions = el.getAnimations()
+        const animated = transitions.some(
+          (transition) => transition.transitionProperty === '--visual-viewport-bottom'
+        )
+        for (const transition of transitions) transition.currentTime = 85
         const middle = el.getBoundingClientRect().height
-        if (transition) transition.finish()
-        return { before, middle, target: el.getBoundingClientRect().height, animated: !!transition }
+        for (const transition of transitions) transition.finish()
+        return { before, middle, target: el.getBoundingClientRect().height, animated }
       },
       { height, top }
     )
@@ -611,6 +614,47 @@ try {
   await expandButton.click()
   assert.equal(await dockWidth(), 221)
   await page.emulateMedia({ reducedMotion: 'no-preference' })
+
+  // 展开的折叠屏上，键盘缩小视口时也可能上报一次视口偏移。
+  await page.setViewportSize({ width: 942, height: 680 })
+  await page.getByText('测试会话', { exact: true }).click()
+  await reply.nth(1).waitFor()
+  await page.locator('textarea').fill('留在对话里的草稿')
+  const openingEdges = await frame.evaluate((element) => {
+    const viewport = window.visualViewport
+    const sample = () => ({
+      bottom: element.getBoundingClientRect().bottom,
+      composer: element.querySelector('[class^="wrapper-"]').getBoundingClientRect().bottom,
+    })
+    const update = (height, offsetTop, type) => {
+      Object.defineProperties(viewport, {
+        height: { value: height, configurable: true },
+        offsetTop: { value: offsetTop, configurable: true },
+      })
+      viewport.dispatchEvent(new Event(type))
+    }
+    const before = sample()
+    update(484, 36, 'resize')
+    for (const animation of element.getAnimations()) animation.currentTime = 0
+    const first = sample()
+    for (const animation of element.getAnimations()) animation.currentTime = 55
+    const moving = sample()
+    update(450, 57, 'scroll')
+    const corrected = sample()
+    for (const animation of element.getAnimations()) animation.finish()
+    return [before, first, moving, corrected, sample()]
+  })
+  for (let i = 1; i < openingEdges.length; i++) {
+    assert(openingEdges[i].bottom <= openingEdges[i - 1].bottom + 1, JSON.stringify(openingEdges))
+    assert(
+      openingEdges[i].composer <= openingEdges[i - 1].composer + 1,
+      JSON.stringify(openingEdges)
+    )
+  }
+  assert.equal(openingEdges.at(-1).bottom, 507)
+  assert.equal(await page.locator('textarea').inputValue(), '留在对话里的草稿')
+  await resizeVisual(null)
+  await settleFrame(680)
   await page.getByRole('button', { name: '设置', exact: true }).click()
   await settings.getByRole('button', { name: '外观', exact: true }).click()
   await settings.getByRole('button', { name: '默认天蓝', exact: true }).click()

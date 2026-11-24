@@ -36,12 +36,12 @@
 }
 
 :global(.harmony-app) .overlay {
+  --visual-viewport-bottom: var(--app-viewport-bottom, 0px);
   top: var(--app-viewport-top, 0px);
   left: var(--app-viewport-left, 0px);
   right: auto;
-  bottom: auto;
+  bottom: var(--visual-viewport-bottom);
   width: var(--app-viewport-width, 100%);
-  height: var(--app-viewport-height, 100dvh);
   padding: var(--app-display-safe-top) var(--app-display-safe-right) 0 var(--app-display-safe-left);
   overflow: hidden;
   transition: var(--viewport-transition);

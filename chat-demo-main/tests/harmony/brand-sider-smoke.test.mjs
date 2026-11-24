@@ -258,6 +258,9 @@ try {
     })
     viewport.dispatchEvent(new Event('resize'))
   })
+  await page.waitForFunction(
+    () => document.querySelector('[class^="frame-"]').getBoundingClientRect().height === 520
+  )
   assert.deepEqual(await padding(), ['31px', '0px', '0px', '12px'])
   await page.evaluate(() => {
     const viewport = window.visualViewport
@@ -271,7 +274,9 @@ try {
     window.mockWindowLayout()
   })
   await page.waitForFunction(
-    () => document.body.style.getPropertyValue('--native-inset-left') === '38px'
+    () =>
+      document.body.style.getPropertyValue('--native-inset-left') === '38px' &&
+      document.querySelector('[class^="frame-"]').getBoundingClientRect().height === 410
   )
   assert.deepEqual(await padding(), ['0px', '12px', '10px', '38px'])
   await page.waitForFunction(

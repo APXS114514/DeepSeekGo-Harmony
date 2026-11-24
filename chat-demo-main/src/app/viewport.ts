@@ -111,6 +111,7 @@ export const useMobileViewport = (enabled: boolean) => {
     const inputSelector = 'textarea, input:not([type="file"])'
     let restingHeight = viewport?.height ?? window.innerHeight
     let previousHeight = restingHeight
+    let previousTop = viewport?.offsetTop ?? 0
     let previousWidth = window.innerWidth
     let keyboardOpen = false
     let previousScale = 1
@@ -120,6 +121,7 @@ export const useMobileViewport = (enabled: boolean) => {
       style.removeProperty('--app-viewport-top')
       style.removeProperty('--app-viewport-obscured-bottom')
       if (__HARMONY_APP__) {
+        style.removeProperty('--app-viewport-bottom')
         style.removeProperty('--app-viewport-left')
         style.removeProperty('--app-viewport-width')
         style.removeProperty('--app-page-scale')
@@ -150,7 +152,7 @@ export const useMobileViewport = (enabled: boolean) => {
         }
         keyboardOpen =
           (focused || wasOpen) && restingHeight - visualHeight > KEYBOARD_RESIZE_THRESHOLD
-        if (visualHeight !== previousHeight || resized) {
+        if (visualHeight !== previousHeight || top !== previousTop || resized) {
           // 用动画接住 ArkWeb 一次性上报的大跳变，逐帧上报时直接跟随系统键盘。
           const jump =
             (keyboardOpen || wasOpen) &&
@@ -162,9 +164,11 @@ export const useMobileViewport = (enabled: boolean) => {
         }
         document.body.toggleAttribute('data-soft-keyboard', keyboardOpen)
         previousHeight = visualHeight
+        previousTop = top
         previousWidth = width
         previousScale = scale
         // 失焦时键盘可能尚未收起，继续跟随真实的可视视口。
+        style.setProperty('--app-viewport-bottom', `${window.innerHeight - height - top}px`)
         const obscured = Math.max(0, window.innerHeight - visualHeight - (zoomed ? 0 : top))
         style.setProperty('--app-viewport-obscured-bottom', `${obscured}px`)
         document.body.toggleAttribute('data-page-zoom', zoomed)
