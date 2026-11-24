@@ -37,6 +37,7 @@ import {
   useDrafts,
 } from '../../services/chat/drafts.js'
 import { stopReadAloud } from '../../services/speech/readAloud.js'
+import { useDeviceFeatures } from '../../services/harmony.js'
 import { IconButton } from '../base/IconButton.js'
 import { Tooltip } from '../base/Tooltip.js'
 import { ensureApiKey } from '../settings/settingsDialogState.js'
@@ -302,6 +303,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
           )}
           placeholder={t('chatInputPlaceholderChat')}
           rows={__HARMONY_APP__ ? 1 : 2}
+          enterKeyHint={__HARMONY_APP__ ? 'enter' : undefined}
           // 鸿蒙宽屏也可能使用软键盘，打开已有对话时等用户主动进入输入框。
           autoFocus={!isMobile && (!__HARMONY_APP__ || sessionId === null)}
           disabled={importingHistory}
@@ -329,10 +331,27 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
             }
           }}
           onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-              event.preventDefault()
-              send()
+            if (
+              event.key !== 'Enter' ||
+              event.shiftKey ||
+              event.nativeEvent.isComposing ||
+              event.nativeEvent.keyCode === 229
+            ) {
+              return
             }
+            if (__HARMONY_APP__ && !event.ctrlKey && !event.metaKey) {
+              // ArkWeb 的软键盘也会产生 Enter。手机和平板把普通回车留给多行编辑。
+              const physicalEnter = event.code === 'Enter' || event.code === 'NumpadEnter'
+              if (
+                !useDeviceFeatures.getState().keyboard ||
+                !physicalEnter ||
+                document.body.hasAttribute('data-soft-keyboard')
+              ) {
+                return
+              }
+            }
+            event.preventDefault()
+            send()
           }}
           onPaste={(event) => {
             const files = Array.from(event.clipboardData.files)

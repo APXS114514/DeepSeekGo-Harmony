@@ -828,6 +828,8 @@ try {
     const sent = chats.length
     await group.getByRole('button', { name: '外屏要测试哪些窗口尺寸？' }).click()
     assert.equal(await draft.inputValue(), '外屏要测试哪些窗口尺寸？')
+    // 等建议按钮安排的焦点与光标更新完成，再替换整段草稿。
+    await page.waitForFunction(() => document.activeElement?.tagName === 'TEXTAREA')
     await draft.fill('给我一份清单。')
     await group.getByRole('button', { name: '外屏要测试哪些窗口尺寸？' }).click()
     await group.getByRole('button', { name: '怎么检查键盘遮挡？' }).focus()
@@ -930,6 +932,75 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
   }
+  // 系统键盘的普通回车在手机和宽屏平板上都应该编辑草稿。
+  for (const options of [{}, { ...desktop, features: { deviceType: 'tablet' } }]) {
+    const { context, page, errors } = await open(options)
+    const input = page.locator('textarea:visible').first()
+    const sent = chats.length
+    await input.fill('第一行第二行')
+    await input.evaluate((element) => element.setSelectionRange(3, 3))
+    await input.press('Enter')
+    assert.equal(await input.inputValue(), '第一行\n第二行')
+    assert.equal(chats.length, sent)
+    assert.equal(await input.getAttribute('enterkeyhint'), 'enter')
+    await page.getByRole('button', { name: '发送', exact: true }).click()
+    await waitFor(page, () => chats.length === sent + 1, 'multiline message')
+    assert.equal(chats.at(-1).messages.at(-1).content, '第一行\n第二行')
+    await page
+      .getByText(`第 ${sent + 1} 条`)
+      .first()
+      .waitFor()
+    await input.fill('外接键盘快捷发送')
+    await input.press('Control+Enter')
+    await waitFor(page, () => chats.length === sent + 2, 'modified Enter send')
+    assert.equal(chats.at(-1).messages.at(-1).content, '外接键盘快捷发送')
+    assert.deepEqual(errors, [])
+    await context.close()
+  }
+
+  // 2in1 保留实体键盘发送，软键盘打开时普通回车仍换行。
+  {
+    const { context, page, errors } = await open({ ...desktop, features: { deviceType: '2in1' } })
+    const input = page.locator('textarea:visible').first()
+    const sent = chats.length
+    await input.fill('键盘测试')
+    for (const keyOptions of [{ isComposing: true }, { keyCode: 229 }, { code: '' }]) {
+      const passedThrough = await input.evaluate((element, options) => {
+        const enter = new KeyboardEvent('keydown', {
+          key: 'Enter',
+          code: 'Enter',
+          bubbles: true,
+          cancelable: true,
+          ...options,
+        })
+        return element.dispatchEvent(enter)
+      }, keyOptions)
+      assert.equal(passedThrough, true)
+    }
+    assert.equal(chats.length, sent)
+    await input.press('Shift+Enter')
+    assert.equal(await input.inputValue(), '键盘测试\n')
+    await page.evaluate(() => {
+      Object.defineProperty(window.visualViewport, 'height', { value: 420, configurable: true })
+      window.visualViewport.dispatchEvent(new Event('resize'))
+    })
+    await page.locator('body[data-soft-keyboard]').waitFor({ state: 'attached' })
+    await input.press('Enter')
+    assert.equal(await input.inputValue(), '键盘测试\n\n')
+    assert.equal(chats.length, sent)
+    await page.evaluate(() => {
+      delete window.visualViewport.height
+      window.visualViewport.dispatchEvent(new Event('resize'))
+    })
+    await page.locator('body[data-soft-keyboard]').waitFor({ state: 'detached' })
+    await input.fill('实体键盘发送')
+    await input.press('Enter')
+    await waitFor(page, () => chats.length === sent + 1, 'physical keyboard send')
+    assert.equal(chats.at(-1).messages.at(-1).content, '实体键盘发送')
+    assert.deepEqual(errors, [])
+    await context.close()
+  }
+
   console.log(`1.3 regression: OK (${chats.length} chats, ${extractions.length} extractions)`)
 } finally {
   await browser.close()

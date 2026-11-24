@@ -635,8 +635,11 @@ try {
   await sendFoldBounds({ upper: 374, lower: 399 })
   await devicePage.locator('body[data-fold-hover]').waitFor({ state: 'attached' })
   const list = devicePage.locator('[class*="hover-"] [class*="scroll-"]').filter({ has: answer })
-  const box = await list.boundingBox()
-  assert.ok(Math.abs(box.y + box.height - 374) <= 2, JSON.stringify(box))
+  // 悬停标记先更新，消息区还可能在跟随视口过渡。
+  await devicePage.waitForFunction(
+    (element) => Math.abs(element.getBoundingClientRect().bottom - 374) <= 2,
+    await list.elementHandle()
+  )
   assert.ok((await input.boundingBox()).y >= 399)
   await devicePage.setViewportSize({ width: 844, height: 465 })
   await devicePage.locator('body[data-fold-hover]').waitFor({ state: 'detached' })
