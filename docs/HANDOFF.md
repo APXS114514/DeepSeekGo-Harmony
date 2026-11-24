@@ -4,7 +4,7 @@
 
 - **当前版本**：源码 `1.7.0`（`versionCode: 1000024`），包名保持 `com.pocketchat.deepseek`（覆盖安装依赖）。接手时用 `git status --short` 和 `git log -1 --oneline` 查看状态。
 - **最近 HAP 包**（仅用户明确要求时打包当前源码；更早版本的包保存在本地 `HAPS/`，SHA-256 见 GitHub Releases 与 Git 历史）：
-  - `1.7.0` 测试包：`HAPS/Deepseek-GO-1.7.0-unsigned.hap`（构建自 `20759fd`，`1000024`，SHA-256 `3b558b45ed3947cf8f93835ef679bea8ae9f0b4c09f63f4a6afd27c13fda102d`）。之后源码已新增主动图表开关/实时数据提示、撤回与分支、系统触感反馈、桌面长按快捷方式和扩展沉浸光感，尚未重新打包。
+  - `1.7.0` 测试包：`HAPS/Deepseek-GO-1.7.0-unsigned.hap`（构建自 `e82f2f1`，`1000024`，SHA-256 `6f6ced27f79281d4d845d65dbc6d2898ed2c1c099e8dd7f99143a8c75ee95a3d`），含撤回与分支、系统触感反馈、桌面长按快捷方式和扩展沉浸光感。HarmonyOS 26.0.0 SDK Release 构建跳过签名、无签名块；包内核对 `com.pocketchat.deepseek`、`1.7.0` / `1000024`、Release 非调试、最低 API 12、目标 API 26、`VIBRATE` 与 `APPROXIMATELY_LOCATION` 权限、`ohos.ability.shortcuts` 及 4 个快捷方式图标、沉浸光感配置、155 个网页资源（与 `rawfile/chat/` 逐字节一致）、1024 × 1024 双图层启动器图标、欢迎页 Logo、上游许可证和图像授权声明。待用户签名安装真机实测。此前构建自 `20759fd` 的同名测试包（SHA-256 `3b558b45ed3947cf8f93835ef679bea8ae9f0b4c09f63f4a6afd27c13fda102d`）已不在本地 `HAPS/`。
   - `1.6.0` 最新正式版：`HAPS/Deepseek-GO-1.6.0-unsigned.hap`（标签 `v1.6.0`，构建自 `5e3e32f`，SHA-256 `9981364c6a49e644196bb03979e13bdf2d1d7513823bdb7b36338f609ba8413a`）。
 - **密钥与规则**：API Key 由用户在设备上填写，经受限 ArkWeb 消息通道存入鸿蒙 Asset Store；测试一律使用模拟 Key 和回复。版本、提交、发布和目录规范见 [`AGENTS.md`](../AGENTS.md)，用户可见变更见 [`CHANGELOG.md`](CHANGELOG.md)，贡献流程见 [`CONTRIBUTING.md`](CONTRIBUTING.md)，本机维护配置见根目录 `AGENTS.local.md`。
 
