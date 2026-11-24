@@ -339,7 +339,7 @@ try {
         await new Promise(requestAnimationFrame)
         const transitions = el.getAnimations()
         const animated = transitions.some(
-          (transition) => transition.transitionProperty === 'bottom'
+          (transition) => transition.transitionProperty === 'height'
         )
         for (const transition of transitions) transition.currentTime = 85
         const middle = el.getBoundingClientRect().height
@@ -552,7 +552,10 @@ try {
   const midOpen = await page.evaluate(() => window.motionSamples[0])
   assert(midOpen > 12 && midOpen < 12 + drawerWidth, JSON.stringify({ opening, midOpen }))
   assert(Math.abs(opening[1].x - (12 + drawerWidth)) < 1, JSON.stringify(opening))
-  assert(opening.every((event) => !event.idle), JSON.stringify(opening))
+  assert(
+    opening.every((event) => !event.idle),
+    JSON.stringify(opening)
+  )
   const drawerBounds = await drawer.boundingBox()
   assert.equal(drawerBounds.y, 0)
   assert.equal(drawerBounds.height, 844)
@@ -678,16 +681,19 @@ try {
 
   // 展开的折叠屏上，键盘缩小视口时也可能上报一次视口偏移。
   await page.setViewportSize({ width: 942, height: 680 })
-  await page.getByText('测试会话', { exact: true }).click()
-  await reply.nth(1).waitFor()
-  await page.locator('textarea').fill('留在对话里的草稿')
-  const { openingEdges, initialDuration, remainingDuration } = await frame.evaluate(
-    async (element) => {
+  const sampleOpening = () =>
+    frame.evaluate(async (element) => {
       const viewport = window.visualViewport
-      const sample = () => ({
-        bottom: element.getBoundingClientRect().bottom,
-        composer: element.querySelector('[class^="wrapper-"]').getBoundingClientRect().bottom,
-      })
+      // getBoundingClientRect 是布局坐标，扣掉实际视口的平移才是屏幕上看到的位置。
+      const sample = () => {
+        const rect = element.getBoundingClientRect()
+        const composer = element.querySelector('[class^="wrapper-"]')
+        return {
+          top: rect.top - viewport.offsetTop,
+          bottom: rect.bottom - viewport.offsetTop,
+          composer: composer.getBoundingClientRect().bottom - viewport.offsetTop,
+        }
+      }
       const update = async (height, offsetTop, type) => {
         Object.defineProperties(viewport, {
           height: { value: height, configurable: true },
@@ -698,13 +704,13 @@ try {
       }
       const duration = () => Number.parseFloat(element.style.transitionDuration)
       const before = sample()
-      await update(484, 36, 'resize')
+      await update(484, 130, 'resize')
       const initialDuration = duration()
       for (const animation of element.getAnimations()) animation.currentTime = 0
       const first = sample()
       for (const animation of element.getAnimations()) animation.currentTime = 55
       const moving = sample()
-      await update(450, 57, 'scroll')
+      await update(450, 36, 'scroll')
       const remainingDuration = duration()
       const corrected = sample()
       for (const animation of element.getAnimations()) animation.finish()
@@ -713,20 +719,34 @@ try {
         initialDuration,
         remainingDuration,
       }
-    }
-  )
-  assert(remainingDuration > 0 && remainingDuration < initialDuration)
-  for (let i = 1; i < openingEdges.length; i++) {
-    assert(openingEdges[i].bottom <= openingEdges[i - 1].bottom + 1, JSON.stringify(openingEdges))
+    })
+  const checkOpening = async () => {
+    await settleFrame(680)
+    await page.locator('body[data-viewport-transition]').waitFor({ state: 'detached' })
+    await page.locator('textarea').focus()
+    const { openingEdges, initialDuration, remainingDuration } = await sampleOpening()
+    assert(remainingDuration > 0 && remainingDuration < initialDuration)
     assert(
-      openingEdges[i].composer <= openingEdges[i - 1].composer + 1,
+      openingEdges.every(({ top }) => Math.abs(top) < 1),
       JSON.stringify(openingEdges)
     )
+    for (let i = 1; i < openingEdges.length; i++) {
+      assert(openingEdges[i].bottom <= openingEdges[i - 1].bottom + 1, JSON.stringify(openingEdges))
+      assert(
+        openingEdges[i].composer <= openingEdges[i - 1].composer + 1,
+        JSON.stringify(openingEdges)
+      )
+    }
+    assert.equal(openingEdges.at(-1).bottom, 450)
+    await resizeVisual(null)
+    await settleFrame(680)
   }
-  assert.equal(openingEdges.at(-1).bottom, 507)
+  await checkOpening()
+  await page.getByText('测试会话', { exact: true }).click()
+  await reply.nth(1).waitFor()
+  await page.locator('textarea').fill('留在对话里的草稿')
+  await checkOpening()
   assert.equal(await page.locator('textarea').inputValue(), '留在对话里的草稿')
-  await resizeVisual(null)
-  await settleFrame(680)
   await page.getByRole('button', { name: '设置', exact: true }).click()
   await settings.getByRole('button', { name: '外观', exact: true }).click()
   await settings.getByRole('button', { name: '默认天蓝', exact: true }).click()

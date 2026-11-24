@@ -34,7 +34,9 @@
 
 :global(.harmony-app) .wrapper {
   /* 输入栏在页面缩放时保持屏幕尺寸，因此按换算后的可见高度留出留白。 */
-  --input-viewport-height: calc(var(--app-viewport-height, 100dvh) * var(--app-page-scale, 1));
+  --input-viewport-height: calc(
+    var(--input-layout-height, var(--app-viewport-height, 100dvh)) * var(--app-page-scale, 1)
+  );
   --input-vertical-extra: clamp(
     0px,
     calc((var(--input-viewport-height) - 420px) * 0.035),
