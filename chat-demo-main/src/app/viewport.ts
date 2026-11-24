@@ -4,33 +4,12 @@ import { getFoldBounds, getHorizontalInsets } from '../services/harmony.js'
 const query = window.matchMedia('not all and (min-width: 768px)')
 const KEYBOARD_RESIZE_THRESHOLD = 48
 const KEYBOARD_MOTION_MS = 180
+/** 跟随视觉视口移动的容器：聊天框架和弹窗遮罩。 */
+const MOTION_SELECTOR = '[data-viewport-motion]'
 
-const subscribe = (onChange: () => void) => {
-  if (__HARMONY_APP__) {
-    const viewport = window.visualViewport
-    let width = viewport?.width
-    let scale = viewport?.scale
-    const onVisualResize = () => {
-      if (viewport && (viewport.width !== width || viewport.scale !== scale)) {
-        width = viewport.width
-        scale = viewport.scale
-        onChange()
-      }
-    }
-    window.addEventListener('resize', onChange)
-    window.addEventListener('pocket-chat-insets', onChange)
-    viewport?.addEventListener('resize', onVisualResize)
-    return () => {
-      window.removeEventListener('resize', onChange)
-      window.removeEventListener('pocket-chat-insets', onChange)
-      viewport?.removeEventListener('resize', onVisualResize)
-    }
-  }
-  query.addEventListener('change', onChange)
-  return () => query.removeEventListener('change', onChange)
-}
+type Layout = 'compact' | 'medium' | 'wide'
 
-const readLayout = () => {
+const computeLayout = (): Layout => {
   if (!__HARMONY_APP__) {
     return query.matches ? 'compact' : 'wide'
   }
@@ -43,6 +22,50 @@ const readLayout = () => {
   }
   return availableWidth < 960 ? 'medium' : 'wide'
 }
+
+/*
+ * 布局档位只在窗口、视口或原生边距变化时重算。useSyncExternalStore 会在每次渲染和提交时读取快照，
+ * 若直接读 innerWidth 和 visualViewport，React 刚改完 DOM 时就会强制同步计算样式和布局，
+ * 提示气泡、消息和设置页等组件越多，切换页面时的卡顿越明显。
+ */
+let layout: Layout | null = null
+const layoutListeners = new Set<() => void>()
+const refreshLayout = () => {
+  const next = computeLayout()
+  if (next !== layout) {
+    layout = next
+    for (const listener of layoutListeners) {
+      listener()
+    }
+  }
+}
+let lastViewportWidth = window.visualViewport?.width
+let lastViewportScale = window.visualViewport?.scale
+const onVisualResize = () => {
+  const viewport = window.visualViewport
+  // 键盘只改变视口高度，宽度和缩放不变时不必重算档位。
+  if (viewport && (viewport.width !== lastViewportWidth || viewport.scale !== lastViewportScale)) {
+    lastViewportWidth = viewport.width
+    lastViewportScale = viewport.scale
+    refreshLayout()
+  }
+}
+if (__HARMONY_APP__) {
+  window.addEventListener('resize', refreshLayout)
+  window.addEventListener('pocket-chat-insets', refreshLayout)
+  window.visualViewport?.addEventListener('resize', onVisualResize)
+} else {
+  query.addEventListener('change', refreshLayout)
+}
+
+const subscribe = (onChange: () => void) => {
+  layoutListeners.add(onChange)
+  return () => {
+    layoutListeners.delete(onChange)
+  }
+}
+
+const readLayout = () => (layout ??= computeLayout())
 
 export const useResponsiveLayout = () => useSyncExternalStore(subscribe, readLayout)
 export const useIsMobile = () => useSyncExternalStore(subscribe, () => readLayout() === 'compact')
@@ -130,24 +153,47 @@ export const useMobileViewport = (enabled: boolean) => {
     let animationFrame = 0
     let motionEnd = 0
     let motionTimer = 0
+    // 视口变量写在 body 上，整页元素都会继承。只在数值变化时写入，避免同一帧重复重算样式。
+    const written = new Map<string, string>()
+    const write = (name: string, value: string) => {
+      if (written.get(name) !== value) {
+        written.set(name, value)
+        style.setProperty(name, value)
+      }
+    }
+    const clear = (name: string) => {
+      if (written.delete(name)) {
+        style.removeProperty(name)
+      }
+    }
+    // 过渡时长只写到跟随视口的框架和弹窗自身，不经过继承，过渡期间子元素无需逐帧重算样式。
+    const setMotionDuration = (duration: string | null) => {
+      for (const element of document.querySelectorAll<HTMLElement>(MOTION_SELECTOR)) {
+        if (duration === null) {
+          element.style.removeProperty('transition-duration')
+        } else {
+          element.style.transitionDuration = duration
+        }
+      }
+    }
     const stopMotion = () => {
       if (motionEnd) {
         clearTimeout(motionTimer)
         motionEnd = 0
         document.body.removeAttribute('data-viewport-transition')
-        style.removeProperty('--viewport-duration')
+        setMotionDuration(null)
       }
     }
     const reset = () => {
-      style.removeProperty('--app-viewport-height')
-      style.removeProperty('--app-viewport-top')
-      style.removeProperty('--app-viewport-obscured-bottom')
+      clear('--app-viewport-height')
+      clear('--app-viewport-top')
+      clear('--app-viewport-obscured-bottom')
       if (__HARMONY_APP__) {
         stopMotion()
-        style.removeProperty('--app-viewport-bottom')
-        style.removeProperty('--app-viewport-left')
-        style.removeProperty('--app-viewport-width')
-        style.removeProperty('--app-page-scale')
+        clear('--app-viewport-bottom')
+        clear('--app-viewport-left')
+        clear('--app-viewport-width')
+        clear('--app-page-scale')
         document.body.removeAttribute('data-page-zoom')
         document.body.removeAttribute('data-soft-keyboard')
         applyFoldLayout(0, 0, false)
@@ -158,6 +204,7 @@ export const useMobileViewport = (enabled: boolean) => {
       if (!__HARMONY_APP__ && viewport && viewport.scale !== 1) {
         return
       }
+      // 先读完所有几何量再写样式。写后再读会在同一帧里强制多算一次整页样式。
       const focused = document.activeElement?.matches(inputSelector) === true
       const height = viewport?.height ?? window.innerHeight
       const top = viewport?.offsetTop ?? 0
@@ -166,6 +213,9 @@ export const useMobileViewport = (enabled: boolean) => {
         const zoomed = scale > 1.01 && !!viewport
         const visualHeight = zoomed ? height * scale : height
         const width = window.innerWidth
+        const layoutHeight = window.innerHeight
+        const left = viewport?.offsetLeft ?? 0
+        const visualWidth = viewport?.width ?? width
         const windowResized = width !== previousWidth
         const resized = windowResized || scale !== previousScale
         const wasOpen = keyboardOpen
@@ -188,7 +238,7 @@ export const useMobileViewport = (enabled: boolean) => {
             motionTimer = window.setTimeout(stopMotion, KEYBOARD_MOTION_MS)
           }
           if (motionEnd) {
-            style.setProperty('--viewport-duration', `${Math.max(0, motionEnd - now)}ms`)
+            setMotionDuration(`${Math.max(0, motionEnd - now)}ms`)
           }
         }
         document.body.toggleAttribute('data-soft-keyboard', keyboardOpen)
@@ -197,27 +247,27 @@ export const useMobileViewport = (enabled: boolean) => {
         previousWidth = width
         previousScale = scale
         // 失焦时键盘可能尚未收起，继续跟随真实的可视视口。
-        style.setProperty('--app-viewport-bottom', `${window.innerHeight - height - top}px`)
-        const obscured = Math.max(0, window.innerHeight - visualHeight - (zoomed ? 0 : top))
-        style.setProperty('--app-viewport-obscured-bottom', `${obscured}px`)
+        write('--app-viewport-bottom', `${layoutHeight - height - top}px`)
+        const obscured = Math.max(0, layoutHeight - visualHeight - (zoomed ? 0 : top))
+        write('--app-viewport-obscured-bottom', `${obscured}px`)
         document.body.toggleAttribute('data-page-zoom', zoomed)
         applyFoldLayout(top, height, zoomed)
         if (zoomed) {
-          style.setProperty('--app-page-scale', String(scale))
-          style.setProperty('--app-viewport-left', `${viewport.offsetLeft}px`)
-          style.setProperty('--app-viewport-width', `${viewport.width}px`)
+          write('--app-page-scale', String(scale))
+          write('--app-viewport-left', `${left}px`)
+          write('--app-viewport-width', `${visualWidth}px`)
         } else {
-          style.removeProperty('--app-page-scale')
-          style.removeProperty('--app-viewport-left')
-          style.removeProperty('--app-viewport-width')
+          clear('--app-page-scale')
+          clear('--app-viewport-left')
+          clear('--app-viewport-width')
         }
       } else if (!focused) {
         // 普通网页在失焦后恢复全高，避免等待 Safari 的键盘 resize。
         reset()
         return
       }
-      style.setProperty('--app-viewport-height', `${height}px`)
-      style.setProperty('--app-viewport-top', `${top}px`)
+      write('--app-viewport-height', `${height}px`)
+      write('--app-viewport-top', `${top}px`)
     }
     const scheduleFrame = () => {
       if (!animationFrame) {

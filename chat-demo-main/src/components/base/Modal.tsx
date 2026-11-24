@@ -120,6 +120,7 @@ export const Modal = ({
     <div
       ref={overlayRef}
       className={clsx(styles.overlay, overlayClassName)}
+      data-viewport-motion=""
       data-closing={closing ? '' : undefined}
       onMouseDown={(event) => event.target === event.currentTarget && onCloseRef.current()}
     >

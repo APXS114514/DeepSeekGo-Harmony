@@ -339,12 +339,18 @@ try {
         await new Promise(requestAnimationFrame)
         const transitions = el.getAnimations()
         const animated = transitions.some(
-          (transition) => transition.transitionProperty === '--visual-viewport-bottom'
+          (transition) => transition.transitionProperty === 'bottom'
         )
         for (const transition of transitions) transition.currentTime = 85
         const middle = el.getBoundingClientRect().height
+        // 过渡只发生在框架自身，子元素继承的安全区和 body 上的变量不随每帧变化。
+        const composer = el.querySelector('[class^="wrapper-"]')
+        const inherited = () => getComputedStyle(composer).getPropertyValue('--frame-safe-bottom')
+        const middleInherited = inherited()
+        const bodyMotion = document.body.style.getPropertyValue('--viewport-duration')
         for (const transition of transitions) transition.finish()
-        return { before, middle, target: el.getBoundingClientRect().height, animated }
+        const steady = middleInherited === inherited() && bodyMotion === ''
+        return { before, middle, target: el.getBoundingClientRect().height, animated, steady }
       },
       { height, top }
     )
@@ -354,6 +360,7 @@ try {
   const openingKeyboard = await sampleMotion(365, 12)
   assert(
     openingKeyboard.animated &&
+      openingKeyboard.steady &&
       openingKeyboard.before > openingKeyboard.middle &&
       openingKeyboard.middle > openingKeyboard.target,
     JSON.stringify(openingKeyboard)
@@ -387,6 +394,7 @@ try {
   const closingKeyboard = await sampleMotion(null, 0)
   assert(
     closingKeyboard.animated &&
+      closingKeyboard.steady &&
       closingKeyboard.before < closingKeyboard.middle &&
       closingKeyboard.middle < closingKeyboard.target,
     JSON.stringify(closingKeyboard)
@@ -420,7 +428,13 @@ try {
   await settleFrame(844)
   await page.emulateMedia({ reducedMotion: 'reduce' })
   const reducedKeyboard = await sampleMotion(312, 0)
-  assert.deepEqual(reducedKeyboard, { before: 844, middle: 312, target: 312, animated: false })
+  assert.deepEqual(reducedKeyboard, {
+    before: 844,
+    middle: 312,
+    target: 312,
+    animated: false,
+    steady: true,
+  })
   await resizeVisual(null)
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await page.setViewportSize({ width: 740, height: 410 })
@@ -505,6 +519,13 @@ try {
   const main = page.locator('main')
   const drawer = page.locator('[class^="drawer-"]')
   const drawerWidth = await drawer.evaluate((node) => node.getBoundingClientRect().width)
+  // 收起的抽屉不参与整页样式重算，展开时在动画开始前恢复渲染。
+  const idleDrawer = () =>
+    drawer.evaluate(
+      (node) => node.hasAttribute('data-idle') && getComputedStyle(node).contentVisibility
+    )
+  await page.waitForFunction(() => document.querySelector('[class^="drawer-"][data-idle]'))
+  assert.equal(await idleDrawer(), 'hidden')
   await page.evaluate(() => {
     const main = document.querySelector('main')
     window.motionEvents = []
@@ -516,6 +537,7 @@ try {
             type,
             x: main.getBoundingClientRect().x,
             covered: window.lastWindowUi.covered,
+            idle: document.querySelector('[class^="drawer-"]').hasAttribute('data-idle'),
           })
           if (type === 'transitionrun') {
             setTimeout(() => window.motionSamples.push(main.getBoundingClientRect().x), 70)
@@ -530,6 +552,7 @@ try {
   const midOpen = await page.evaluate(() => window.motionSamples[0])
   assert(midOpen > 12 && midOpen < 12 + drawerWidth, JSON.stringify({ opening, midOpen }))
   assert(Math.abs(opening[1].x - (12 + drawerWidth)) < 1, JSON.stringify(opening))
+  assert(opening.every((event) => !event.idle), JSON.stringify(opening))
   const drawerBounds = await drawer.boundingBox()
   assert.equal(drawerBounds.y, 0)
   assert.equal(drawerBounds.height, 844)
@@ -545,6 +568,8 @@ try {
   assert.equal(closing[1].covered, true, JSON.stringify(closing))
   assert.equal(await main.evaluate((node) => node.inert), false)
   assert.equal(await drawer.evaluate((node) => getComputedStyle(node).visibility), 'hidden')
+  await page.waitForFunction(() => document.querySelector('[class^="drawer-"][data-idle]'))
+  assert.equal(await idleDrawer(), 'hidden')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.evaluate(() => window.mockWindowAction('sidebar'))
   await page.getByText('测试会话', { exact: true }).click()
@@ -671,8 +696,7 @@ try {
         viewport.dispatchEvent(new Event(type))
         await new Promise(requestAnimationFrame)
       }
-      const duration = () =>
-        Number.parseFloat(document.body.style.getPropertyValue('--viewport-duration'))
+      const duration = () => Number.parseFloat(element.style.transitionDuration)
       const before = sample()
       await update(484, 36, 'resize')
       const initialDuration = duration()
@@ -711,7 +735,7 @@ try {
   assert.equal(verificationAttempts, 4)
   assert.deepEqual(runtimeErrors, [])
   process.stdout.write(
-    'PASS keyboard open/close interpolation and reduced motion, uncropped logo, settings/search enter and exit, latest launcher asset, wide/medium dock collapse and reopen, draft, mobile drawer, reduced motion, full-height background, persisted immersive light, four safe insets, keyboard viewport, native header actions and overlays, responsive layout, custom accent and reload, existing Key/chat flows\n'
+    'PASS keyboard open/close interpolation without inherited per-frame changes and reduced motion, idle closed drawer, uncropped logo, settings/search enter and exit, latest launcher asset, wide/medium dock collapse and reopen, draft, mobile drawer, reduced motion, full-height background, persisted immersive light, four safe insets, keyboard viewport, native header actions and overlays, responsive layout, custom accent and reload, existing Key/chat flows\n'
   )
 } finally {
   await browser.close()

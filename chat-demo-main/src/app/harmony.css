@@ -1,16 +1,9 @@
-@property --visual-viewport-bottom {
-  syntax: '<length>';
-  inherits: false;
-  initial-value: 0px;
-}
-
 .harmony-app {
   overscroll-behavior-y: none;
   --motion-ease-out: cubic-bezier(0.22, 0.72, 0.28, 1);
   --surface-motion: 180ms var(--motion-ease-out);
   --drawer-motion: 230ms var(--motion-ease-out);
   --app-composer-motion: 280ms var(--motion-ease-out);
-  --viewport-transition: none;
   --app-safe-top: max(env(safe-area-inset-top, 0px), var(--native-inset-top, 0px));
   /* 原生按窗口把角落挖孔划入上下边，避免 ArkWeb 再把它当成整条侧边。 */
   --app-safe-right: var(--native-inset-right, env(safe-area-inset-right, 0px));
@@ -36,12 +29,6 @@
   --composer-rim: rgba(255, 255, 255, 0.96);
 }
 
-.harmony-app[data-viewport-transition] {
-  --viewport-motion: var(--viewport-duration) var(--motion-ease-out);
-  --viewport-transition:
-    top var(--viewport-motion), --visual-viewport-bottom var(--viewport-motion);
-}
-
 .harmony-app [data-content-enter] {
   animation: harmony-content-enter var(--surface-motion) backwards;
 }
@@ -58,10 +45,6 @@
     --surface-motion: 0s;
     --drawer-motion: 0s;
     --app-composer-motion: 0s;
-  }
-
-  .harmony-app[data-viewport-transition] {
-    --viewport-transition: none;
   }
 }
 

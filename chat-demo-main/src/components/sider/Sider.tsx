@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type RefObject, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import {
   IconPanelLeftOutline16,
@@ -152,9 +152,42 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   )
 }
 
+/** 收起动画通常 230ms，减少动态效果时没有 transitionend，用定时器兜底。 */
+const IDLE_FALLBACK_MS = 400
+
+/**
+ * 侧栏收起后停止渲染其中的会话列表。键盘弹出、切换设置等会改动整页样式，
+ * 隐藏的历史条目不再参与每次样式重算；展开时在同一帧恢复。
+ */
+const useIdleWhenHidden = (ref: RefObject<HTMLElement | null>, hidden: boolean) => {
+  useLayoutEffect(() => {
+    const element = ref.current
+    if (!__HARMONY_APP__ || !element) {
+      return
+    }
+    if (!hidden) {
+      element.removeAttribute('data-idle')
+      return
+    }
+    const settle = () => element.setAttribute('data-idle', '')
+    const onEnd = (event: TransitionEvent) => {
+      if (event.target === element) {
+        settle()
+      }
+    }
+    element.addEventListener('transitionend', onEnd)
+    const timer = window.setTimeout(settle, IDLE_FALLBACK_MS)
+    return () => {
+      clearTimeout(timer)
+      element.removeEventListener('transitionend', onEnd)
+    }
+  }, [ref, hidden])
+}
+
 export const DockedSider = ({ collapsed }: { collapsed: boolean }) => {
   const t = useTranslate()
   const ref = useRef<HTMLElement>(null)
+  useIdleWhenHidden(ref, collapsed)
 
   useLayoutEffect(() => {
     if (ref.current) {
@@ -179,6 +212,7 @@ export const MobileSider = () => {
   const t = useTranslate()
   const open = useMobileSider((state) => state.open)
   const drawerRef = useRef<HTMLDivElement>(null)
+  useIdleWhenHidden(drawerRef, !open)
   useLayoutEffect(() => {
     const drawer = drawerRef.current
     if (!__HARMONY_APP__ || !drawer) {

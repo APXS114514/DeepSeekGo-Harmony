@@ -176,8 +176,14 @@ const onWindowMessage = (event: MessageEvent<string>) => {
       body.toggleAttribute('data-native-chat-header', message.nativeHeader === true)
       for (const edge of edges) {
         const value = message.insets?.[edge]
-        if (Number.isFinite(value) && value >= 0) {
-          body.style.setProperty(`--native-inset-${edge}`, `${value}px`)
+        const name = `--native-inset-${edge}`
+        // 安全区写在 body 上，整页都会继承；数值不变时跳过，避免整页样式重算。
+        if (
+          Number.isFinite(value) &&
+          value >= 0 &&
+          body.style.getPropertyValue(name) !== `${value}px`
+        ) {
+          body.style.setProperty(name, `${value}px`)
         }
       }
       const left = message.insets?.left

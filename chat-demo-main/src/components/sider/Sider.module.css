@@ -276,6 +276,11 @@
   transform: translateX(0);
 }
 
+/* 收起动画结束后跳过隐藏侧栏的样式和布局，展开时保留原有滚动位置。 */
+:global(.harmony-app) :is(.drawer, .docked)[data-idle] {
+  content-visibility: hidden;
+}
+
 :global(.harmony-app) .drawerMask {
   opacity: 0;
   pointer-events: none;
