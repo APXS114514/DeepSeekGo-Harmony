@@ -675,6 +675,15 @@ try {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await collapseButton.click()
   assert.equal(await dockWidth(), 0)
+  // 收起的常驻侧栏不能停止渲染：ArkWeb 再次露出已聚焦输入框时会平移视口，展开内屏整页回跳。
+  await page.waitForTimeout(500)
+  assert.deepEqual(
+    await dock.evaluate((el) => [
+      el.hasAttribute('data-idle'),
+      getComputedStyle(el).contentVisibility,
+    ]),
+    [false, 'visible']
+  )
   await expandButton.click()
   assert.equal(await dockWidth(), 221)
   await page.emulateMedia({ reducedMotion: 'no-preference' })

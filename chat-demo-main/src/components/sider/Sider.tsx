@@ -156,8 +156,9 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
 const IDLE_FALLBACK_MS = 400
 
 /**
- * 侧栏收起后停止渲染其中的会话列表。键盘弹出、切换设置等会改动整页样式，
- * 隐藏的历史条目不再参与每次样式重算；展开时在同一帧恢复。
+ * 窄屏抽屉关闭后停止渲染其中的会话列表。键盘弹出、切换设置等会改动整页样式，
+ * 隐藏的历史条目不再参与每次样式重算；打开时在同一帧恢复。
+ * 常驻侧栏不使用：展开内屏收起侧栏后，ArkWeb 再次露出已聚焦的输入框时会平移视口，整页回跳。
  */
 const useIdleWhenHidden = (ref: RefObject<HTMLElement | null>, hidden: boolean) => {
   useLayoutEffect(() => {
@@ -187,7 +188,6 @@ const useIdleWhenHidden = (ref: RefObject<HTMLElement | null>, hidden: boolean) 
 export const DockedSider = ({ collapsed }: { collapsed: boolean }) => {
   const t = useTranslate()
   const ref = useRef<HTMLElement>(null)
-  useIdleWhenHidden(ref, collapsed)
 
   useLayoutEffect(() => {
     if (ref.current) {
