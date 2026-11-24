@@ -1,5 +1,5 @@
 import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
-import { window } from '@kit.ArkUI';
+import { display, window } from '@kit.ArkUI';
 import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BackgroundReply, OPEN_SESSION_KEY, OPEN_SESSION_PARAM } from '../services/BackgroundReply';
@@ -54,10 +54,14 @@ export default class EntryAbility extends UIAbility {
       const mainWindow = windowStage.getMainWindowSync();
       await WindowPrivacy.instance.attach(this.context, mainWindow);
       if (deviceInfo.deviceType === 'phone' || deviceInfo.deviceType === 'tablet') {
-        mainWindow.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
-          .catch((error: BusinessError) => {
-            hilog.warn(0x0000, 'PocketChat', 'Unable to set orientation: %{public}d', error.code);
-          });
+        try {
+          // 折叠屏的内外屏沿用模块声明中的桌面旋转策略。
+          if (!display.isFoldable()) {
+            await mainWindow.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+          }
+        } catch (error) {
+          hilog.warn(0x0000, 'PocketChat', 'Unable to configure orientation: %{public}d', (error as BusinessError).code);
+        }
       }
       if (deviceInfo.deviceType !== '2in1') {
         await mainWindow.setWindowLayoutFullScreen(true);

@@ -43,6 +43,8 @@
 
 ## 1.6.0 鸿蒙交互
 
+- **折叠屏旋转锁定**。用户在 Pura X Max 内屏开启系统旋转锁定后仍观察到应用随设备转动。HDC 核对 HOP-AL10（HarmonyOS 7.0.0.111）安装的 1.6.0 / `1000023`，其启动方向为默认值。原 `EntryAbility` 对折叠屏也调用 `AUTO_ROTATION_RESTRICTED`。按华为适配指南在 `module.json5` 声明 `follow_desktop`，折叠屏始终采用该策略，直板手机和平板沿用受系统锁定约束的自动旋转。无法读取折叠能力时沿用模块配置。 [华为 Pura X Max 适配指南](https://developer.huawei.com/consumer/cn/doc/best-practices/bpta-purax-guide/)
+- `window-orientation` 回归在旧代码上复现窗口方向被覆盖，修订后验证折叠屏、直板手机、平板、2in1 和折叠能力查询失败。前端类型、Lint、鸿蒙网页构建、ArkTS CodeLinter 和 HarmonyOS 26.0.0 SDK Debug 编译通过。包内确认 `follow_desktop`、版本 `1.6.0` / `1000023` 和最低 API 12。全量回归首轮 10/11，`device-features` 的悬停布局断言单独复跑通过。修订版仍需签名后在 Pura X Max 内屏实测开启及关闭系统旋转锁定，并复测折叠切屏后会话和草稿。
 - **原生光感**。API 26.0.0 并支持系统材质时，窄屏顶栏在透明的 `Navigation.title` 中为两侧操作按钮应用 `THIN` 材质。识字弹窗使用 `CustomDialogController` 的系统背板和默认 `ULTRA_THICK` 材质，通过 `SymbolGlyph` 绘制相机和图库图标。关闭光感或设备不支持时走普通顶栏及网页菜单，原生弹窗显示失败时也可从网页选择来源。
 - **识字弹窗背板修复**。在 HOP-AL10（HarmonyOS 7.0.0.111）已安装的 1.6.0 / `1000023` 上打开「识别图片文字」，深色主题下截图可见相机和图库图标，但弹窗背景透明，文字叠在欢迎页上。原用的 `openCustomDialog(ComponentContent)` 自定义背板不支持系统沉浸材质。改为 `CustomDialogController` 的系统背板，弹窗未显示时回退网页菜单。 [华为光感常见问题](https://developer.huawei.com/consumer/cn/doc/HarmonyOS-Guides/arkts-immersive-light-sense-faq/)
 - **修订包验证**。HarmonyOS 26.0.0 SDK Debug、Release 和 CodeLinter 通过，验签工具确认修订包无签名块。版本代码、权限和 155 个网页资源与原包一致。浏览器覆盖拍照、取消、显示失败后的菜单回退与再次打开选择图库。全套首轮 9 项通过，`adaptation` 的草稿选区断言单独复跑通过。
