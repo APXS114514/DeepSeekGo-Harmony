@@ -2,13 +2,19 @@ import clsx from 'clsx'
 import { type RefObject, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import {
+  IconBranchOutline16,
+  IconChevronRightOutline14,
   IconPanelLeftOutline16,
   IconSearchOutline16,
   IconSettingsOutline16,
   NewChatIcon,
 } from '../base/icons.js'
 import { setSiderCollapsed } from '../../services/settings.js'
-import { groupSessions } from '../../services/chat/sessionGroups.js'
+import {
+  groupSessions,
+  toggleBranchGroup,
+  useBranchGroupState,
+} from '../../services/chat/sessionGroups.js'
 import { newChat, removeSession, useChatStore } from '../../services/chat/store.js'
 import type { SessionSummary } from '../../services/chat/types.js'
 import { Button } from '../base/Button.js'
@@ -28,6 +34,7 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   const hint = useShortcutHint()
   const sessions = useChatStore((state) => state.sessions)
   const activeId = useChatStore((state) => state.activeId)
+  const collapsedGroups = useBranchGroupState((state) => state.collapsed)
   const [now, setNow] = useState(Date.now)
   const groups = useMemo(() => groupSessions(sessions, now, t), [sessions, now, t])
   const [deleting, setDeleting] = useState<SessionSummary | null>(null)
@@ -91,14 +98,67 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           {groups.map((group) => (
             <div key={group.key} className={styles.section}>
               <div className={styles.sectionHeader}>{group.label}</div>
-              {group.sessions.map((session) => (
-                <SessionItem
-                  key={session.id}
-                  session={session}
-                  active={session.id === activeId}
-                  onDelete={() => setDeleting(session)}
-                />
-              ))}
+              {group.entries.map((entry) => {
+                if (entry.kind === 'single') {
+                  return (
+                    <SessionItem
+                      key={entry.session.id}
+                      session={entry.session}
+                      active={entry.session.id === activeId}
+                      onDelete={() => setDeleting(entry.session)}
+                    />
+                  )
+                }
+                const collapsed = collapsedGroups[entry.groupId] === true
+                const hasActive = entry.sessions.some((item) => item.id === activeId)
+                return (
+                  <div
+                    key={entry.groupId}
+                    className={styles.branchGroup}
+                    data-branch-group={entry.groupId}
+                    data-collapsed={collapsed ? '' : undefined}
+                  >
+                    <button
+                      type="button"
+                      className={clsx(
+                        styles.branchGroupHeader,
+                        collapsed && hasActive && styles.branchGroupActive
+                      )}
+                      aria-expanded={!collapsed}
+                      aria-label={t(collapsed ? 'branchGroupExpand' : 'branchGroupCollapse', {
+                        title: entry.title,
+                      })}
+                      onClick={() => toggleBranchGroup(entry.groupId)}
+                    >
+                      <span className={styles.branchGroupChevron} aria-hidden="true">
+                        <IconChevronRightOutline14 />
+                      </span>
+                      <span className={styles.branchGroupIcon} aria-hidden="true">
+                        <IconBranchOutline16 />
+                      </span>
+                      <span className={styles.branchGroupTitle}>{entry.title}</span>
+                      <span
+                        className={styles.branchGroupCount}
+                        aria-label={t('branchGroupCount', { count: entry.sessions.length })}
+                      >
+                        {entry.sessions.length}
+                      </span>
+                    </button>
+                    {!collapsed ? (
+                      <div className={styles.branchGroupList}>
+                        {entry.sessions.map((session) => (
+                          <SessionItem
+                            key={session.id}
+                            session={session}
+                            active={session.id === activeId}
+                            onDelete={() => setDeleting(session)}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })}
             </div>
           ))}
         </div>

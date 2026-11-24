@@ -438,4 +438,12 @@ export const en = {
   replyContextExceeded: 'This request exceeded the context limit.',
   replyInputTooLongForTools:
     'With web search or link reading on, one message including attachments can be about 32K tokens at most. Turn off web search, remove the link, or shorten the content, then try again.',
+  recallLastTurn: 'Recall last turn',
+  recallMissingFiles: 'Turn recalled, but some original attachments could not be restored.',
+  forkFromHere: 'Branch from here',
+  forkCreated: 'Created branch “{title}”',
+  branchSessionTitle: '{title} ({index})',
+  branchGroupExpand: 'Expand branch group “{title}”',
+  branchGroupCollapse: 'Collapse branch group “{title}”',
+  branchGroupCount: '{count} chats',
 } satisfies Record<keyof typeof zh, string>

@@ -73,6 +73,23 @@ export const restoreSentDraft = (sessionId: string, submitted: Draft) => {
   }
 }
 
+/** 撤回上一轮后恢复提问文字和附件到输入框；若输入框已有未发草稿则保留并合并。 */
+export const restoreRecalledDraft = (sessionId: string, recalled: Draft) => {
+  updateDraft(sessionId, (existing) => {
+    if (!hasDraft(existing)) {
+      return recalled
+    }
+    const text =
+      recalled.text && existing.text
+        ? `${recalled.text}\n\n${existing.text}`
+        : recalled.text || existing.text
+    return {
+      text,
+      attachments: [...recalled.attachments, ...existing.attachments],
+    }
+  })
+}
+
 /** 根据本地原件还原历史附件，通常可直接复用已上传的服务端文件。 */
 export const makeMessageDraft = (
   text: string,

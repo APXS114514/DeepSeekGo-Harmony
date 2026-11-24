@@ -2,13 +2,15 @@ import { useTranslate } from '../../i18n/index.js'
 import clsx from 'clsx'
 import { memo, useLayoutEffect, useRef, useState, type Ref } from 'react'
 import { useIsMobile } from '../../app/viewport.js'
-import { IconEditOutline16 } from '../base/icons.js'
-import { editMessage, retryUpload } from '../../services/chat/store.js'
+import { IconEditOutline16, IconUndoOutline16 } from '../base/icons.js'
+import { editMessage, recallLastTurn, retryUpload } from '../../services/chat/store.js'
 import { stopReadAloud } from '../../services/speech/readAloud.js'
 import type { UserMessage as UserMessageType } from '../../services/chat/types.js'
 import { Button } from '../base/Button.js'
 import { IconButton } from '../base/IconButton.js'
+import { showToast } from '../base/toastState.js'
 import { ensureApiKey } from '../settings/settingsDialogState.js'
+import { closeSearchPanel } from '../search/searchPanelState.js'
 import {
   BranchSwitcher,
   type MessageVersions,
@@ -25,6 +27,8 @@ export const UserMessage = memo(function UserMessage({
   retryUploadId,
   isFirst,
   isLast,
+  canRecall,
+  onRecalled,
   busy,
   editing,
   editorRef,
@@ -38,6 +42,8 @@ export const UserMessage = memo(function UserMessage({
   retryUploadId: string | null
   isFirst: boolean
   isLast: boolean
+  canRecall: boolean
+  onRecalled?: () => void
   busy: boolean
   editing: boolean
   editorRef?: Ref<HTMLDivElement>
@@ -47,6 +53,7 @@ export const UserMessage = memo(function UserMessage({
 }) {
   const t = useTranslate()
   const [draft, setDraft] = useState(message.content)
+  const [recalling, setRecalling] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const isMobile = useIsMobile()
   const canSend = !busy && (draft.trim() !== '' || message.files.length > 0)
@@ -136,12 +143,39 @@ export const UserMessage = memo(function UserMessage({
                 icon={<IconEditOutline16 />}
                 tooltip={t('editMessage')}
                 tooltipPlacement="bottom"
-                disabled={busy}
+                disabled={busy || recalling}
                 onClick={() => {
                   setDraft(message.content)
                   onEdit(message.id)
                 }}
               />
+              {canRecall ? (
+                <IconButton
+                  icon={<IconUndoOutline16 />}
+                  tooltip={t('recallLastTurn')}
+                  tooltipPlacement="bottom"
+                  disabled={recalling}
+                  onClick={async () => {
+                    if (recalling) {
+                      return
+                    }
+                    setRecalling(true)
+                    stopReadAloud()
+                    closeSearchPanel()
+                    try {
+                      const result = await recallLastTurn(sessionId)
+                      if (result.ok) {
+                        if (result.missingFiles) {
+                          showToast({ key: 'recallMissingFiles' })
+                        }
+                        onRecalled?.()
+                      }
+                    } finally {
+                      setRecalling(false)
+                    }
+                  }}
+                />
+              ) : null}
             </div>
             <BranchSwitcher versions={versions} disabled={busy} onSelect={onSelectVersion} />
           </div>

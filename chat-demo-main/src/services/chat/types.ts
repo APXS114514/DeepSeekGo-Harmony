@@ -129,6 +129,12 @@ export type Session = {
   messages: Message[]
   /** undefined 表示线性消息列表；null 表示空会话。 */
   rootMessageId?: string | null
+  /** 所属分支对话组 ID；原对话与从它派生的所有分支共享同一个 ID。 */
+  branchGroupId?: string
+  /** 该分支对话从哪个会话派生；原对话无此字段。 */
+  branchParentId?: string
+  /** 组内分支序号（1, 2, ...），用于默认命名与组内排序。 */
+  branchNumber?: number
   /** 无痕对话：只在内存中，不写入本地数据库、不进列表和导出，也不读写记忆。 */
   ephemeral?: true
   /** 首次请求时的记忆，之后的轮次沿用，保持系统提示词前缀稳定。旧会话在下次请求时补记。 */
@@ -136,7 +142,10 @@ export type Session = {
 }
 
 /** 会话列表元数据；消息只在打开会话时加载。 */
-export type SessionSummary = Pick<Session, 'id' | 'title' | 'createdAt' | 'updatedAt'>
+export type SessionSummary = Pick<
+  Session,
+  'id' | 'title' | 'createdAt' | 'updatedAt' | 'branchGroupId' | 'branchParentId' | 'branchNumber'
+>
 
 /** 显式提取字段，避免将完整会话的消息带进列表。 */
 export const toSessionSummary = (session: SessionSummary): SessionSummary => ({
@@ -144,4 +153,7 @@ export const toSessionSummary = (session: SessionSummary): SessionSummary => ({
   title: session.title,
   createdAt: session.createdAt,
   updatedAt: session.updatedAt,
+  ...(session.branchGroupId ? { branchGroupId: session.branchGroupId } : {}),
+  ...(session.branchParentId ? { branchParentId: session.branchParentId } : {}),
+  ...(session.branchNumber !== undefined ? { branchNumber: session.branchNumber } : {}),
 })

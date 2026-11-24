@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { translate } from '../../i18n/index.js'
 import { createId } from '../../utils/id.js'
 import { isUploadImageOversized } from '../../utils/resizeUploadImage.js'
 import { ApiError, streamMessage } from '../api/client.js'
@@ -18,7 +19,14 @@ import {
   type ReplyLocalContext,
 } from '../localInfo.js'
 import { DEFAULT_GENERATION, useSettings } from '../settings.js'
-import { appendBranch, getVisibleMessages, normalizeSession, selectVersion } from './branches.js'
+import {
+  appendBranch,
+  extractPathUpTo,
+  getVisibleMessages,
+  normalizeSession,
+  removeSubtreeFromParent,
+  selectVersion,
+} from './branches.js'
 import * as db from './db.js'
 import {
   clearAllDrafts,
@@ -28,10 +36,12 @@ import {
   hasDraft,
   makeMessageDraft,
   prepareDraftMessage,
+  restoreRecalledDraft,
   restoreSentDraft,
   transferDraft,
   type Draft,
 } from './drafts.js'
+import { expandBranchGroup, stripBranchSuffix } from './sessionGroups.js'
 import {
   CHAT_SYSTEM_PROMPT,
   getInputTokens,
@@ -141,13 +151,19 @@ const getStreamController = (id: string) => {
 }
 
 const sameSummary = (a: SessionSummary, b: SessionSummary) =>
-  a.title === b.title && a.createdAt === b.createdAt && a.updatedAt === b.updatedAt
+  a.title === b.title &&
+  a.createdAt === b.createdAt &&
+  a.updatedAt === b.updatedAt &&
+  a.branchGroupId === b.branchGroupId &&
+  a.branchParentId === b.branchParentId &&
+  a.branchNumber === b.branchNumber
 
 const sessionAccess = new Map<string, number>()
 const unsavedSessions = new Set<string>()
 /** 保存失败时保留原件，重试成功后才释放。 */
 const pendingFiles = new Map<string, db.StoredFile[]>()
 const deletingSessions = new Set<string>()
+const recallingSessions = new Set<string>()
 const deletionTasks = new Set<Promise<boolean>>()
 const streamFlushes = new Map<string, () => void>()
 let accessSequence = 0
@@ -621,7 +637,11 @@ export const carryDraftToNewChat = async (sessionId: string): Promise<boolean> =
 }
 
 export const selectSession = (id: string) => {
-  if (!get().importingHistory && get().sessions.some((session) => session.id === id)) {
+  const summary = get().sessions.find((session) => session.id === id)
+  if (!get().importingHistory && summary) {
+    if (summary.branchGroupId) {
+      expandBranchGroup(summary.branchGroupId)
+    }
     touchSession(id)
     // 打开已保存的对话即退出无痕模式。
     set({ activeId: id, incognito: false })
@@ -715,6 +735,165 @@ const removeSessionData = async (id: string): Promise<boolean> => {
 }
 
 export const stopReply = (sessionId: string) => getStreamController(sessionId)?.abort()
+
+/**
+ * 撤回最后一条提问及对应回答：正在生成时先停止生成，
+ * 将提问文字与附件恢复为可编辑草稿，并从本机对话与后续请求上下文中移除该轮。
+ */
+export const recallLastTurn = async (
+  sessionId: string
+): Promise<{ ok: boolean; missingFiles?: boolean }> => {
+  if (
+    get().importingHistory ||
+    deletingSessions.has(sessionId) ||
+    recallingSessions.has(sessionId) ||
+    !getSession(sessionId)
+  ) {
+    return { ok: false }
+  }
+  const epoch = historyEpoch
+  recallingSessions.add(sessionId)
+  try {
+    if (getStreamController(sessionId)) {
+      stopReply(sessionId)
+      await waitForIdle(sessionId)
+    }
+    if (epoch !== historyEpoch || get().importingHistory || deletingSessions.has(sessionId)) {
+      return { ok: false }
+    }
+    const current = getSession(sessionId)
+    if (!current || getStreamController(sessionId)) {
+      return { ok: false }
+    }
+    const path = getVisibleMessages(current)
+    const last = path.at(-1)
+    const questionIndex =
+      last?.role === 'assistant' ? path.length - 2 : last?.role === 'user' ? path.length - 1 : -1
+    const question = questionIndex >= 0 ? path[questionIndex] : undefined
+    if (question?.role !== 'user') {
+      return { ok: false }
+    }
+    const parentId = path[questionIndex - 1]?.id ?? null
+    const loadedFiles = (
+      await Promise.all(
+        question.files.map(async (metadata) => {
+          const blob = await loadAttachment(sessionId, metadata.id).catch(() => undefined)
+          return blob ? { metadata, blob } : null
+        })
+      )
+    ).filter((item): item is { metadata: FileAttachment; blob: Blob } => item !== null)
+    const missingFiles = loadedFiles.length < question.files.length
+    if (
+      epoch !== historyEpoch ||
+      get().importingHistory ||
+      deletingSessions.has(sessionId) ||
+      getStreamController(sessionId)
+    ) {
+      return { ok: false }
+    }
+    const latest = getSession(sessionId)
+    if (!latest || getVisibleMessages(latest)[questionIndex]?.id !== question.id) {
+      return { ok: false }
+    }
+    const recalledDraft = makeMessageDraft(
+      question.content,
+      loadedFiles,
+      useSettings.getState().apiKey ?? ''
+    )
+    updateSession(sessionId, (session) => ({
+      ...removeSubtreeFromParent(session, parentId),
+      updatedAt: Date.now(),
+    }))
+    restoreRecalledDraft(sessionId, recalledDraft)
+    persist(sessionId)
+    return { ok: true, missingFiles }
+  } finally {
+    recallingSessions.delete(sessionId)
+  }
+}
+
+/**
+ * 从选中的回答创建独立分支对话，带上当前路径中从开头到该回答的记录。
+ * 原对话与派生出的所有分支归入同一分支对话组并自动展开。
+ */
+export const forkSessionFromMessage = (
+  sessionId: string,
+  messageId: string
+): { id: string; title: string } | null => {
+  if (get().importingHistory || deletingSessions.has(sessionId) || getStreamController(sessionId)) {
+    return null
+  }
+  const source = getSession(sessionId)
+  if (!source || source.ephemeral) {
+    return null
+  }
+  const messages = extractPathUpTo(source, messageId)
+  if (!messages || messages.at(-1)?.role !== 'assistant') {
+    return null
+  }
+  const groupId = source.branchGroupId ?? source.id
+  const state = get()
+  const groupMembers = state.sessions.filter(
+    (item) => item.branchGroupId === groupId || item.id === source.id
+  )
+  const root =
+    groupMembers.find((item) => item.id === groupId && !item.branchParentId) ??
+    groupMembers.find((item) => !item.branchParentId)
+  const rawBaseTitle = root?.title || stripBranchSuffix(source.title)
+  const baseTitle = rawBaseTitle || translate('untitledChat')
+  const existingTitles = new Set(groupMembers.map((item) => item.title))
+  let branchNumber = Math.max(0, ...groupMembers.map((item) => item.branchNumber ?? 0)) + 1
+  let title = translate('branchSessionTitle', { title: baseTitle, index: branchNumber })
+  while (existingTitles.has(title)) {
+    branchNumber += 1
+    title = translate('branchSessionTitle', { title: baseTitle, index: branchNumber })
+  }
+
+  const now = Date.now()
+  const branched: Session = {
+    id: createId(),
+    title,
+    createdAt: now,
+    updatedAt: now,
+    messages,
+    rootMessageId: messages[0]?.id ?? null,
+    branchGroupId: groupId,
+    branchParentId: source.id,
+    branchNumber,
+    ...(source.memorySnapshot ? { memorySnapshot: source.memorySnapshot } : {}),
+  }
+
+  const referencedFileIds = new Set(
+    messages.flatMap((message) =>
+      message.role === 'user' ? message.files.map((file) => file.id) : []
+    )
+  )
+  const sourcePending = pendingFiles.get(source.id)
+  if (sourcePending && referencedFileIds.size > 0) {
+    const inherited = sourcePending.filter((file) => referencedFileIds.has(file.id))
+    if (inherited.length > 0) {
+      pendingFiles.set(branched.id, inherited)
+    }
+  }
+
+  if (!source.branchGroupId) {
+    updateSession(source.id, (current) => ({ ...current, branchGroupId: groupId }))
+    persist(source.id)
+  }
+
+  touchSession(branched.id)
+  expandBranchGroup(groupId)
+  set((current) => ({
+    sessions: sortSessions([toSessionSummary(branched), ...current.sessions]),
+    sessionCache: { ...current.sessionCache, [branched.id]: branched },
+    activeId: branched.id,
+    incognito: false,
+  }))
+  persist(branched.id)
+  discardEphemeral()
+  trimSessionCache()
+  return { id: branched.id, title: branched.title }
+}
 
 /**
  * 提交指定会话的最新草稿；null 表示新建会话。

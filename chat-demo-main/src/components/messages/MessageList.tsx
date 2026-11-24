@@ -301,7 +301,23 @@ export const MessageList = ({
   }, [hideComposerOnScroll, isMobile, separateScroll, scrollToBottom])
 
   const lastIndex = messages.length - 1
+  const lastTurnUserIndex =
+    messages[lastIndex]?.role === 'assistant'
+      ? messages[lastIndex - 1]?.role === 'user'
+        ? lastIndex - 1
+        : -1
+      : messages[lastIndex]?.role === 'user'
+        ? lastIndex
+        : -1
   const uploadRetryId = getUploadRetryId(messages, streaming)
+  const focusComposer = useCallback(() => {
+    setComposerHidden(false)
+    requestAnimationFrame(() => {
+      const input = composerRef.current?.querySelector('textarea')
+      input?.focus({ preventScroll: true })
+      input?.setSelectionRange(input.value.length, input.value.length)
+    })
+  }, [])
   const selectSuggestion = useCallback(
     (question: string) => {
       const text = getDraft(session.id).text
@@ -341,6 +357,8 @@ export const MessageList = ({
                   retryUploadId={uploadRetryId}
                   isFirst={index === 0}
                   isLast={index === lastIndex || index === lastIndex - 1}
+                  canRecall={index === lastTurnUserIndex}
+                  onRecalled={focusComposer}
                   busy={streaming}
                   editing={message.id === activeEditor}
                   editorRef={message.id === activeEditor ? editorRef : undefined}
@@ -356,6 +374,7 @@ export const MessageList = ({
                   isLast={index === lastIndex}
                   streaming={streaming && index === lastIndex}
                   busy={streaming}
+                  ephemeral={session.ephemeral === true}
                   versions={versions.get(message.id) ?? EMPTY_VERSIONS}
                   onSelectVersion={selectVersion}
                   onSelectSuggestion={activeEditor === null ? selectSuggestion : undefined}

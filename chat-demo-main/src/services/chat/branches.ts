@@ -1,3 +1,4 @@
+import { createId } from '../../utils/id.js'
 import type { Message, Session } from './types.js'
 
 /** 将线性消息列表规范化为单分支，保留消息 ID、内容及时间。 */
@@ -114,4 +115,71 @@ export const selectVersion = (original: Session, messageId: string): Session => 
       item.id === message.parentId ? { ...item, selectedChildId: message.id } : item
     ),
   }
+}
+
+/** 移除指定父节点之下的所有子分支（用于撤回最后一轮，不留下不可达节点）。 */
+export const removeSubtreeFromParent = (original: Session, parentId: string | null): Session => {
+  const session = normalizeSession(original)
+  if (parentId === null) {
+    return {
+      ...session,
+      rootMessageId: null,
+      messages: [],
+    }
+  }
+  const removed = new Set<string>()
+  let added = true
+  while (added) {
+    added = false
+    for (const message of session.messages) {
+      if (
+        !removed.has(message.id) &&
+        (message.parentId === parentId || (message.parentId && removed.has(message.parentId)))
+      ) {
+        removed.add(message.id)
+        added = true
+      }
+    }
+  }
+  return {
+    ...session,
+    messages: session.messages
+      .filter((message) => !removed.has(message.id))
+      .map((message) =>
+        message.id === parentId ? { ...message, selectedChildId: undefined } : message
+      ),
+  }
+}
+
+/** 截取当前路径从开头到指定消息（含），克隆为独立会话的线性消息链。 */
+export const extractPathUpTo = (original: Session, targetMessageId: string): Message[] | null => {
+  const path = getVisibleMessages(original)
+  const index = path.findIndex((message) => message.id === targetMessageId)
+  if (index < 0) {
+    return null
+  }
+  const slice = path.slice(0, index + 1)
+  const ids = slice.map(() => createId())
+  return slice.map((message, i): Message => {
+    const base = {
+      parentId: i === 0 ? null : ids[i - 1],
+      selectedChildId: ids[i + 1],
+    }
+    if (message.role === 'user') {
+      return {
+        ...message,
+        ...base,
+        id: ids[i],
+        files: message.files.map((file) => ({ ...file })),
+      }
+    }
+    const cloned: Message = {
+      ...message,
+      ...base,
+      id: ids[i],
+      blocks: message.blocks.map((block) => ({ ...block })),
+    }
+    delete cloned.suggestedQuestions
+    return cloned
+  })
 }

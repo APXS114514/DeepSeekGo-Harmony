@@ -409,4 +409,12 @@ export const zh = {
   replyContextExceeded: '本轮请求超出上下文上限。',
   replyInputTooLongForTools:
     '开启智能搜索或阅读链接时，单条消息连同附件最多约 3.2 万 Token。请关闭智能搜索、去掉链接或缩短内容后重试。',
+  recallLastTurn: '撤回上一轮',
+  recallMissingFiles: '已撤回本轮，但部分附件原件不可用，未能恢复。',
+  forkFromHere: '从此处开启新分支',
+  forkCreated: '已开启新分支「{title}」',
+  branchSessionTitle: '{title}（{index}）',
+  branchGroupExpand: '展开分支对话组「{title}」',
+  branchGroupCollapse: '收起分支对话组「{title}」',
+  branchGroupCount: '{count} 个对话',
 } as const

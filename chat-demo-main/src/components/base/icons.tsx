@@ -672,3 +672,37 @@ export const IconShareOutline16 = () => (
     />
   </svg>
 )
+
+export const IconUndoOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <path
+      d="M5.5 3.5 2.5 6.5l3 3"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M3 6.5h6.5a3.5 3.5 0 1 1 0 7H6.5"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+)
+
+export const IconBranchOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <circle cx={4.5} cy={3.5} r={1.75} stroke="currentColor" strokeWidth={1.4} />
+    <circle cx={4.5} cy={12.5} r={1.75} stroke="currentColor" strokeWidth={1.4} />
+    <circle cx={11.5} cy={5.5} r={1.75} stroke="currentColor" strokeWidth={1.4} />
+    <path
+      d="M4.5 5.25v5.5M4.5 9.5c0-1.6 1.2-2.25 3.2-2.25h1.55c1.25 0 2.25-.45 2.25-1.75"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+)

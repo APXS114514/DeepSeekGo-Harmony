@@ -1,10 +1,19 @@
 import { useTranslate } from '../../i18n/index.js'
 import clsx from 'clsx'
 import { memo } from 'react'
-import { IconRefreshOutline16, IconShareOutline16, IconWarningOutline16 } from '../base/icons.js'
+import {
+  IconBranchOutline16,
+  IconRefreshOutline16,
+  IconShareOutline16,
+  IconWarningOutline16,
+} from '../base/icons.js'
 import { describeReply } from '../../services/chat/describe.js'
 import { canContinueReply } from '../../services/chat/reply.js'
-import { continueReply, regenerateReply } from '../../services/chat/store.js'
+import {
+  continueReply,
+  forkSessionFromMessage,
+  regenerateReply,
+} from '../../services/chat/store.js'
 import { openCitation, useDeviceFeatures } from '../../services/harmony.js'
 import { setSearch, useSettings } from '../../services/settings.js'
 import { shareAnswer } from '../../services/chat/share.js'
@@ -17,7 +26,7 @@ import { Button } from '../base/Button.js'
 import { showToast } from '../base/toastState.js'
 import { Markdown } from '../markdown/Markdown.js'
 import { SiteThumbnails } from '../search/SiteLogo.js'
-import { toggleSearchPanel, useSearchPanel } from '../search/searchPanelState.js'
+import { closeSearchPanel, toggleSearchPanel, useSearchPanel } from '../search/searchPanelState.js'
 import { ReadAloudButton } from './ReadAloudButton.js'
 import { CopyButton } from './CopyButton.js'
 import { ReplyArea } from './ReplyArea.js'
@@ -37,6 +46,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   isLast,
   streaming,
   busy,
+  ephemeral = false,
   versions,
   onSelectVersion,
   onSelectSuggestion,
@@ -46,6 +56,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   isLast: boolean
   streaming: boolean
   busy: boolean
+  ephemeral?: boolean
   versions: MessageVersions
   onSelectVersion: SelectMessageVersion
   onSelectSuggestion?: (question: string) => void
@@ -259,6 +270,22 @@ export const AssistantMessage = memo(function AssistantMessage({
                 regenerateReply(sessionId, message.id)
               }}
             />
+            {!ephemeral ? (
+              <IconButton
+                icon={<IconBranchOutline16 />}
+                tooltip={t('forkFromHere')}
+                tooltipPlacement="bottom"
+                disabled={busy}
+                onClick={() => {
+                  stopReadAloud()
+                  closeSearchPanel()
+                  const created = forkSessionFromMessage(sessionId, message.id)
+                  if (created) {
+                    showToast({ key: 'forkCreated', params: { title: created.title } })
+                  }
+                }}
+              />
+            ) : null}
           </div>
           {isLast && canContinueReply(message) ? (
             <Button
