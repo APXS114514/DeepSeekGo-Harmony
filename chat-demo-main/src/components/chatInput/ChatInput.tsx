@@ -50,6 +50,7 @@ import { ContextNotice } from './ContextNotice.js'
 import { useVoiceInput } from './useVoiceInput.js'
 import { useHarmonyVoiceInput } from './useHarmonyVoiceInput.js'
 import { ScanTextButton } from './ScanTextButton.js'
+import { clearComposerAction, useComposerAction } from './composerAction.js'
 import { VoiceButton } from './VoiceButton.js'
 import { HoldToSpeak } from './HoldToSpeak.js'
 import { Spectrum } from './Spectrum.js'
@@ -112,9 +113,14 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   const importingHistory = useChatStore((state) => state.importingHistory !== false)
   const isMobile = useIsMobile()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const scanButtonRef = useRef<{ open: () => void }>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const draggingSelection = useRef(false)
   const togglesRef = useRef<HTMLDivElement>(null)
+  const pendingAction = useComposerAction((state) => state.pending)
+  const pendingActionSeq = useComposerAction((state) => state.seq)
+  const featuresReady = useDeviceFeatures((state) => state.ready)
+  const scanSupported = useDeviceFeatures((state) => state.scan)
 
   useLayoutEffect(() => {
     const toggles = togglesRef.current
@@ -184,6 +190,38 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   })
   const holdVoice = 'start' in voice && voice.available && voiceMode && !hasInput && !streaming
   const cancelVoice = voice.cancel
+
+  useEffect(() => {
+    if (!__HARMONY_APP__ || !pendingAction || !featuresReady || importingHistory) {
+      return
+    }
+    clearComposerAction(pendingActionSeq)
+    if (pendingAction === 'voice') {
+      if ('start' in voice && voice.available && !streaming) {
+        if (!hasInput) {
+          textareaRef.current?.blur()
+          setVoiceMode(true)
+        }
+      } else if (!voice.available) {
+        showToast({ key: 'shortcutVoiceUnavailable' })
+      }
+    } else if (pendingAction === 'scan') {
+      if (scanSupported) {
+        requestAnimationFrame(() => scanButtonRef.current?.open())
+      } else {
+        showToast({ key: 'shortcutScanUnavailable' })
+      }
+    }
+  }, [
+    featuresReady,
+    hasInput,
+    importingHistory,
+    pendingAction,
+    pendingActionSeq,
+    scanSupported,
+    streaming,
+    voice,
+  ])
 
   useEffect(() => {
     if (voiceMode && (hasInput || streaming || !voice.available)) {
@@ -415,7 +453,11 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
         </div>
         <div className={styles.right}>
           {__HARMONY_APP__ ? (
-            <ScanTextButton disabled={importingHistory || listening} onText={insertText} />
+            <ScanTextButton
+              controlRef={scanButtonRef}
+              disabled={importingHistory || listening}
+              onText={insertText}
+            />
           ) : null}
           {'toggle' in voice ? (
             <VoiceButton

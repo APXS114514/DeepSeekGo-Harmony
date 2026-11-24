@@ -1,7 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslate } from '../i18n/index.js'
 import { loadDeviceApiKey, useSettings } from '../services/settings.js'
-import { bindSharedContent, bindWindowActions, sendWindowUi } from '../services/harmony.js'
+import {
+  bindQuickShortcut,
+  bindSharedContent,
+  bindWindowActions,
+  sendWindowUi,
+  type QuickShortcutAction,
+} from '../services/harmony.js'
 import { handleBack, useBackDepth, useBackLayer } from '../services/backStack.js'
 import { receiveSharedContent } from './receiveShare.js'
 import { useKeyboardShortcuts } from './shortcuts.js'
@@ -15,14 +21,16 @@ import {
   newChat,
   retrySaveSessions,
   selectSession,
+  setIncognito,
   useChatStore,
 } from '../services/chat/store.js'
+import { requestComposerAction } from '../components/chatInput/composerAction.js'
 import { SearchPanel } from '../components/search/SearchPanel.js'
 import { closeSearchPanel, useSearchPanel } from '../components/search/searchPanelState.js'
 import { SessionView } from '../components/session/SessionView.js'
 import { MobileHeader } from '../components/session/MobileHeader.js'
 import { Welcome } from '../components/session/Welcome.js'
-import { ensureApiKey } from '../components/settings/settingsDialogState.js'
+import { closeSettings, ensureApiKey } from '../components/settings/settingsDialogState.js'
 import { ShareDialog } from '../components/share/ShareDialog.js'
 import { HistorySearch } from '../components/historySearch/HistorySearch.js'
 import { SettingsDialog } from '../components/settings/SettingsDialog.js'
@@ -221,16 +229,36 @@ export const App = () => {
     if (__HARMONY_APP__) {
       let active = true
       let unbindShare: (() => void) | undefined
-      // 先读出系统里保存的 Key，再处理冷启动时收到的分享，避免误开设置页。
+      let unbindShortcut: (() => void) | undefined
+      const handleQuickShortcut = (action: QuickShortcutAction) => {
+        closeMobileSider()
+        closeSearchPanel()
+        if (useSettings.getState().apiKey || action === 'scan') {
+          closeSettings()
+        }
+        if (action === 'incognito') {
+          newChat()
+          setIncognito(true)
+          return
+        }
+        setIncognito(false)
+        newChat()
+        if (action === 'voice' || action === 'scan') {
+          requestComposerAction(action)
+        }
+      }
+      // 先读出系统里保存的 Key，再处理冷启动时收到的分享和桌面快捷方式，避免误开设置页。
       void loadDeviceApiKey().then(() => {
         if (active) {
           ensureApiKey()
           unbindShare = bindSharedContent(receiveSharedContent)
+          unbindShortcut = bindQuickShortcut(handleQuickShortcut)
         }
       })
       return () => {
         active = false
         unbindShare?.()
+        unbindShortcut?.()
       }
     }
     ensureApiKey()

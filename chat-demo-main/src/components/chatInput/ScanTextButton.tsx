@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import {
   chooseDeviceScanSource,
@@ -18,9 +18,11 @@ import { showToast } from '../base/toastState.js'
 export const ScanTextButton = ({
   disabled,
   onText,
+  controlRef,
 }: {
   disabled: boolean
   onText: (text: string) => void
+  controlRef?: Ref<{ open: () => void }>
 }) => {
   const t = useTranslate()
   const available = useDeviceFeatures((state) => state.scan)
@@ -38,6 +40,9 @@ export const ScanTextButton = ({
       active.current = false
     }
   }, [])
+
+  const openPickerRef = useRef<() => void>(() => {})
+  useImperativeHandle(controlRef, () => ({ open: () => openPickerRef.current() }), [])
 
   if (!available) {
     return null
@@ -78,6 +83,17 @@ export const ScanTextButton = ({
       menu.current?.open()
     } else if (source !== 'cancelled') {
       void scan(source)
+    }
+  }
+
+  openPickerRef.current = () => {
+    if (disabled || busy || choosing) {
+      return
+    }
+    if (nativeMenu) {
+      void choose()
+    } else {
+      menu.current?.open()
     }
   }
 

@@ -40,6 +40,7 @@ export const DeviceStatus = {
 
 /** 原生连接后上报的设备能力，未连接时全部关闭。 */
 export const useDeviceFeatures = create(() => ({
+  ready: false,
   voice: false,
   apiVoice: false,
   readAloud: false,
@@ -82,6 +83,11 @@ export type SharedContent = { items: SharedItem[]; skipped: number }
 
 const pendingShares: SharedContent[] = []
 let shareListener: ((content: SharedContent) => void) | undefined
+
+export type QuickShortcutAction = 'new-chat' | 'voice' | 'scan' | 'incognito'
+const QUICK_SHORTCUTS = new Set<string>(['new-chat', 'voice', 'scan', 'incognito'])
+const pendingShortcuts: QuickShortcutAction[] = []
+let shortcutListener: ((action: QuickShortcutAction) => void) | undefined
 
 const readShare = (message: { items?: unknown; skipped?: unknown }): SharedContent => {
   const items: SharedItem[] = []
@@ -135,6 +141,17 @@ const onWindowMessage = (event: MessageEvent<string>) => {
         windowAction?.(message.action)
       } else if (message.action === 'open-session' && typeof message.value === 'string') {
         windowAction?.('open-session', message.value)
+      } else if (
+        message.action === 'shortcut' &&
+        typeof message.value === 'string' &&
+        QUICK_SHORTCUTS.has(message.value)
+      ) {
+        const shortcut = message.value as QuickShortcutAction
+        if (shortcutListener) {
+          shortcutListener(shortcut)
+        } else {
+          pendingShortcuts.push(shortcut)
+        }
       }
     } else if (message?.type === 'font-scale') {
       const scale = Number(message.scale)
@@ -143,6 +160,7 @@ const onWindowMessage = (event: MessageEvent<string>) => {
       }
     } else if (message?.type === 'device-features') {
       useDeviceFeatures.setState({
+        ready: true,
         voice: message.voice === true,
         apiVoice: message.apiVoice === true,
         readAloud: message.readAloud === true,
@@ -517,6 +535,20 @@ export const bindSharedContent = (listener: (content: SharedContent) => void) =>
   return () => {
     if (shareListener === listener) {
       shareListener = undefined
+    }
+  }
+}
+
+/** 接收桌面长按快捷方式动作；冷启动绑定前收到的最新一条会补发。 */
+export const bindQuickShortcut = (listener: (action: QuickShortcutAction) => void) => {
+  shortcutListener = listener
+  const latest = pendingShortcuts.splice(0).at(-1)
+  if (latest) {
+    listener(latest)
+  }
+  return () => {
+    if (shortcutListener === listener) {
+      shortcutListener = undefined
     }
   }
 }

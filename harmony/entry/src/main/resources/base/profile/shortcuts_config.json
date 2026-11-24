@@ -1,0 +1,64 @@
+{
+  "shortcuts": [
+    {
+      "shortcutId": "shortcut_new_chat",
+      "label": "$string:shortcut_new_chat",
+      "icon": "$media:shortcut_new_chat",
+      "wants": [
+        {
+          "bundleName": "com.pocketchat.deepseek",
+          "moduleName": "entry",
+          "abilityName": "EntryAbility",
+          "parameters": {
+            "pocketChatShortcut": "new-chat"
+          }
+        }
+      ]
+    },
+    {
+      "shortcutId": "shortcut_voice",
+      "label": "$string:shortcut_voice",
+      "icon": "$media:shortcut_voice",
+      "wants": [
+        {
+          "bundleName": "com.pocketchat.deepseek",
+          "moduleName": "entry",
+          "abilityName": "EntryAbility",
+          "parameters": {
+            "pocketChatShortcut": "voice"
+          }
+        }
+      ]
+    },
+    {
+      "shortcutId": "shortcut_scan",
+      "label": "$string:shortcut_scan",
+      "icon": "$media:shortcut_scan",
+      "wants": [
+        {
+          "bundleName": "com.pocketchat.deepseek",
+          "moduleName": "entry",
+          "abilityName": "EntryAbility",
+          "parameters": {
+            "pocketChatShortcut": "scan"
+          }
+        }
+      ]
+    },
+    {
+      "shortcutId": "shortcut_incognito",
+      "label": "$string:shortcut_incognito",
+      "icon": "$media:shortcut_incognito",
+      "wants": [
+        {
+          "bundleName": "com.pocketchat.deepseek",
+          "moduleName": "entry",
+          "abilityName": "EntryAbility",
+          "parameters": {
+            "pocketChatShortcut": "incognito"
+          }
+        }
+      ]
+    }
+  ]
+}

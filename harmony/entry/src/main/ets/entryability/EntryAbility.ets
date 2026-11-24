@@ -3,6 +3,7 @@ import { display, window } from '@kit.ArkUI';
 import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BackgroundReply, OPEN_SESSION_KEY, OPEN_SESSION_PARAM } from '../services/BackgroundReply';
+import { recordShortcut } from '../services/QuickShortcut';
 import { ShareInbox } from '../services/ShareInbox';
 import { FONT_SCALE_KEY } from '../window/FontScale';
 import { WindowPrivacy } from '../window/WindowPrivacy';
@@ -39,11 +40,14 @@ export default class EntryAbility extends UIAbility {
     this.receive(want);
   }
 
-  /** 系统分享交给 ShareInbox；点击回答完成通知时记下要打开的对话。 */
+  /** 通知点击、桌面快捷方式与系统分享按优先级分发给页面。 */
   private receive(want: Want): void {
     const sessionId = want.parameters?.[OPEN_SESSION_PARAM];
     if (typeof sessionId === 'string' && sessionId) {
       AppStorage.setOrCreate(OPEN_SESSION_KEY, sessionId);
+      return;
+    }
+    if (recordShortcut(want)) {
       return;
     }
     ShareInbox.receive(want);

@@ -446,4 +446,6 @@ export const en = {
   branchGroupExpand: 'Expand branch group “{title}”',
   branchGroupCollapse: 'Collapse branch group “{title}”',
   branchGroupCount: '{count} chats',
+  shortcutVoiceUnavailable: 'Voice input is unavailable on this device',
+  shortcutScanUnavailable: 'Image text scanning is unavailable on this device',
 } satisfies Record<keyof typeof zh, string>

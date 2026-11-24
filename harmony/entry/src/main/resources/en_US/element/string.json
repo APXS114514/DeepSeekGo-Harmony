@@ -23,6 +23,22 @@
     {
       "name": "web_microphone_allow",
       "value": "Allow"
+    },
+    {
+      "name": "shortcut_new_chat",
+      "value": "New chat"
+    },
+    {
+      "name": "shortcut_voice",
+      "value": "Voice chat"
+    },
+    {
+      "name": "shortcut_scan",
+      "value": "Scan text"
+    },
+    {
+      "name": "shortcut_incognito",
+      "value": "Incognito chat"
     }
   ]
 }

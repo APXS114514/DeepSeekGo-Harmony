@@ -417,4 +417,6 @@ export const zh = {
   branchGroupExpand: '展开分支对话组「{title}」',
   branchGroupCollapse: '收起分支对话组「{title}」',
   branchGroupCount: '{count} 个对话',
+  shortcutVoiceUnavailable: '当前设备暂不支持语音输入',
+  shortcutScanUnavailable: '当前设备暂不支持识别图片文字',
 } as const

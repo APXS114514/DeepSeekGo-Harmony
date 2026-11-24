@@ -6,6 +6,7 @@ import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
 import { DeviceBridge } from '../services/DeviceBridge';
 import { WebMicrophonePermission } from '../services/Microphone';
 import { OPEN_SESSION_KEY } from '../services/BackgroundReply';
+import { extractShortcutAction, SHORTCUT_KEY } from '../services/QuickShortcut';
 import { ShareInbox } from '../services/ShareInbox';
 import { ScanSourceDialog, ScanSourceLabels } from '../services/ScanSourceMenu';
 import { clampFontScale, FONT_SCALE_KEY } from '../window/FontScale';
@@ -68,6 +69,7 @@ struct Index {
   @State private pageZoomed: boolean = false;
   @StorageProp(FONT_SCALE_KEY) @Watch('sendFontScale') private fontScale: number = 1;
   @StorageLink(OPEN_SESSION_KEY) @Watch('openPendingSession') private pendingSession: string = '';
+  @StorageLink(SHORTCUT_KEY) @Watch('openPendingShortcut') private pendingShortcut: string = '';
   @State private windowUi: WebWindowUi = {
     mobile: false, covered: false, dark: false,
     title: '', menuLabel: '', newChatLabel: '', showNewChat: false, canGoBack: false,
@@ -233,6 +235,19 @@ struct Index {
     this.sendWebMessage(JSON.stringify({ type: 'window-action', action: 'open-session', value: sessionId }));
   }
 
+  /** 长按桌面图标快捷方式拉起应用后，直达对应功能入口。 */
+  private openPendingShortcut(): void {
+    const encoded = this.pendingShortcut;
+    if (!encoded || !this.devicePort) {
+      return;
+    }
+    this.pendingShortcut = '';
+    const action = extractShortcutAction(encoded);
+    if (action) {
+      this.sendWebMessage(JSON.stringify({ type: 'window-action', action: 'shortcut', value: action }));
+    }
+  }
+
   private onWindowStatusChange = (): void => {
     this.updateInsets();
     this.updateSystemBars();
@@ -358,6 +373,7 @@ struct Index {
       this.sendFontScale();
       this.flushShares();
       this.openPendingSession();
+      this.openPendingShortcut();
     } catch (error) {
       this.closeDevicePort();
       hilog.error(0x0000, 'PocketChat', 'Cannot connect local page: %{public}d',
