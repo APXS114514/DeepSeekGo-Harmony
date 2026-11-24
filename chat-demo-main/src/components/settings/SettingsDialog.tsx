@@ -272,8 +272,7 @@ const SettingsContent = ({
                   </button>
                 ))}
                 <LocaleSetting />
-                <LocationSetting />
-                {__HARMONY_APP__ ? <AutoLocationSetting /> : null}
+                {__HARMONY_APP__ ? <AutoLocationSetting /> : <LocationSetting />}
               </>
             )
           ) : section === 'personal' ? (
@@ -377,7 +376,7 @@ const AutoLocationSetting = () => {
   return (
     <SettingsSwitch
       className={styles.cell}
-      label={t('settingsAutoLocation')}
+      label={t('settingsLocation')}
       description={description}
       checked={enabled && supported}
       disabled={!supported || busy}

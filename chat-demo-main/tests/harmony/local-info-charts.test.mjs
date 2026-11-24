@@ -318,15 +318,16 @@ try {
     const h = await createHarness()
     const { page, chats, weatherCalls } = h
     const dialog = await openGeneralSettings(page)
-    const autoLoc = dialog.getByRole('switch', { name: '按需自动定位' })
+    assert.equal(await dialog.getByRole('button', { name: '请选择国家或地区' }).count(), 0)
+    const autoLoc = dialog.getByRole('switch', { name: '位置信息' })
     assert.equal(await autoLoc.isChecked(), false, 'auto location defaults off')
 
-    // 权限被拒时保持关闭并给出手动选择提示
+    // 权限被拒时保持关闭并提示
     await page.evaluate(() => {
       window.__nextLocationReply = { status: 2, value: '' }
     })
     await autoLoc.click()
-    await page.getByText('未获得位置权限，可在位置信息中手动选择地区。').waitFor()
+    await page.getByText('未获得位置权限，请在系统设置中允许 Deepseek GO 访问位置信息。').waitFor()
     assert.equal(await autoLoc.isChecked(), false)
 
     // 系统定位总开关关闭时保持关闭并提示
@@ -334,7 +335,7 @@ try {
       window.__nextLocationReply = { status: 3301100, value: '' }
     })
     await autoLoc.click()
-    await page.getByText('系统定位服务未开启，请打开定位开关或手动选择地区。').waitFor()
+    await page.getByText('系统定位服务未开启，请先打开系统定位开关。').waitFor()
     assert.equal(await autoLoc.isChecked(), false)
 
     // 授权成功：开启开关、展示仅含城市和行政区的识别结果
@@ -353,7 +354,7 @@ try {
       }
     })
     await autoLoc.click()
-    await page.getByText('已开启按需定位（浙江省杭州市西湖区）').waitFor()
+    await page.getByText('已开启定位（浙江省杭州市西湖区）').waitFor()
     assert.equal(await autoLoc.isChecked(), true)
     assert.equal(await page.evaluate(() => localStorage.getItem('chat-demo:auto-location')), 'true')
     await closeSettings(page, dialog)
@@ -497,8 +498,8 @@ try {
     await page.getByText('图表数据格式无效，可切换为代码查看原文。').waitFor()
     await page.locator('.md-mermaid-diagram svg').waitFor()
 
-    // 定位权限被拒时显示「选择地区」快捷入口
-    await page.getByText('未获得定位权限，可手动选择地区').waitFor()
+    // 定位权限被拒时显示提示与「前往设置」快捷入口
+    await page.getByText('未获得定位权限，未能识别当前地区').waitFor()
 
     // 柱状图自动计算摘要指标（最高 210万元）且点按显示数值
     await page.locator('[data-chart-type="bar"]').getByText('210万元').first().waitFor()
@@ -521,8 +522,8 @@ try {
     )
     assert(overflow <= 1, `unexpected horizontal overflow on 320px viewport: ${overflow}px`)
 
-    // 点击回退提示中的「选择地区」打开设置页，可手动选择地区
-    await page.getByRole('button', { name: '选择地区', exact: true }).click()
+    // 点击提示中的「前往设置」打开设置页
+    await page.getByRole('button', { name: '前往设置', exact: true }).click()
     await page.getByRole('dialog', { name: '设置' }).waitFor()
 
     await h.context.close()

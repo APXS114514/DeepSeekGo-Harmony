@@ -125,17 +125,13 @@ export const AssistantMessage = memo(function AssistantMessage({
           ) : null}
           {localContext.locationFallback ? (
             <span className={styles.localChip}>
-              <span>
-                {localContext.locationSource === 'manual' && localContext.locationLabel
-                  ? t('localContextFallbackManual', { place: localContext.locationLabel })
-                  : t(fallbackKey)}
-              </span>
+              <span>{t(fallbackKey)}</span>
               <button
                 type="button"
                 className={styles.noticeAction}
                 onClick={() => openSettings('general')}
               >
-                {t('localContextChooseRegion')}
+                {t('localContextOpenSettings')}
               </button>
             </span>
           ) : null}

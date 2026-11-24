@@ -1304,7 +1304,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
               text: prepared.question.content,
               files: prepared.question.files,
               locale: settings.locale,
-              manualLocation: settings.location,
+              manualLocation: __HARMONY_APP__ ? null : settings.location,
               autoLocation: settings.autoLocation,
               autoLocalInfo: settings.autoLocalInfo,
               deviceLocationSupported: useDeviceFeatures.getState().location,

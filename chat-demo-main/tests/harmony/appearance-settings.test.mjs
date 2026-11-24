@@ -66,9 +66,29 @@ const open = async ({ scheme = 'light', storage = {}, locale = 'zh-CN' } = {}) =
             })
           }
           if (operation === 'read') post({ id, status: 0, value: 'test-local-key' })
+          if (operation === 'location') {
+            post({
+              id,
+              status: 0,
+              value: JSON.stringify({
+                countryCode: 'CN',
+                countryName: '中国',
+                province: '浙江省',
+                city: '丽水市',
+                district: '莲都区',
+              }),
+            })
+          }
         }
         window.postMessage('pocket-chat-device-port', window.location.origin, [port2])
-        post({ type: 'device-features', voice: true, scan: true, save: true, deviceType: 'phone' })
+        post({
+          type: 'device-features',
+          voice: true,
+          scan: true,
+          save: true,
+          location: true,
+          deviceType: 'phone',
+        })
       },
       { once: true }
     )
@@ -157,39 +177,21 @@ try {
     assert.notEqual(style.shadow, 'none', 'divider between switch rows')
     await settings.getByRole('button', { name: '返回通用设置' }).click()
     assert(await chatPage.evaluate((element) => element === document.activeElement))
+    // 鸿蒙版不再展示手动地区下拉，位置信息改为定位开关
+    assert.equal(await settings.getByRole('button', { name: '请选择国家或地区' }).count(), 0)
+    assert.equal(await settings.getByRole('button', { name: '请选择省份/地区' }).count(), 0)
+    assert.equal(await settings.getByRole('button', { name: '请选择市' }).count(), 0)
     await settings
       .getByText(
-        '随消息告诉 DeepSeek 你所在的国家或地区，用于天气、出行和本地推荐等问题。只发送地名，不使用定位。'
+        '开启后，仅在前台处理「我这里」「附近」等本地问题时使用鸿蒙模糊定位，只发送城市和行政区。'
       )
       .waitFor()
-    const region = settings.getByRole('button', { name: '请选择国家或地区' })
-    assert.equal((await region.textContent()).trim(), '不设置')
-    assert.equal(await settings.getByRole('button', { name: '请选择省份/地区' }).count(), 0)
-    await region.click()
-    await page.getByRole('option', { name: '日本' }).click()
-    assert.deepEqual(
-      await page.evaluate(() => JSON.parse(localStorage.getItem('chat-demo:location'))),
-      { region: 'JP' }
-    )
-    assert.equal(await settings.getByRole('button', { name: '请选择省份/地区' }).count(), 0)
-    await region.click()
-    await page.getByRole('option', { name: '中国', exact: true }).click()
-    await settings.getByRole('button', { name: '请选择省份/地区' }).click()
-    await page.getByRole('option', { name: '浙江省' }).click()
-    await settings.getByRole('button', { name: '请选择市' }).click()
-    await page.getByRole('option', { name: '丽水市' }).click()
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('chat-demo:location')))
-    assert.equal(saved.region, 'CN')
-    assert(saved.province && saved.city)
-    await page.waitForTimeout(600)
-    const cityColor = await settings
-      .getByRole('button', { name: '请选择市' })
-      .evaluate((el) => ({
-        text: el.textContent.trim(),
-        color: getComputedStyle(el.querySelector('span') ?? el).color,
-        disabled: el.disabled,
-      }))
-    console.log('city select', JSON.stringify(cityColor))
+    const locationSwitch = settings.getByRole('switch', { name: '位置信息' })
+    assert.equal(await locationSwitch.isChecked(), false)
+    await locationSwitch.click()
+    await page.getByText('已开启定位（浙江省丽水市莲都区）').waitFor()
+    assert.equal(await locationSwitch.isChecked(), true)
+    assert.equal(await page.evaluate(() => localStorage.getItem('chat-demo:auto-location')), 'true')
     if (shots) await page.screenshot({ path: join(shots, 'settings-general.png') })
     await settings.getByRole('button', { name: '关闭', exact: true }).click()
     await settings.waitFor({ state: 'detached' })
@@ -198,13 +200,18 @@ try {
     await page.locator('textarea').fill('明天天气怎么样')
     await page.getByRole('button', { name: '发送', exact: true }).click()
     await page.getByText('收到。').waitFor()
-    assert(JSON.stringify(chats.at(-1).messages).includes('丽水市'), 'location sent with message')
-    // 改回不设置
+    assert(
+      JSON.stringify(chats.at(-1).messages).includes('浙江省丽水市莲都区'),
+      'location sent with message'
+    )
+    // 关闭定位开关后不再发送位置
     await page.evaluate(() => window.devicePost({ type: 'window-action', action: 'sidebar' }))
     await page.getByRole('button', { name: '设置', exact: true }).click()
-    await settings.getByRole('button', { name: '请选择国家或地区' }).click()
-    await page.getByRole('option', { name: '不设置' }).click()
-    assert.equal(await page.evaluate(() => localStorage.getItem('chat-demo:location')), null)
+    await settings.getByRole('switch', { name: '位置信息' }).click()
+    assert.equal(
+      await page.evaluate(() => localStorage.getItem('chat-demo:auto-location')),
+      'false'
+    )
     await context.close()
   }
 
@@ -227,7 +234,7 @@ try {
     await context.close()
   }
 
-  // 英文界面的海外用户：直接选择国家
+  // 英文界面：定位开关展示英文标签，不显示旧版手动地区下拉，也不会发送旧版手动地区
   {
     const { context, page } = await open({
       locale: 'en-US',
@@ -238,8 +245,9 @@ try {
     })
     await page.evaluate(() => window.devicePost({ type: 'window-action', action: 'sidebar' }))
     await page.getByRole('button', { name: 'Settings', exact: true }).click()
-    const region = page.getByRole('button', { name: 'Select country or region' })
-    assert.equal((await region.textContent()).trim(), 'United States')
+    assert.equal(await page.getByRole('button', { name: 'Select country or region' }).count(), 0)
+    const locSwitch = page.getByRole('switch', { name: 'Location' })
+    assert.equal(await locSwitch.isChecked(), false)
     await context.close()
   }
   console.log('1.3.1 regression: OK')

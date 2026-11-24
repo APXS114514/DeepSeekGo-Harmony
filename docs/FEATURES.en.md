@@ -24,7 +24,7 @@ All features in the current version of Deepseek GO. For changes by version, see 
 - **Share to Deepseek GO.** Choose **Share → Deepseek GO** in another app. Text, links, images, and documents appear in a new chat for you to review before sending.
 - **Import and export chat history.** In **Settings → Data**, export your chats as a ZIP file or merge an archive into local history. A merge keeps existing chats with matching IDs. You can also choose to replace all local chats.
 - **Background generation and reply notifications.** Replies can keep generating in the background. Tap the completion notification to go straight to the chat. Turn off reply notifications in **General → Chat**.
-- **On-demand location.** When turned on in **General**, the app uses HarmonyOS approximate location in the foreground for “here” and “nearby” questions and converts it on-device to only the city and administrative region. Falls back to your manual region if permission is denied or location is unavailable.
+- **On-demand location.** **General → Location** is now a single toggle switch with no manual region entry required. When turned on, the app uses HarmonyOS approximate location in the foreground for “here” and “nearby” questions and converts it on-device to only the city and administrative region.
 - **Secure API key storage.** HarmonyOS Asset Store keeps the key in the device’s secure storage, outside web storage.
 
 On-device speech and image text recognition depend on system AI capabilities. Available controls reflect device capabilities and voice settings.

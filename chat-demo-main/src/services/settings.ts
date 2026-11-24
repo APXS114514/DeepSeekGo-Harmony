@@ -154,7 +154,8 @@ export const useSettings = create<Settings>(() => ({
   apiKey: __HARMONY_APP__ ? null : read(KEYS.apiKey),
   apiKeyTemporary: false,
   locale: initialLocale(),
-  location: initialLocation(),
+  // 鸿蒙版改由定位开关按需获取城市和行政区，不再使用旧版手动地区设置。
+  location: __HARMONY_APP__ ? null : initialLocation(),
   autoLocation: read(KEYS.autoLocation) === 'true',
   autoLocalInfo: read(KEYS.autoLocalInfo) !== 'false',
   themePreference: initialThemePreference(),
