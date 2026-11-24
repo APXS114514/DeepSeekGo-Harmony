@@ -306,7 +306,7 @@ export const snapshotMemories = (): MemorySnapshot =>
  */
 export const buildSystemPrompt = (
   base: string,
-  { memory = true }: { memory?: boolean | MemorySnapshot } = {}
+  { memory = true, extra }: { memory?: boolean | MemorySnapshot; extra?: string } = {}
 ): string => {
   const {
     aboutUser,
@@ -319,6 +319,9 @@ export const buildSystemPrompt = (
     activePersonaId,
   } = usePersonalization.getState()
   const parts = [base]
+  if (extra?.trim()) {
+    parts.push(extra.trim())
+  }
   if (instructionsEnabled && aboutUser.trim()) {
     parts.push(`${translate('personalPromptAboutUser')}\n${aboutUser.trim()}`)
   }

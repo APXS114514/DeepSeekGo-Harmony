@@ -6,7 +6,7 @@ import { describeReply } from '../../services/chat/describe.js'
 import { canContinueReply } from '../../services/chat/reply.js'
 import { continueReply, regenerateReply } from '../../services/chat/store.js'
 import { openCitation, useDeviceFeatures } from '../../services/harmony.js'
-import { useSettings } from '../../services/settings.js'
+import { setSearch, useSettings } from '../../services/settings.js'
 import { shareAnswer } from '../../services/chat/share.js'
 import { openShare } from '../share/ShareDialog.js'
 import { stopReadAloud } from '../../services/speech/readAloud.js'
@@ -14,6 +14,7 @@ import type { AssistantMessage as AssistantMessageType } from '../../services/ch
 import { openSettings } from '../settings/settingsDialogState.js'
 import { IconButton } from '../base/IconButton.js'
 import { Button } from '../base/Button.js'
+import { showToast } from '../base/toastState.js'
 import { Markdown } from '../markdown/Markdown.js'
 import { SiteThumbnails } from '../search/SiteLogo.js'
 import { toggleSearchPanel, useSearchPanel } from '../search/searchPanelState.js'
@@ -51,6 +52,7 @@ export const AssistantMessage = memo(function AssistantMessage({
 }) {
   const t = useTranslate()
   const suggestionsEnabled = useSettings((state) => state.suggestedQuestions)
+  const searchEnabled = useSettings((state) => state.search)
   const sharing = useDeviceFeatures((state) => state.share)
   const view = useReplyView(message, streaming)
   const panelEntry = useSearchPanel((state) => state.entry)
@@ -69,6 +71,7 @@ export const AssistantMessage = memo(function AssistantMessage({
     ((localContext.locationSource === 'auto' && localContext.locationLabel) ||
       localContext.structuredSource ||
       localContext.locationFallback ||
+      localContext.searchRecommended ||
       (localContext.autoSearch && localContext.locationLabel))
   )
   const fallbackKey =
@@ -133,6 +136,23 @@ export const AssistantMessage = memo(function AssistantMessage({
               >
                 {t('localContextOpenSettings')}
               </button>
+            </span>
+          ) : null}
+          {localContext.searchRecommended === 'live_data' ? (
+            <span className={styles.localChip}>
+              <span>{t('localContextSearchOffLiveData')}</span>
+              {!searchEnabled ? (
+                <button
+                  type="button"
+                  className={styles.noticeAction}
+                  onClick={() => {
+                    setSearch(true)
+                    showToast({ key: 'localContextSearchEnabled' })
+                  }}
+                >
+                  {t('localContextEnableSearch')}
+                </button>
+              ) : null}
             </span>
           ) : null}
         </div>

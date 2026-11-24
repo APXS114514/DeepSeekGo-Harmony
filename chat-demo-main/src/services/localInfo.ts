@@ -93,6 +93,8 @@ export type ReplyLocalContext = {
   locationFallback?: LocationFallbackReason
   intent?: LocalInfoIntent
   autoSearch?: boolean
+  /** 提问涉及汇率等实时行情但未开启智能搜索时，提醒用户开启智能搜索。 */
+  searchRecommended?: 'live_data'
   structuredSource?: LocalDataSource
   /** 仅附加到该轮请求用户消息末尾的上下文说明，保证历史前缀缓存稳定且不污染气泡展示。 */
   turnContext?: string
@@ -204,6 +206,9 @@ const TRANSIT_RE =
 const EXPLICIT_CHART_RE =
   /折线图|柱状图|条形图|面积图|饼图|环形图|图表|画(?:个|一张|出)?图|绘(?:制|图)|趋势图|对比图|可视化|\b(?:line chart|bar chart|area chart|pie chart|donut chart|chart|plot|graph|visuali[sz]e)\b/i
 
+const LIVE_MARKET_DATA_RE =
+  /汇率|外汇|兑人民币|兑美元|兑欧元|兑日元|兑港币|兑英镑|兑加元|金价|黄金价格|银价|油价|股价|股票价格|实时行情|币价|比特币价格|\b(?:exchange rates?|currency rates?|fx rates?|usd\s*(?:to|\/)\s*cny|cny\s*(?:to|\/)\s*usd|eur\s*(?:to|\/)\s*usd|jpy\s*(?:to|\/)\s*cny|gold price|stock price|share price|oil price|bitcoin price)\b/i
+
 const DATA_FILE_RE = /\.(?:csv|tsv|xlsx|xls|json)$/i
 
 const hasTabularOrSeriesData = (text: string): boolean => {
@@ -220,7 +225,9 @@ export type LocalQueryAnalysis = {
   needsSelfLocation: boolean
   explicitPlace: { query: string; label: string; countryCode?: string; admin?: string } | null
   intent: LocalInfoIntent | null
+  explicitChartRequest: boolean
   wantsChart: boolean
+  needsLiveWebData: boolean
 }
 
 export const analyzeLocalQuery = (
@@ -254,17 +261,22 @@ export const analyzeLocalQuery = (
     hasSelfReference ||
     (!explicitPlace && (intent === 'weather' || intent === 'nearby' || intent === 'transit'))
 
+  const explicitChartRequest = EXPLICIT_CHART_RE.test(trimmed)
   const wantsChart =
-    EXPLICIT_CHART_RE.test(trimmed) ||
+    explicitChartRequest ||
     (intent === 'weather' && MULTI_DAY_WEATHER_RE.test(trimmed)) ||
     hasTabularOrSeriesData(trimmed) ||
     files.some((file) => DATA_FILE_RE.test(file.name))
+
+  const needsLiveWebData = LIVE_MARKET_DATA_RE.test(trimmed)
 
   return {
     needsSelfLocation,
     explicitPlace,
     intent,
+    explicitChartRequest,
     wantsChart,
+    needsLiveWebData,
   }
 }
 
@@ -560,22 +572,46 @@ export const getLocalInfoCapabilities = (): LocalInfoProviderCapability[] =>
 
 // ---------- 图表格式指引与单轮本地上下文拼装 ----------
 
+export const getProactiveChartSystemPrompt = (locale: Locale): string =>
+  locale === 'zh-CN'
+    ? [
+        '## 主动数据图表',
+        '当回答包含 3 个及以上可对比的数值趋势、周期变化（如近日天气、近期汇率、价格/营收对比、构成占比）或用户提供的一组数据时，自主判断是否用 ```chart 代码块附带交互图表；普通问答或单点数值不要画图，流程图/时序图/架构图继续使用 ```mermaid。',
+        'JSON 结构：{"type":"line|bar|area|pie","title":"标题","unit":"单位","categories":["项1","项2","项3"],"series":[{"name":"系列名","values":[10,20,15]}],"metrics":[{"label":"指标名","value":"20","detail":"说明"}],"note":"统计口径说明","sources":[{"name":"来源名","url":"https://..."}]}',
+        '原则：必须使用用户提供、结构化天气或联网搜索查到的真实数值，严禁编造实时汇率或行情数据；若未开启智能搜索导致无法获取最新实时数据，请明确提醒用户开启「智能搜索」。附带简明的 metrics、note 和 sources。',
+      ].join('\n')
+    : [
+        '## Proactive data charts',
+        'When your answer covers 3 or more comparable numeric points (such as multi-day weather, recent exchange rates, rankings, trends, proportions, or user-provided data), decide on your own whether to include an interactive ```chart JSON block. Skip charts for plain prose or single values, and keep flowcharts/sequence diagrams in ```mermaid.',
+        'JSON schema: {"type":"line|bar|area|pie","title":"Title","unit":"Unit","categories":["A","B","C"],"series":[{"name":"Series","values":[10,20,15]}],"metrics":[{"label":"Metric","value":"20","detail":"Note"}],"note":"Calculation note","sources":[{"name":"Source","url":"https://..."}]}',
+        'Rules: Only chart real data from the user, structured weather data, or web search results—never fabricate live exchange rates or market prices. If web search is off and recent real-time data is needed, clearly tell the user that Web Search is currently off. Include concise metrics, note, and sources.',
+      ].join('\n')
+
 export const getChartFormatGuide = (locale: Locale): string =>
   locale === 'zh-CN'
     ? [
         '【图表输出规范】',
-        '当需要展示数值趋势、对比或结构化查询结果时，使用 ```chart 代码块输出合法 JSON（流程、时序、架构图请继续使用 ```mermaid）：',
+        '用户要求展示图表，请使用 ```chart 代码块输出合法 JSON（流程、时序、架构图请继续使用 ```mermaid）：',
         '{"type":"line|bar|area|pie","title":"标题","unit":"单位","categories":["项1","项2"],"series":[{"name":"系列名","values":[10,20]}],"metrics":[{"label":"指标名","value":"20","detail":"说明"}],"note":"统计口径说明","sources":[{"name":"来源名","url":"https://..."}]}',
-        '要求：提供简明的 metrics 摘要指标、note 统计口径和 sources 来源（无外部链接时可只写 name）。',
+        '要求：提供简明的 metrics 摘要指标、note 统计口径和 sources 来源（无外部链接时可只写 name），严禁编造实时数据。',
       ].join('\n')
     : [
         '[Chart format]',
-        'When visualizing numeric trends, comparisons, or structured lookup results, output valid JSON in a ```chart code block (keep flowcharts and sequence diagrams in ```mermaid):',
+        'The user asked for a chart. Output valid JSON in a ```chart code block (keep flowcharts and sequence diagrams in ```mermaid):',
         '{"type":"line|bar|area|pie","title":"Title","unit":"Unit","categories":["A","B"],"series":[{"name":"Series","values":[10,20]}],"metrics":[{"label":"Metric","value":"20","detail":"Note"}],"note":"Calculation note","sources":[{"name":"Source","url":"https://..."}]}',
-        'Include concise summary metrics, calculation notes in `note`, and `sources` (omit `url` if no link applies).',
+        'Include concise summary metrics, calculation notes in `note`, and `sources` (omit `url` if no link applies). Never fabricate real-time numbers.',
       ].join('\n')
 
-const formatStructuredWeatherPrompt = (weather: StructuredWeatherData, locale: Locale): string => {
+const getLiveSearchOffNotice = (locale: Locale): string =>
+  locale === 'zh-CN'
+    ? '【联网提示】当前未开启「智能搜索」，无法获取最新汇率或实时行情数据。请在回答中明确提醒用户当前未开启智能搜索，不要编造近期数值或走势图，并建议开启智能搜索后再查询。'
+    : '[Web search notice] Web Search is currently off, so live exchange rates or recent market quotes cannot be fetched. Clearly inform the user that Web Search is off, do not fabricate recent values or charts, and suggest enabling Web Search.'
+
+const formatStructuredWeatherPrompt = (
+  weather: StructuredWeatherData,
+  locale: Locale,
+  allowChart: boolean
+): string => {
   const lines: string[] = []
   if (locale === 'zh-CN') {
     lines.push(
@@ -604,7 +640,9 @@ const formatStructuredWeatherPrompt = (weather: StructuredWeatherData, locale: L
       )
     }
     lines.push(
-      '请在回答中基于上述数据作答并标明来源；若用户询问多日或趋势，请同时附带一个 ```chart 折线图。'
+      allowChart
+        ? '请在回答中基于上述数据作答并标明来源；若涉及近日或多日天气趋势，可附带一个 ```chart 折线图。'
+        : '请在回答中基于上述数据作答并标明来源。'
     )
   } else {
     lines.push(
@@ -633,7 +671,9 @@ const formatStructuredWeatherPrompt = (weather: StructuredWeatherData, locale: L
       )
     }
     lines.push(
-      'Answer using this data and cite the source. Include a ```chart line chart when showing multi-day forecasts.'
+      allowChart
+        ? 'Answer using this data and cite the source. Include a ```chart line chart when showing multi-day forecasts.'
+        : 'Answer using this data and cite the source.'
     )
   }
   return lines.join('\n')
@@ -688,6 +728,7 @@ export const prepareTurnLocalContext = async ({
   manualLocation,
   autoLocation,
   autoLocalInfo,
+  proactiveCharts,
   deviceLocationSupported,
   searchAlreadyOn,
   signal,
@@ -699,6 +740,7 @@ export const prepareTurnLocalContext = async ({
   manualLocation: UserLocation | null
   autoLocation: boolean
   autoLocalInfo: boolean
+  proactiveCharts: boolean
   deviceLocationSupported: boolean
   searchAlreadyOn: boolean
   signal: AbortSignal
@@ -786,19 +828,39 @@ export const prepareTurnLocalContext = async ({
     }
   }
 
+  const searchRecommended =
+    analysis.needsLiveWebData && !searchAlreadyOn && !autoSearch
+      ? ('live_data' as const)
+      : undefined
+
   const promptParts: string[] = []
   if (structured) {
-    promptParts.push(formatStructuredWeatherPrompt(structured, locale))
+    promptParts.push(
+      formatStructuredWeatherPrompt(
+        structured,
+        locale,
+        proactiveCharts || analysis.explicitChartRequest
+      )
+    )
   } else if (autoLocalInfo && analysis.intent && (autoSearch || searchAlreadyOn || place)) {
     promptParts.push(formatLocalLookupGuidance(place, analysis.intent, localDate, locale))
   }
-  if (analysis.wantsChart || structured?.kind === 'weather_forecast') {
+  if (searchRecommended) {
+    promptParts.push(getLiveSearchOffNotice(locale))
+  }
+  // 主动模式下图表规范已写入会话 system（保住前缀缓存）；按需模式仅在用户明确提出画图时附带规范。
+  if (!proactiveCharts && analysis.explicitChartRequest) {
     promptParts.push(getChartFormatGuide(locale))
   }
 
   const turnContext = promptParts.length > 0 ? promptParts.join('\n\n') : undefined
   const hasMetadata = Boolean(
-    locationOverride || locationFallback || structured || autoSearch || turnContext
+    locationOverride ||
+    locationFallback ||
+    structured ||
+    autoSearch ||
+    searchRecommended ||
+    turnContext
   )
 
   return {
@@ -810,6 +872,7 @@ export const prepareTurnLocalContext = async ({
           ...(locationFallback ? { locationFallback } : {}),
           ...(analysis.intent ? { intent: analysis.intent } : {}),
           ...(autoSearch ? { autoSearch: true } : {}),
+          ...(searchRecommended ? { searchRecommended } : {}),
           ...(structured ? { structuredSource: structured.source } : {}),
           ...(turnContext ? { turnContext } : {}),
         }

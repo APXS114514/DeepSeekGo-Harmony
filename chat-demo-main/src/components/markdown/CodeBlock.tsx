@@ -6,6 +6,8 @@ import {
   isHighlightLoaded,
   loadHighlight,
 } from '../../services/markdown/highlight.js'
+import { chartToPlainText, parseChartSpec } from '../../services/markdown/chart.js'
+import { useSettings } from '../../services/settings.js'
 import { IconCheckOutline16, IconCopyOutline16 } from '../base/icons.js'
 import { showToast } from '../base/toastState.js'
 import { copyText } from '../../utils/clipboard.js'
@@ -21,6 +23,7 @@ const CodeInfoRow = ({
   onToggleDiagram,
   chartView,
   onChangeChartView,
+  copyContent,
 }: {
   code: string
   infostring: string
@@ -28,9 +31,11 @@ const CodeInfoRow = ({
   onToggleDiagram?: () => void
   chartView?: ChartViewMode
   onChangeChartView?: (view: ChartViewMode) => void
+  copyContent?: string | null
 }) => {
   const t = useTranslate()
   const [copied, setCopied] = useState(false)
+  const textToCopy = copyContent === undefined ? code : copyContent
   return (
     <div className={styles.container}>
       {onChangeChartView && chartView ? (
@@ -50,14 +55,6 @@ const CodeInfoRow = ({
             onClick={() => onChangeChartView('table')}
           >
             {t('chartViewTable')}
-          </button>
-          <button
-            type="button"
-            className={styles.button}
-            aria-pressed={chartView === 'code'}
-            onClick={() => onChangeChartView('code')}
-          >
-            {t('mermaidCode')}
           </button>
         </div>
       ) : onToggleDiagram ? (
@@ -82,21 +79,23 @@ const CodeInfoRow = ({
       ) : (
         <span className={styles.name}>{infostring}</span>
       )}
-      <button
-        type="button"
-        className={styles.button}
-        onClick={async () => {
-          if (!(await copyText(code))) {
-            showToast({ key: 'copyFailed' })
-            return
-          }
-          setCopied(true)
-          setTimeout(() => setCopied(false), 1500)
-        }}
-      >
-        {copied ? <IconCheckOutline16 /> : <IconCopyOutline16 />}
-        <span>{t(copied ? 'copied' : 'copy')}</span>
-      </button>
+      {textToCopy !== null ? (
+        <button
+          type="button"
+          className={styles.button}
+          onClick={async () => {
+            if (!(await copyText(textToCopy))) {
+              showToast({ key: 'copyFailed' })
+              return
+            }
+            setCopied(true)
+            setTimeout(() => setCopied(false), 1500)
+          }}
+        >
+          {copied ? <IconCheckOutline16 /> : <IconCopyOutline16 />}
+          <span>{t(copied ? 'copied' : 'copy')}</span>
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -111,14 +110,22 @@ export const CodeBlock = memo(function CodeBlock({
   infostring: string
   loading?: boolean
 }) {
+  const locale = useSettings((state) => state.locale)
   const lowerLang = infostring.toLowerCase()
   const isMermaid = lowerLang === 'mermaid'
   const isChart = lowerLang === 'chart' || lowerLang === 'deepseek-chart'
   const [showDiagram, setShowDiagram] = useState(true)
   const [chartView, setChartView] = useState<ChartViewMode>('chart')
+  const chartCopyContent = useMemo(() => {
+    if (!isChart) {
+      return undefined
+    }
+    const spec = parseChartSpec(code)
+    return spec ? chartToPlainText(spec, locale) : null
+  }, [code, isChart, locale])
   // 语言包注册在全局 Prism 上，每次渲染直接判断；加载完成后触发一次重渲染
   const rerender = useReducer((n: number) => n + 1, 0)[1]
-  const lang = getHighlightLang(isChart ? 'json' : infostring)
+  const lang = isChart ? null : getHighlightLang(infostring)
   const loaded = lang !== null && isHighlightLoaded(lang)
   useEffect(() => {
     if (lang === null || loaded) {
@@ -135,9 +142,12 @@ export const CodeBlock = memo(function CodeBlock({
     }
   }, [lang, loaded, rerender])
   const renderedHtml = useMemo(() => {
+    if (isChart) {
+      return ''
+    }
     const name = lang !== null && loaded ? lang : 'plaintext'
     return Prism.highlight(code, Prism.languages[name], name)
-  }, [code, lang, loaded])
+  }, [code, isChart, lang, loaded])
   return (
     <div className="md-code-block">
       <div className="md-code-block-banner">
@@ -148,9 +158,10 @@ export const CodeBlock = memo(function CodeBlock({
           onToggleDiagram={isMermaid ? () => setShowDiagram((show) => !show) : undefined}
           chartView={isChart ? chartView : undefined}
           onChangeChartView={isChart ? setChartView : undefined}
+          copyContent={chartCopyContent}
         />
       </div>
-      {isChart && chartView !== 'code' ? (
+      {isChart ? (
         <ChartBlock code={code} view={chartView} loading={loading} />
       ) : isMermaid && showDiagram ? (
         <MermaidDiagram code={code} loading={loading} />

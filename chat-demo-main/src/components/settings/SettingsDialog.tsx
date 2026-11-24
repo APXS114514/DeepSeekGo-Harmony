@@ -44,6 +44,7 @@ import {
   OUTPUT_LIMITS,
   setAutoLocalInfo,
   setAutoLocation,
+  setProactiveCharts,
   setSuggestedQuestions,
   setGenerationOptions,
   setImmersiveLight,
@@ -330,6 +331,7 @@ const GeneralSettingsPage = ({ page }: { page: GeneralPage['value'] }) => {
         <>
           <GenerationSettings />
           <AutoLocalInfoSetting />
+          <ProactiveChartsSetting />
           <SuggestedQuestionsSetting />
           <HideComposerSetting />
           {__HARMONY_APP__ ? <ReplyNotifySetting /> : null}
@@ -355,6 +357,20 @@ const AutoLocalInfoSetting = () => {
       description={t('settingsAutoLocalInfoDescription')}
       checked={enabled}
       onChange={setAutoLocalInfo}
+    />
+  )
+}
+
+const ProactiveChartsSetting = () => {
+  const t = useTranslate()
+  const enabled = useSettings((state) => state.proactiveCharts)
+  return (
+    <SettingsSwitch
+      className={styles.cell}
+      label={t('settingsProactiveCharts')}
+      description={t('settingsProactiveChartsDescription')}
+      checked={enabled}
+      onChange={setProactiveCharts}
     />
   )
 }

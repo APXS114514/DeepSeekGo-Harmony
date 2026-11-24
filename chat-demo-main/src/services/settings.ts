@@ -42,6 +42,8 @@ type Settings = {
   autoLocation: boolean
   /** 结合城市与当地日期自动查询天气、活动和营业时间等本地信息 */
   autoLocalInfo: boolean
+  /** 开启后由模型自行决定何时在回答中生成图表；关闭后仅在用户明确要求时生成 */
+  proactiveCharts: boolean
   ttsVoice: ReadAloudVoice
   voiceInputMode: VoiceInputMode
   thinking: boolean
@@ -59,6 +61,7 @@ const KEYS = {
   location: 'chat-demo:location',
   autoLocation: 'chat-demo:auto-location',
   autoLocalInfo: 'chat-demo:auto-local-info',
+  proactiveCharts: 'chat-demo:proactive-charts',
   themePreference: 'chat-demo:theme-preference',
   accentColor: 'chat-demo:accent-color',
   immersiveLight: 'chat-demo:immersive-light',
@@ -158,6 +161,7 @@ export const useSettings = create<Settings>(() => ({
   location: __HARMONY_APP__ ? null : initialLocation(),
   autoLocation: read(KEYS.autoLocation) === 'true',
   autoLocalInfo: read(KEYS.autoLocalInfo) !== 'false',
+  proactiveCharts: read(KEYS.proactiveCharts) !== 'false',
   themePreference: initialThemePreference(),
   accentColor: normalizeAccentColor(read(KEYS.accentColor) ?? ''),
   immersiveLight: read(KEYS.immersiveLight) !== 'false',
@@ -191,6 +195,11 @@ export const setAutoLocation = (autoLocation: boolean) => {
 export const setAutoLocalInfo = (autoLocalInfo: boolean) => {
   write(KEYS.autoLocalInfo, String(autoLocalInfo))
   useSettings.setState({ autoLocalInfo })
+}
+
+export const setProactiveCharts = (proactiveCharts: boolean) => {
+  write(KEYS.proactiveCharts, String(proactiveCharts))
+  useSettings.setState({ proactiveCharts })
 }
 
 export const setThemePreference = (themePreference: ThemePreference) => {

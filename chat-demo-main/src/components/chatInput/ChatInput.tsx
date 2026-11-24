@@ -24,6 +24,7 @@ import {
   getHistoryContext,
   matchesRejectedDraft,
 } from '../../services/chat/context.js'
+import { getProactiveChartSystemPrompt } from '../../services/localInfo.js'
 import { buildSystemPrompt, usePersonalization } from '../../services/personalization.js'
 import {
   addDraftFiles,
@@ -83,9 +84,12 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
     () => (session ? getHistoryContext(getVisibleMessages(session)) : EMPTY_CONTEXT),
     [session]
   )
+  const locale = useSettings((state) => state.locale)
+  const proactiveCharts = useSettings((state) => state.proactiveCharts)
   const system = usePersonalization(() =>
     buildSystemPrompt(CHAT_SYSTEM_PROMPT, {
       memory: session?.ephemeral ? false : (session?.memorySnapshot ?? true),
+      extra: proactiveCharts ? getProactiveChartSystemPrompt(locale) : undefined,
     })
   )
   const thinking = useSettings((state) => state.thinking)

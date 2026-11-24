@@ -12,7 +12,11 @@ import {
 } from '../api/errors.js'
 import { cancelUpload, describeUploadError, uploadAttachment, useUploads } from '../attachments.js'
 import { useDeviceFeatures } from '../harmony.js'
-import { prepareTurnLocalContext, type ReplyLocalContext } from '../localInfo.js'
+import {
+  getProactiveChartSystemPrompt,
+  prepareTurnLocalContext,
+  type ReplyLocalContext,
+} from '../localInfo.js'
 import { DEFAULT_GENERATION, useSettings } from '../settings.js'
 import { appendBranch, getVisibleMessages, normalizeSession, selectVersion } from './branches.js'
 import * as db from './db.js'
@@ -1275,7 +1279,13 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
         current.memorySnapshot ? current : { ...current, memorySnapshot: memory }
       )
     }
-    const system = buildSystemPrompt(CHAT_SYSTEM_PROMPT, { memory })
+    const initialSettings = useSettings.getState()
+    const system = buildSystemPrompt(CHAT_SYSTEM_PROMPT, {
+      memory,
+      extra: initialSettings.proactiveCharts
+        ? getProactiveChartSystemPrompt(initialSettings.locale)
+        : undefined,
+    })
     /** 阅读链接按本轮设置开启；长输入回退时可在本次发送中关闭 */
     let readLinks = generation.readLinks
     /** 本轮提问是否含链接；含链接时不能为长输入关闭阅读链接 */
@@ -1307,6 +1317,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
               manualLocation: __HARMONY_APP__ ? null : settings.location,
               autoLocation: settings.autoLocation,
               autoLocalInfo: settings.autoLocalInfo,
+              proactiveCharts: settings.proactiveCharts,
               deviceLocationSupported: useDeviceFeatures.getState().location,
               searchAlreadyOn: Boolean(initial.search),
               signal: controller.signal,

@@ -1,7 +1,7 @@
 // 定位、本地信息查询与自动图表端到端回归：
 // 1. 按需模糊定位开关、权限拒绝/定位关闭/成功授权、仅发送城市和行政区、非本地或指定城市不触发定位、失败回退手动地区；
 // 2. 结构化逐日天气查询（Open-Meteo）与失败时回退智能搜索、当地活动/营业时间自动联网查询、总开关关闭；
-// 3. 折线/柱状/饼图渲染、摘要指标/统计口径/来源链接、点按与键盘查看数值、图表/数据表/代码切换、Mermaid 共存、纯文本分享转换、320px 深色无溢出。
+// 3. 折线/柱状/饼图渲染、摘要指标/统计口径/来源链接、点按与键盘查看数值、仅显示图表/数据表（无代码）、主动生成图表开关、实时数据未开智能搜索提示、Mermaid 共存、纯文本复制与分享转换、320px 深色无溢出。
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
@@ -382,6 +382,10 @@ try {
     await page.getByText('杭州未来 5 天气温走势').waitFor()
 
     const lastReq = chats.at(-1)
+    assert(
+      lastReq.system.includes('## 主动数据图表'),
+      'proactive charts enabled by default in system prompt'
+    )
     const reminder = lastReq.messages.findLast((m) => m.role === 'latest_reminder')?.content ?? ''
     assert(
       reminder.includes('浙江省杭州市西湖区'),
@@ -401,7 +405,15 @@ try {
       .getByRole('link', { name: 'Open-Meteo' })
       .waitFor()
 
-    // 图表交互：摘要指标、口径、来源链接、点按查看数值、键盘切换、数据表/代码切换
+    // 图表交互：摘要指标、口径、来源链接、点按查看数值、键盘切换、仅显示「图表」与「数据表」（无「代码」）
+    const lineCard = page
+      .locator('.md-code-block')
+      .filter({ has: page.locator('[data-chart-type="line"]') })
+    assert.equal(
+      await lineCard.getByRole('button', { name: '代码', exact: true }).count(),
+      0,
+      'chart block must not show Code button'
+    )
     await page.getByText('24°C').waitFor()
     await page.getByText('日最高/最低气温，摄氏度，当地时区').waitFor()
     await page.locator('[data-chart-point="2"]').click()
@@ -423,18 +435,31 @@ try {
     await page.locator('[data-chart-type="line"]').getByRole('link', { name: 'Open-Meteo' }).click()
     await page.waitForFunction(() => window.__openedLinks.includes('https://open-meteo.com/'))
 
-    // 切换数据表与代码
-    await page.getByRole('button', { name: '数据表', exact: true }).click()
-    await page.locator('table').getByText('周三').waitFor()
-    await page.getByRole('button', { name: '代码', exact: true }).click()
-    await page
-      .locator('pre')
-      .filter({ hasText: '"type": "line"' })
-      .or(page.locator('pre').filter({ hasText: '"type":"line"' }))
-      .first()
-      .waitFor()
-    await page.getByRole('button', { name: '图表', exact: true }).click()
-    await page.locator('[data-chart-type="line"] svg').waitFor()
+    // 切换数据表与图表（无代码页签），复制按钮输出可读文本而非原始 JSON
+    await lineCard.getByRole('button', { name: '数据表', exact: true }).click()
+    await lineCard.locator('table').getByText('周三').waitFor()
+    await lineCard.getByRole('button', { name: '图表', exact: true }).click()
+    await lineCard.locator('[data-chart-type="line"] svg').waitFor()
+
+    await page.evaluate(() => {
+      window.__copiedText = ''
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: async (text) => {
+            window.__copiedText = text
+          },
+        },
+      })
+    })
+    await lineCard.getByRole('button', { name: '复制', exact: true }).click()
+    const copiedChartText = await page.evaluate(() => window.__copiedText)
+    assert(
+      copiedChartText.includes('杭州未来 5 天气温走势') &&
+        copiedChartText.includes('周三') &&
+        !copiedChartText.includes('"series"'),
+      `unexpected copied chart text: ${copiedChartText}`
+    )
 
     // 分享预览将图表转为可读纯文字，而非原始 JSON
     await page.getByRole('button', { name: '分享回答' }).last().click()
@@ -452,6 +477,68 @@ try {
     )
     await shareDialog.getByRole('button', { name: '关闭', exact: true }).click()
     await shareDialog.waitFor({ state: 'detached' })
+
+    // 1f. 询问最近汇率且未开智能搜索 -> 不编造数据，提示智能搜索未开启并提供一键开启入口
+    h.setReply('当前未开启智能搜索，暂时无法查询最近美元兑人民币汇率。请开启智能搜索后再试。')
+    await page.locator('textarea').fill('帮我看看最近美元兑人民币的汇率')
+    await page.getByRole('button', { name: '发送', exact: true }).click()
+    await page.getByText('未开启智能搜索，无法获取最新汇率等实时数据').waitFor()
+    const fxReq = chats.at(-1)
+    assert(
+      !fxReq.tools.some((tool) => tool.type === 'deepseek_web_search'),
+      'fx query should not silently force search'
+    )
+    const fxUser = fxReq.messages.findLast((m) => m.role === 'user')?.content ?? ''
+    assert(
+      fxUser.includes('未开启「智能搜索」'),
+      'fx turn should instruct model to remind search is off'
+    )
+    await page.getByRole('button', { name: '开启智能搜索', exact: true }).click()
+    await page.getByText('已开启智能搜索，可重新生成或重新提问').waitFor()
+    assert.equal(await page.evaluate(() => localStorage.getItem('chat-demo:search')), 'true')
+    // 通过输入栏按钮关闭智能搜索以继续后续测试
+    await page.getByRole('button', { name: '智能搜索', exact: true }).click()
+    assert.equal(await page.evaluate(() => localStorage.getItem('chat-demo:search')), 'false')
+
+    // 1g. 在「通用设置 → 对话」关闭「主动生成图表」-> 普通天气查询不附图表提示，仅明确要求画图时附带
+    const dlg2 = await openGeneralSettings(page)
+    await dlg2.getByRole('button', { name: '对话', exact: true }).click()
+    const proactiveSwitch = dlg2.getByRole('switch', { name: '主动生成图表' })
+    assert.equal(await proactiveSwitch.isChecked(), true, 'proactive charts defaults on')
+    await proactiveSwitch.click()
+    assert.equal(await proactiveSwitch.isChecked(), false)
+    assert.equal(
+      await page.evaluate(() => localStorage.getItem('chat-demo:proactive-charts')),
+      'false'
+    )
+    await closeSettings(page, dlg2)
+
+    h.setReply('东京明天晴，10°C 到 18°C。')
+    await page.locator('textarea').fill('帮我看看东京最近的天气')
+    await page.getByRole('button', { name: '发送', exact: true }).click()
+    await page.getByText('东京明天晴，10°C 到 18°C。').waitFor()
+    const onDemandNoChartReq = chats.at(-1)
+    assert(
+      !onDemandNoChartReq.system.includes('## 主动数据图表'),
+      'system should not include proactive chart prompt when off'
+    )
+    const onDemandNoChartUser =
+      onDemandNoChartReq.messages.findLast((m) => m.role === 'user')?.content ?? ''
+    assert(
+      !onDemandNoChartUser.includes('```chart'),
+      'on-demand mode should not request chart unless user asks'
+    )
+
+    h.setReply('好的，给你画柱状图。')
+    await page.locator('textarea').fill('帮我画一个柱状图对比 Q1 100 Q2 150 Q3 200')
+    await page.getByRole('button', { name: '发送', exact: true }).click()
+    await page.getByText('好的，给你画柱状图。').waitFor()
+    const onDemandWithChartUser =
+      chats.at(-1).messages.findLast((m) => m.role === 'user')?.content ?? ''
+    assert(
+      onDemandWithChartUser.includes('```chart'),
+      'on-demand mode should include chart guide when user explicitly asks'
+    )
 
     // 1d. 当地活动与营业时间 -> 自动启用 deepseek_web_search 且不需用户手动打开搜索开关
     h.setReply('本周末西湖区有多场展览活动。')
@@ -495,8 +582,25 @@ try {
     await page.getByRole('button', { name: '发送', exact: true }).click()
     await page.getByRole('heading', { name: '2026 季度营收' }).waitFor()
     await page.getByRole('heading', { name: '渠道占比' }).waitFor()
-    await page.getByText('图表数据格式无效，可切换为代码查看原文。').waitFor()
+    await page.getByText('图表数据未能解析，可尝试重新生成。').waitFor()
     await page.locator('.md-mermaid-diagram svg').waitFor()
+    // Mermaid 代码块仍保留「代码」切换，而图表卡片无「代码」按钮
+    assert.equal(
+      await page
+        .locator('.md-code-block')
+        .filter({ has: page.locator('.md-mermaid-diagram') })
+        .getByRole('button', { name: '代码', exact: true })
+        .count(),
+      1
+    )
+    assert.equal(
+      await page
+        .locator('.md-code-block')
+        .filter({ has: page.locator('[data-chart-type="bar"]') })
+        .getByRole('button', { name: '代码', exact: true })
+        .count(),
+      0
+    )
 
     // 定位权限被拒时显示提示与「前往设置」快捷入口
     await page.getByText('未获得定位权限，未能识别当前地区').waitFor()

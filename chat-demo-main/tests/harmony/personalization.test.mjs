@@ -335,7 +335,10 @@ try {
   assert(await settings.getByRole('switch', { name: '自动记住新信息' }).isDisabled())
   await closeSettings()
   before = await send('再聊一句，我最近在学日语', '第 6 条回复。')
-  assert.equal(chats.at(-1).system, '该助手为DeepSeek，由深度求索公司创造。')
+  assert(chats.at(-1).system.startsWith('该助手为DeepSeek，由深度求索公司创造。'))
+  assert(!chats.at(-1).system.includes('## 用户提供的背景信息'))
+  assert(!chats.at(-1).system.includes('## 用户希望的回复方式'))
+  assert(!chats.at(-1).system.includes('## 关于用户的记忆'))
   await page.waitForTimeout(500)
   assert.equal(extractions.length, before)
 

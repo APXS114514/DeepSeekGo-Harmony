@@ -83,17 +83,20 @@ export const en = {
   mermaidLoading: 'Rendering diagram...',
   mermaidRenderFail: 'Mermaid rendering failed.',
   mermaidSwitchLabel: 'Toggle between Mermaid diagram and code',
-  chartSwitchLabel: 'Switch between chart, data table, and code',
+  chartSwitchLabel: 'Switch between chart and data table',
   chartViewChart: 'Chart',
   chartViewTable: 'Data table',
   chartLoading: 'Generating chart...',
-  chartRenderFail: 'Invalid chart data. Switch to Code to inspect the source.',
+  chartRenderFail: 'Could not render this chart. Try regenerating the reply.',
   chartTapToInspect: 'Tap the chart to inspect values',
   chartMetricsLabel: 'Summary metrics',
   chartLegendLabel: 'Legend',
   chartTableCategory: 'Category',
   chartCaliberLabel: 'Note: ',
   chartSourceLabel: 'Source: ',
+  settingsProactiveCharts: 'Proactive charts',
+  settingsProactiveChartsDescription:
+    'When on, the model decides when to generate charts for trends, forecasts, exchange rates, or comparisons. When off, charts are only created when you ask.',
   settingsAutoLocationDescription:
     'Uses HarmonyOS approximate location in the foreground for “here” and “nearby” questions. Only your city and administrative region are sent.',
   settingsAutoLocationDetected:
@@ -114,6 +117,10 @@ export const en = {
   localContextFallbackSwitchOff: 'System location is off; could not detect your area.',
   localContextFallbackFailed: 'Location unavailable; could not detect your area.',
   localContextOpenSettings: 'Open settings',
+  localContextSearchOffLiveData:
+    'Web Search is off; live exchange rates and quotes are unavailable.',
+  localContextEnableSearch: 'Turn on Search',
+  localContextSearchEnabled: 'Web Search enabled. Regenerate or ask again for live data.',
   toolSearchIntro: 'Searching for',
   messageSearching: 'Searching...',
   imageSearching: 'Searching by image...',

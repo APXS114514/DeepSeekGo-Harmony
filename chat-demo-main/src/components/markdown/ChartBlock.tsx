@@ -535,7 +535,7 @@ const PiePlot = ({
   )
 }
 
-export type ChartViewMode = 'chart' | 'table' | 'code'
+export type ChartViewMode = 'chart' | 'table'
 
 export const ChartBlock = memo(function ChartBlock({
   code,
@@ -543,7 +543,7 @@ export const ChartBlock = memo(function ChartBlock({
   loading,
 }: {
   code: string
-  view: Exclude<ChartViewMode, 'code'>
+  view: ChartViewMode
   loading: boolean
 }) {
   const t = useTranslate()
